@@ -1,0 +1,55 @@
+# Configuración del modelo de viabilidad de CPD (data center).
+# AVISO: todos los umbrales y precios son valores INICIALES "a calibrar" con datos reales.
+
+pesos:                       # Suman 1.0 (la app los renormaliza si el usuario los cambia)
+  energia: 0.25
+  agua_refrigeracion: 0.15
+  conectividad: 0.15
+  riesgos_naturales: 0.10
+  suelo_regulatorio: 0.10
+  costes: 0.15
+  mercado_talento: 0.05
+  impacto: 0.05
+
+umbrales:                    # a calibrar
+  dist_subestacion_max_km: 25          # CPD > 20 MW: distancia superior -> No viable
+  umbral_potencia_subestacion_mw: 20   # a partir de esta potencia TI aplica el filtro de distancia
+  zona_inundable_ko: true              # zona inundable -> No viable
+  red_natura_ko: true                  # Red Natura 2000 -> No viable
+  peligrosidad_sismica_condicionado_g: 0.16   # NCSE-02 ab >= 0.16 g -> condicionado
+  estres_hidrico_alto: 0.7             # índice 0-1: con evaporativa/adiabática -> No viable; con aire/inmersión -> condicionado
+  temperatura_max_hist_condicionado_c: 44
+  suelo_industrial_min_ha: 10          # menos suelo industrial disponible -> condicionado
+
+precios:
+  precio_electricidad_eur_mwh: 75
+  precio_agua_eur_m3: 2.0
+  salario_medio_eur: 45000
+  mantenimiento_pct_inversion: 0.02
+  impuestos_locales_pct_inversion: 0.005   # aproximación (IBI, tasas), a calibrar
+  factor_emision_t_mwh: 0.10               # t CO2 por MWh no renovable
+  tasa_descuento: 0.07
+  precio_venta_eur_kw_mes: 120
+  ocupacion: 0.85
+  repercusion_energia_pct: 0.8             # parte del coste eléctrico facturada al cliente (colocation), a calibrar
+
+cpd_por_defecto:             # coinciden con los valores por defecto de CPDParams
+  potencia_ti_mw: 50
+  factor_carga: 0.8
+  pue: 1.3
+  wue_l_kwh: 0.5
+  tipo_refrigeracion: aire   # aire | evaporativa | adiabatica | inmersion
+  pct_renovable: 0.8
+  autoproduccion_mwh: 0
+  inversion_eur: 400000000
+  vida_util_anos: 20
+  personal: 60
+  latencia_max_ms: 10
+  tier: III
+
+terreno:
+  superficie_ha_por_mw: 0.1    # ~5 ha para un CPD de 50 MW de TI (supuesto, a calibrar)
+
+latencia:
+  ms_rtt_por_km: 0.01          # ~5 µs/km por sentido en fibra => ~0.01 ms de RTT por km
+  factor_ruta: 1.5             # factor de ruta sobre la distancia en línea recta
