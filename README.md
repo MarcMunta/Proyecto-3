@@ -12,10 +12,11 @@ municipio, el sistema:
 
 Proyecto del máster *FP IA y Big Data* (Stucom). Entrega: 15/12/2026.
 
-> **AVISO – datos de demostración sintéticos.** Los indicadores de `data/demo/municipios_demo.csv` son
-> **inventados aunque plausibles** (los nombres de municipio, códigos INE y coordenadas sí son reales). Sirven
-> para probar el sistema y no deben usarse para tomar decisiones. Cada fila lleva `origen_datos = "DEMO sintético"`.
-> La única fuente de datos real incluida es la demanda mensual de REData (`data/clean/`).
+> **AVISO – datos de demostración sintéticos.** La aplicación todavía usa `data/demo/municipios_demo.csv`, cuyos
+> indicadores son **inventados aunque plausibles** (los nombres de municipio, códigos INE y coordenadas sí son
+> reales). Cada fila lleva `origen_datos = "DEMO sintético"`. Los **datos reales** ya están descargados
+> (fase de ingesta, ver [Datos reales](#datos-reales-fase-de-ingesta)); falta transformarlos y unirlos en la
+> tabla maestra que sustituirá al CSV de demostración.
 
 ## Estructura
 
@@ -27,19 +28,26 @@ p3-cpd/
   .env.example              # AEMET_API_KEY, ESIOS_TOKEN (no usados aún)
   config/settings.yaml      # pesos, umbrales, precios y parámetros por defecto
   data/
-    demo/municipios_demo.csv  # 28 municipios, datos SINTÉTICOS
-    raw/                      # JSON crudos de REData (ignorado por git)
+    demo/municipios_demo.csv  # 28 municipios, datos SINTÉTICOS (usados por la app)
+    raw/                      # capa raw del Data Lake (ignorada por git, salvo el registro)
+      _registro_descargas.csv #   fuente, URL, fecha y tamaño de cada descarga (sí está en git)
+      municipios/ demografia/ energia/ agua/   # datos oficiales reales (ver docs/datos)
     clean/                    # CSV limpios (ignorado por git)
-    curated/                  # reservado
+    curated/                  # tabla maestra (pendiente)
+  docs/datos/
+    README.md                 # informe de origen de datos (borrador)
+    manifiesto_raw_2026-11-09.csv  # SHA-256 de cada fichero raw
+  src/ingesta/              # fase de ingesta: 01_municipios, 02_demografia, 03_energia, 04_agua (+ utils)
   src/cpd/
     config.py               # carga de settings.yaml y rutas
     simulator.py            # CPDParams y fórmulas (energía, agua, OPEX, CO2, latencia, VAN...)
     scoring.py              # filtros, sub-scores, score global, ranking, escenarios
     forecast.py             # previsión mensual baseline (tendencia + estacionalidad)
-    etl/ree.py              # extractor REData (demanda mensual)
+    etl/ree.py              # extractor REData (demanda mensual nacional)
   app/streamlit_app.py      # simulador y dashboard (6 pestañas)
-  tests/                    # pytest: simulador, scoring, previsión
+  tests/                    # pytest: simulador, scoring, previsión, ingesta
   scripts/run_app.ps1       # activa el venv y lanza Streamlit
+  scripts/descargar_datos_raw.ps1  # baja los datos raw de la Release de GitHub
 ```
 
 ## Instalación (Windows, PowerShell)
@@ -77,7 +85,27 @@ La barra lateral permite cambiar los parámetros del CPD y los pesos del score g
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-## Descargar la demanda real (REData)
+## Datos reales (fase de ingesta)
+
+Descargados el 09/11/2026 de fuentes oficiales (INE, Eurostat GISCO, SEPE, Red Eléctrica, MITECO y
+WRI Aqueduct): municipios, demografía, renta, estudios, paro, capacidad de acceso de la red eléctrica,
+demanda y generación por comunidad autónoma, embalses y estrés hídrico. El detalle de cada fuente, su
+cobertura, sus licencias y los avisos para la limpieza está en [`docs/datos/README.md`](docs/datos/README.md).
+
+Los ficheros pesan 490 MB y no caben en git, así que se obtienen de una de estas dos formas:
+
+```powershell
+# Opción 1: copia del 09/11/2026 publicada como Release (zip de 103 MB, con comprobación SHA-256)
+powershell -ExecutionPolicy Bypass -File scripts\descargar_datos_raw.ps1
+
+# Opción 2: volver a descargar desde las fuentes oficiales
+.\.venv\Scripts\python.exe src\ingesta\01_municipios.py
+.\.venv\Scripts\python.exe src\ingesta\02_demografia.py
+.\.venv\Scripts\python.exe src\ingesta\03_energia.py
+.\.venv\Scripts\python.exe src\ingesta\04_agua.py
+```
+
+## Descargar la demanda nacional (REData)
 
 No requiere clave. Desde la raíz del proyecto:
 
@@ -114,4 +142,5 @@ Genera `data/raw/ree/<YYYYMMDD>/demanda_<año>.json` y `data/clean/ree_demanda_m
 - El PUE estimado y la latencia son aproximaciones; la latencia usa la distancia en línea recta al IXP más
   próximo por la fórmula de `simulator.latencia_rtt_ms`.
 - La previsión no modela ciclos económicos, regulación ni el efecto de un nuevo CPD sobre la demanda.
-- Los datos de municipios son sintéticos; el ETL de REData sí usa datos reales.
+- La aplicación sigue usando los municipios sintéticos: los datos reales ya están en `data/raw/`, pero falta la
+  fase de transformación (limpieza, unión por código INE y tabla maestra en `data/curated/`).

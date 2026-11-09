@@ -12,6 +12,7 @@ dependencies = []
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["cpd*"]   # src/ingesta son scripts sueltos, no un paquete
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
