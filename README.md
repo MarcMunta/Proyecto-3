@@ -47,7 +47,8 @@ p3-cpd/
 Requisitos: Python 3.13 y Git.
 
 ```powershell
-cd C:\Users\marcm\develop\p3-cpd
+git clone https://github.com/MarcMunta/Proyecto-3.git
+cd Proyecto-3
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
