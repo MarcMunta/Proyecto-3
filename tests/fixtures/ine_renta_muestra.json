@@ -1,0 +1,7 @@
+[
+ {"COD":"R0","Nombre":"Total Nacional. Dato base. Renta neta media por persona. ","Data":[{"Anyo":2024,"Valor":15948.0,"Secreto":false}]},
+ {"COD":"R1","Nombre":"Almer\ufffda. Dato base. Renta neta media por persona. ","Data":[{"Anyo":2024,"Valor":12100.0,"Secreto":false}]},
+ {"COD":"R2","Nombre":"Almer\ufffda. Dato base. Renta neta media por hogar. ","Data":[{"Anyo":2024,"Valor":28000.0,"Secreto":false}]},
+ {"COD":"R3","Nombre":"Madrid. Dato base. Mediana de la renta por unidad de consumo. ","Data":[{"Anyo":2024,"Valor":21000.0,"Secreto":false}]},
+ {"COD":"R4","Nombre":"Madrid. Dato base. Renta bruta media por persona. ","Data":[{"Anyo":2024,"Valor":20000.0,"Secreto":false}]}
+]

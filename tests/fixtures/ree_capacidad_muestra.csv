@@ -1,0 +1,8 @@
+Nombre y tensión del nudo;Código de subestación;Comunidad Autónoma;POSICIONES;;;CAPACIDAD DE ACCESO DISPONIBLE PARA SOLICITUDES CRITERIO GENERAL RDT;
+;;;;;;DEMANDA;ALMACENAMIENTO
+;;;;;;;
+ABADES 400;52065;Castilla y León;;;;1500;0
+ABADES 220;52065;Castilla y León;;;;500;0
+ABADIANO 220;50000;País Vasco;;;;920;0
+NUDO SIN DATO;50001;Cataluña;;;;N/A;0
+SANT JOAN 220;51000;Cataluña;;;;300;0

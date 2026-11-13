@@ -1,0 +1,6 @@
+;;;;PARO REGISTRADO POR MUNICIPIOS DESGLOSADO POR SEXO, TRAMOS DE EDAD Y SECTOR DE LA ACTIVIDAD ECONÓMICA;;;;;;;;;;;;;;;
+Código mes ;mes;Código de CA;Comunidad Autónoma;Codigo Provincia;Provincia;Codigo Municipio; Municipio;total Paro Registrado;Paro hombre edad < 25;Paro hombre edad 25 -45 ;Paro hombre edad >=45;Paro mujer edad < 25;Paro mujer edad 25 -45 ;Paro mujer edad >=45;Paro Agricultura;Paro Industria;Paro Construcción;Paro Servicios;Paro Sin empleo Anterior
+202601;Enero de 2026;1;Andalucía;4;Almería;04001;Abla;65;0;10;24;0;10;21;10;<5;5;45;<5
+202601;Enero de 2026;1;Andalucía;4;Almería;04002;Abrucena;30;0;5;10;0;5;10;5;<5;<5;20;<5
+202601;Enero de 2026;11;Andalucía;11;Cádiz;11001;Algeciras;1000;1;100;200;1;100;300;100;10;20;500;10
+202601;Enero de 2026;16;País Vasco;48;Bizkaia;48020;Bilbao;2000;3;200;400;3;200;600;200;30;40;900;20

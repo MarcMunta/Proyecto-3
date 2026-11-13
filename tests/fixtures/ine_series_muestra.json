@@ -1,0 +1,7 @@
+[
+ {"COD":"A","Nombre":"Total Nacional. Total. Total habitantes. Personas. ","Data":[{"Anyo":2024,"Valor":49000000.0,"Secreto":false}]},
+ {"COD":"B","Nombre":"Almer\ufffda. Total. Total habitantes. Personas. ","Data":[{"Anyo":2024,"Valor":731000.0,"Secreto":false},{"Anyo":2023,"Valor":730000.0,"Secreto":false}]},
+ {"COD":"C","Nombre":"Almer\ufffda. Hombres. Total habitantes. Personas. ","Data":[{"Anyo":2024,"Valor":370000.0,"Secreto":false}]},
+ {"COD":"D","Nombre":"Madrid. Total. Total habitantes. Personas. ","Data":[{"Anyo":2024,"Valor":6900000.0,"Secreto":false}]},
+ {"COD":"E","Nombre":"Madrid. Total. Total habitantes. Personas. ","Data":[{"Anyo":2023,"Valor":6800000.0,"Secreto":true}]}
+]

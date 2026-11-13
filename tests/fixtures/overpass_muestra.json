@@ -1,0 +1,6 @@
+{"version":0.6,"elements":[
+ {"type":"node","id":1,"lat":40.42,"lon":-3.70,"tags":{"power":"substation","voltage":"400000"}},
+ {"type":"way","id":2,"center":{"lat":41.39,"lon":2.17},"tags":{"power":"substation","voltage":"220000;400000"}},
+ {"type":"node","id":3,"lat":40.43,"lon":-3.71,"tags":{"power":"substation","voltage":"220000"}},
+ {"type":"node","id":4,"lat":-30.0,"lon":-30.0,"tags":{"power":"substation","voltage":"400000"}}
+]}

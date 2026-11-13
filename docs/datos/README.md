@@ -61,6 +61,11 @@ Los ficheros raw no están en el repositorio: el mayor pesa 260 MB y GitHub no a
   autónoma y por nudo de la red de transporte.
 - **WRI Aqueduct:** el nivel "province" equivale a comunidad autónoma en España, no a provincia.
 
+## Datos por API (capa actualizable)
+
+Tablas por provincia (52) obtenidas por API, con histórico y tiempo real: ver [`tablas_api.md`](tablas_api.md)
+(columnas, unidades, endpoints, granularidad, cobertura y limitaciones).
+
 ## Fuentes en tiempo real
 
 Qué fuentes se actualizan en minutos, horas o días, cuáles se pueden recopilar sin clave y qué problemas

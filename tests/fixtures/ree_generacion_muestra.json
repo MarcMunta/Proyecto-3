@@ -1,0 +1,9 @@
+{"data":{"type":"Generación por tecnología","id":"gen1","attributes":{"title":"Generación por tecnología"}},
+ "included":[
+  {"type":"Hidráulica","id":"10330","groupId":"1","attributes":{"title":"Hidráulica","type":"Renovable","values":[
+     {"value":600.0,"percentage":0.6,"datetime":"2025-06-01T00:00:00.000+02:00"}]}},
+  {"type":"Cogeneración","id":"10400","groupId":"2","attributes":{"title":"Cogeneración","type":"No-Renovable","values":[
+     {"value":400.0,"percentage":0.4,"datetime":"2025-06-01T00:00:00.000+02:00"}]}},
+  {"type":"Generación total","id":"999","attributes":{"title":"Generación total","type":"total","values":[
+     {"value":1000.0,"percentage":1.0,"datetime":"2025-06-01T00:00:00.000+02:00"}]}}
+ ]}

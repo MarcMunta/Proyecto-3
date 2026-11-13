@@ -10,6 +10,7 @@ data/clean/*
 !data/clean/.gitkeep
 data/curated/*
 !data/curated/.gitkeep
+data/almacen/
 *.egg-info/
 build/
 dist/

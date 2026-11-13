@@ -1,0 +1,12 @@
+{"data":{"type":"Precios","id":"prices","attributes":{"title":"Precios"}},
+ "included":[
+  {"type":"PVPC","id":"1001","attributes":{"title":"PVPC","values":[
+     {"value":100.0,"percentage":0.5,"datetime":"2026-10-01T00:00:00.000+02:00"},
+     {"value":120.0,"percentage":0.5,"datetime":"2026-10-01T01:00:00.000+02:00"},
+     {"value":90.0,"percentage":0.5,"datetime":"2026-10-02T00:00:00.000+02:00"}]}},
+  {"type":"Precio mercado spot","id":"600","attributes":{"title":"Precio mercado spot","values":[
+     {"value":80.0,"percentage":0.5,"datetime":"2026-10-01T00:00:00.000+02:00"},
+     {"value":84.0,"percentage":0.5,"datetime":"2026-10-01T00:15:00.000+02:00"},
+     {"value":60.0,"percentage":0.5,"datetime":"2026-10-02T00:00:00.000+02:00"},
+     {"value":null,"percentage":null,"datetime":"2026-10-02T00:15:00.000+02:00"}]}}
+ ]}
