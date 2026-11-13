@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-13T19:08:11.277Z",
+  "title": "Design System: Tablero de Salidas",
+  "extensions": {
+    "colorMeta": {
+      "suelo": { "role": "neutral", "displayName": "Suelo (negro de panel)", "canonical": "#111214", "tonalRamp": ["#111214", "#111214", "#111214", "#111214", "#111214", "#111214", "#111214", "#111214"] },
+      "contexto": { "role": "neutral", "displayName": "Contexto (Portugal y Francia en el mapa)", "canonical": "#1d1e21", "tonalRamp": ["#111214", "#131416", "#141518", "#16171a", "#18191b", "#1a1b1d", "#1b1c1f", "#1d1e21"] },
+      "junta": { "role": "neutral", "displayName": "Junta (hueco hundido)", "canonical": "#08090a", "tonalRamp": ["#111214", "#101113", "#0e0f11", "#0d0e10", "#0c0d0e", "#0b0c0d", "#090a0b", "#08090a"] },
+      "modulo": { "role": "neutral", "displayName": "Módulo (cara del panel)", "canonical": "#1b1d20", "tonalRamp": ["#111214", "#121416", "#141517", "#151719", "#17181b", "#181a1d", "#1a1b1e", "#1b1d20"] },
+      "modulo-alto": { "role": "neutral", "displayName": "Módulo alto (paso y foco)", "canonical": "#24272b", "tonalRamp": ["#111214", "#141517", "#16181b", "#191b1e", "#1c1e21", "#1f2124", "#212428", "#24272b"] },
+      "regla": { "role": "neutral", "displayName": "Regla (1 px)", "canonical": "#2e3136", "tonalRamp": ["#111214", "#151619", "#191b1e", "#1d1f23", "#222427", "#26282c", "#2a2d31", "#2e3136"] },
+      "caracter": { "role": "primary", "displayName": "Blanco de carácter (luz cálida)", "canonical": "#f1ecdf", "tonalRamp": ["#111214", "#313131", "#51504e", "#716f6b", "#918f88", "#b1aea5", "#d1cdc2", "#f1ecdf"] },
+      "caracter-2": { "role": "neutral", "displayName": "Carácter 2 (texto secundario)", "canonical": "#b6b0a3", "tonalRamp": ["#111214", "#292928", "#403f3d", "#585651", "#6f6c66", "#87837a", "#9e998f", "#b6b0a3"] },
+      "caracter-3": { "role": "neutral", "displayName": "Carácter 3 (texto terciario)", "canonical": "#8f8a80", "tonalRamp": ["#111214", "#232323", "#353433", "#474542", "#595752", "#6b6861", "#7d7971", "#8f8a80"] },
+      "amarillo": { "role": "accent", "displayName": "Amarillo de selección", "canonical": "#ffcc33", "tonalRamp": ["#111214", "#332d18", "#55471d", "#776221", "#997c26", "#bb972a", "#ddb12f", "#ffcc33"] },
+      "tinta-sobre-activo": { "role": "neutral", "displayName": "Tinta sobre amarillo", "canonical": "#141414", "tonalRamp": ["#111214", "#111214", "#121314", "#121314", "#131314", "#131314", "#141414", "#141414"] },
+      "viable": { "role": "semantic", "displayName": "Viable (verde)", "canonical": "#3fd27f", "tonalRamp": ["#111214", "#182d23", "#1e4933", "#256442", "#2b8051", "#329b60", "#38b770", "#3fd27f"] },
+      "condiciones": { "role": "semantic", "displayName": "Viable con condiciones (naranja)", "canonical": "#ff9c40", "tonalRamp": ["#111214", "#33261a", "#553921", "#774d27", "#99612d", "#bb7533", "#dd883a", "#ff9c40"] },
+      "no-viable": { "role": "semantic", "displayName": "No viable (rojo)", "canonical": "#ff5b4b", "tonalRamp": ["#111214", "#331c1c", "#552724", "#77312c", "#993c33", "#bb463b", "#dd5143", "#ff5b4b"] },
+      "sin-datos": { "role": "semantic", "displayName": "Sin datos (gris, aro)", "canonical": "#6c6f75", "tonalRamp": ["#111214", "#1e1f22", "#2b2d30", "#383a3e", "#45474b", "#525459", "#5f6267", "#6c6f75"] },
+      "puntuacion-0": { "role": "data", "displayName": "Score 0 (panel apagado)", "canonical": "#2a2a2c", "tonalRamp": ["#111214", "#151517", "#18191b", "#1c1c1e", "#1f2022", "#232325", "#262729", "#2a2a2c"] },
+      "puntuacion-25": { "role": "data", "displayName": "Score 25", "canonical": "#4b463e", "tonalRamp": ["#111214", "#19191a", "#222120", "#2a2826", "#32302c", "#3a3732", "#433f38", "#4b463e"] },
+      "puntuacion-50": { "role": "data", "displayName": "Score 50", "canonical": "#7d715c", "tonalRamp": ["#111214", "#20201e", "#302d29", "#3f3b33", "#4f483d", "#5e5647", "#6e6352", "#7d715c"] },
+      "puntuacion-75": { "role": "data", "displayName": "Score 75", "canonical": "#bdaa80", "tonalRamp": ["#111214", "#2a2823", "#423d33", "#5b5342", "#736952", "#8c7f61", "#a49471", "#bdaa80"] },
+      "puntuacion-100": { "role": "data", "displayName": "Score 100 (panel encendido)", "canonical": "#f3e3b8", "tonalRamp": ["#111214", "#31302b", "#524e43", "#726c5a", "#928972", "#b2a789", "#d3c5a1", "#f3e3b8"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Cartel de score", "purpose": "Score grande de la ficha de provincia (flap-cartel). Solo ahí." },
+      "board": { "displayName": "Tablero", "purpose": "Estado y nombres en split-flap (flap-l, flap-xl). Cifras y códigos en mono." },
+      "headline": { "displayName": "Encabezado de tablero", "purpose": "Título Provincias del tablero." },
+      "title": { "displayName": "Título de bloque", "purpose": "Bloques de la ficha (Energía, Agua, Costes…)." },
+      "body": { "displayName": "Prosa", "purpose": "Explicaciones y motivos, medida máxima 60–70 ch." },
+      "label": { "displayName": "Etiqueta de dato", "purpose": "Cabeceras de columna, origen, teletipo, ejes. Tamaño observado 0.6–0.8 rem; por debajo de lo que pide la proyección (no es regla)." }
+    },
+    "shadows": [
+      { "name": "pista-flotante", "value": "0 8px 24px rgb(0 0 0 / 0.45)", "purpose": "Etiqueta que sigue al cursor sobre el mapa. Única sombra difusa del sistema." },
+      { "name": "anillo-panel", "value": "0 0 0 1px #2e3136", "purpose": "Carcasa del panel de salidas y controles del mapa." },
+      { "name": "anillo-junta", "value": "0 0 0 1px #08090a", "purpose": "Módulos de cifra y gráfico." },
+      { "name": "regla-franja", "value": "0 1px 0 #2e3136", "purpose": "Regla inferior de la franja superior (una regla, no una sombra)." }
+    ],
+    "motion": [
+      { "name": "flap-cae", "value": "110ms cubic-bezier(0.25, 0.8, 0.35, 1)", "purpose": "Cada casilla de flap gira de rotateX(-85deg) a 0 y de brillo 0.55 a 1. Se desactiva con reducir movimiento." },
+      { "name": "flap-tick", "value": "55ms por paso, retardo 30ms por fila (máx. 26 filas)", "purpose": "Ritmo del giro en JS: las letras recorren el alfabeto antes de asentarse; escalonado de filas." },
+      { "name": "vuelo-mapa", "value": "1700ms fitBounds, maxZoom 9.5", "purpose": "Cámara al elegir provincia o al volver a España. Duración 0 con reducir movimiento." },
+      { "name": "revelado-ficha", "value": "380ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Revelado vertical de la ficha con clip-path. Se desactiva con reducir movimiento." },
+      { "name": "latido", "value": "2400ms ease-in-out infinite, opacidad 1 a 0.25 en el 50 %", "purpose": "Cuadrado de EN DIRECTO y del sello del teletipo. El de origen se desactiva con reducir movimiento; el del teletipo no (divergencia pendiente)." }
+    ],
+    "breakpoints": [
+      { "name": "escritorio-amplio", "value": "1280px", "purpose": "Filas del tablero sin texto de estado (solo lámpara)." },
+      { "name": "portatil", "value": "1100px", "purpose": "Tablero más estrecho (minmax(21rem, 0.9fr)); leyenda 13.5rem." },
+      { "name": "tableta", "value": "900px", "purpose": "Escena en bloque; mapa de altura clamp(24rem, 112vw, 62svh); teletipo en líneas; reloj oculto." },
+      { "name": "movil", "value": "560px", "purpose": "Marca sin subtítulo; etiquetas de provincia ocultas; leyenda compacta; columna de dato oculta." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Split-flap cell",
+      "kind": "custom",
+      "refersTo": "flap-cell",
+      "description": "Una casilla de tablero split-flap con su mitad superior e inferior y la junta negra central.",
+      "html": "<span class=\"ds-flap\"><span class=\"ds-flap-c\">T</span><span class=\"ds-flap-c\">4</span><span class=\"ds-flap-c\">2</span></span>",
+      "css": ".ds-flap{display:inline-flex;gap:.09em;font-family:\"Martian Mono Variable\",ui-monospace,Cascadia Mono,Consolas,monospace;font-stretch:78%;font-weight:520;font-size:1.55rem;line-height:1;color:#f1ecdf;font-variant-numeric:tabular-nums}.ds-flap-c{position:relative;display:inline-grid;place-items:center;min-width:1.04ch;padding:.16em .09em .13em;background:linear-gradient(180deg,#25282c 0 50%,#1d1f22 50% 100%);overflow:hidden}.ds-flap-c::after{content:\"\";position:absolute;inset:50% 0 auto;height:1px;background:rgb(0 0 0 / .9)}.ds-flap-c:hover{background:linear-gradient(180deg,#2c2f34 0 50%,#24272b 50% 100%)}"
+    },
+    {
+      "name": "Lámpara de estado",
+      "kind": "custom",
+      "refersTo": "status-lamp",
+      "description": "Cuatro formas de estado: círculo (Viable), triángulo (Con condiciones), aspa (No viable), aro (Sin datos). Siempre con etiqueta.",
+      "html": "<span class=\"ds-estado\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><circle cx=\"8\" cy=\"8\" r=\"6.5\" fill=\"#3fd27f\"/></svg>VIABLE</span> <span class=\"ds-estado\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M8 1.2 15.2 14.4H.8Z\" fill=\"#ff9c40\"/></svg>CONDIC.</span> <span class=\"ds-estado\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M2.5 2.5 13.5 13.5M13.5 2.5 2.5 13.5\" stroke=\"#ff5b4b\" stroke-width=\"3.4\" stroke-linecap=\"square\"/></svg>NO VIABLE</span>",
+      "css": ".ds-estado{display:inline-flex;align-items:center;gap:.45rem;font-family:\"Martian Mono Variable\",ui-monospace,Consolas,monospace;font-stretch:78%;font-size:.74rem;font-weight:560;letter-spacing:.04em;color:#f1ecdf}.ds-estado svg{flex:none;display:inline-block;vertical-align:middle}"
+    },
+    {
+      "name": "Fila de provincia (tablero)",
+      "kind": "card",
+      "refersTo": "fila",
+      "description": "Fila del panel de salidas: código, destino, estado con lámpara, score y dato. Sin datos: guiones en gris.",
+      "html": "<button class=\"ds-fila\" type=\"button\"><span class=\"ds-cod\">13</span><span class=\"ds-nombre\">Madrid</span><span class=\"ds-est\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><circle cx=\"8\" cy=\"8\" r=\"6.5\" fill=\"#3fd27f\"/></svg>VIABLE</span><span class=\"ds-score\">72</span></button>",
+      "css": ".ds-fila{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:.55rem;width:100%;padding:.4rem .7rem;background:#1b1d20;color:#f1ecdf;border:0;text-align:left;cursor:pointer}.ds-fila:hover,.ds-fila:focus-visible{background:#24272b}.ds-cod,.ds-score,.ds-est{font-family:\"Martian Mono Variable\",ui-monospace,Consolas,monospace;font-stretch:78%}.ds-cod{font-size:.95rem}.ds-nombre{font-size:.9rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.ds-est{display:flex;align-items:center;gap:.45rem;font-size:.74rem;font-weight:560;letter-spacing:.04em}.ds-score{font-size:1.05rem;text-align:right}"
+    },
+    {
+      "name": "Origen (etiqueta de cifra)",
+      "kind": "chip",
+      "refersTo": "origen-tag",
+      "description": "Etiqueta de procedencia de una cifra. Variante EN DIRECTO con cuadrado que late, DEMO con borde discontinuo, GISCO con borde de regla, SIN CONEXIÓN en rojo.",
+      "html": "<span class=\"ds-origen ds-origen-vivo\"><i></i>En directo 19:08 · REData</span> <span class=\"ds-origen ds-origen-demo\">Demo</span>",
+      "css": ".ds-origen{display:inline-flex;align-items:center;gap:.35em;padding:.25em .4em;border:1px solid #2e3136;color:#b6b0a3;font-family:\"Martian Mono Variable\",ui-monospace,Consolas,monospace;font-stretch:78%;font-size:.6rem;font-weight:600;line-height:1;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap}.ds-origen i{width:.5em;height:.5em;background:#f1ecdf;animation:ds-latido 2.4s ease-in-out infinite}.ds-origen-vivo{border-color:#b6b0a3;color:#f1ecdf}.ds-origen-demo{border-style:dashed;border-color:#8f8a80;color:#8f8a80}.ds-origen-error{border-color:#ff5b4b;color:#ff5b4b}@keyframes ds-latido{50%{opacity:.25}}@media (prefers-reduced-motion: reduce){.ds-origen i{animation:none}}"
+    },
+    {
+      "name": "Cifra (módulo)",
+      "kind": "card",
+      "refersTo": "cifra",
+      "description": "Módulo de cifra con etiqueta, valor en mono, unidad y origen. Las cifras clave usan la variante grande.",
+      "html": "<div class=\"ds-cifra ds-cifra-grande\"><dt>Inversión (CAPEX)</dt><dd><span class=\"ds-cifra-valor\">12,4<span class=\"ds-unidad\">M€</span></span><span class=\"ds-origen ds-origen-demo\">Demo</span></dd></div>",
+      "css": ".ds-cifra{display:grid;align-content:start;gap:.3rem;padding:.65rem .75rem .7rem;background:#1b1d20;box-shadow:0 0 0 1px #08090a}.ds-cifra dt{font-size:.76rem;font-weight:600;color:#b6b0a3}.ds-cifra dd{display:grid;justify-items:start;gap:.35rem;margin:0}.ds-cifra-valor{display:flex;align-items:baseline;flex-wrap:wrap;gap:.3rem;font-family:\"Martian Mono Variable\",ui-monospace,Consolas,monospace;font-stretch:80%;font-size:1.12rem;font-weight:520;font-variant-numeric:tabular-nums;color:#f1ecdf}.ds-cifra-grande .ds-cifra-valor{font-size:1.35rem}.ds-unidad{font-family:\"Archivo Variable\",system-ui,\"Segoe UI\",sans-serif;font-size:.74rem;font-weight:500;color:#b6b0a3}"
+    },
+    {
+      "name": "Botón de volver",
+      "kind": "button",
+      "refersTo": "volver",
+      "description": "Vuelve a la vista de España. Rectángulo de módulo con borde de regla; la tecla Esc aparece como ayuda con teclado.",
+      "html": "<button class=\"ds-volver\" type=\"button\">Toda España <kbd class=\"ds-kbd\">Esc</kbd></button>",
+      "css": ".ds-volver{display:inline-flex;align-items:center;gap:.5rem;padding:.4rem .7rem;background:#1b1d20;color:#f1ecdf;border:1px solid #2e3136;border-radius:0;font-weight:600;cursor:pointer}.ds-volver:hover{background:#24272b}.ds-volver:focus-visible{outline:2px solid #f1ecdf;outline-offset:2px}.ds-kbd{font-family:\"Martian Mono Variable\",ui-monospace,Consolas,monospace;font-size:.68rem;color:#8f8a80;background:#08090a;padding:.05em .3em}"
+    },
+    {
+      "name": "Buscador",
+      "kind": "input",
+      "refersTo": "buscador",
+      "description": "Campo de búsqueda de provincias: hueco hundido, borde de regla, radio cero.",
+      "html": "<input class=\"ds-buscar\" type=\"search\" placeholder=\"Buscar provincia o capital\" />",
+      "css": ".ds-buscar{width:100%;padding:.6rem .75rem;background:#08090a;border:1px solid #2e3136;border-radius:0;color:#f1ecdf;font:inherit;caret-color:#f1ecdf}.ds-buscar::placeholder{color:#8f8a80}.ds-buscar:focus-visible{outline:2px solid #f1ecdf;outline-offset:0}"
+    },
+    {
+      "name": "Conmutador de agregado",
+      "kind": "chip",
+      "refersTo": "conmutador-activo",
+      "description": "Dos opciones separadas por juntas de 1 px. La activa invierte: fondo carácter, texto suelo.",
+      "html": "<div class=\"ds-seg\"><span class=\"ds-seg-op ds-seg-on\">Mejor emplazamiento</span><span class=\"ds-seg-op\">Media provincial</span></div>",
+      "css": ".ds-seg{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#08090a}.ds-seg-op{display:grid;place-items:center;min-height:2.4rem;padding:.35rem;background:#1b1d20;color:#f1ecdf;text-align:center;line-height:1.15}.ds-seg-on{background:#f1ecdf;color:#111214;font-weight:650}"
+    }
+  ],
+  "narrative": {
+    "northStar": "El Tablero de Salidas",
+    "overview": "España como panel de salidas de una estación: cada provincia es un destino anunciado con su estado, su score y la hora de su dato. El mapa ocupa la izquierda (unos 62 % del ancho en escritorio) y es el protagonista; el tablero de la derecha (unos 38 %) lista las provincias como filas de módulos negros mate separados por juntas de 1 px. La densidad es alta pero ordenada: nada flota, nada redondea, todo se lee en filas.\n\nLa materia es la de un panel físico: módulos casi negros, caracteres split-flap blanco cálido en Martian Mono condensada, prosa en Archivo. El amarillo no decora; solo marca lo elegido. El tono de la rampa de score es cálido (de un panel apagado a un panel encendido), no un verde-rojo de semáforo. Las cifras se mueven como las letras de un tablero real: cada casilla gira y se asienta. El mapa vuela a su destino en 1,7 s.\n\nLa honestidad es parte del sistema: cada número dice de dónde viene (en directo, demo, supuesto, dato oficial o modelo), y un score nunca aparece sin sus motivos. Se rechaza de forma confirmada el panel oscuro de tarjetas de vidrio con KPI sueltos.",
+    "keyCharacteristics": [
+      "Negro mate en capas tonales, con juntas de 1 px en lugar de sombras.",
+      "Radio cero en todo el sistema.",
+      "Caracteres split-flap cálidos para cifras, nombres de provincia y estados.",
+      "Un solo acento (amarillo) reservado para la selección.",
+      "Lámparas de estado con forma propia (círculo, triángulo, aspa, aro): el estado nunca depende solo del color.",
+      "Rayado diagonal = sin datos, sin excepciones.",
+      "Origen visible en cada cifra (EN DIRECTO, DEMO, SUPUESTO, GISCO, MODELO, SIN CONEXIÓN)."
+    ],
+    "rules": [
+      { "name": "The Yellow Is Selection Rule", "body": "El amarillo señala solo lo activo: la provincia elegida y el emplazamiento elegido. No se usa para cabeceras, badges ni estados.", "section": "colors" },
+      { "name": "The Caps Are The Board Rule", "body": "Las mayúsculas pertenecen al tablero: casillas del flap, códigos, estados y etiquetas de dato. La prosa, los títulos largos y las explicaciones van en Archivo, en caja normal.", "section": "typography" },
+      { "name": "The Fluid Board Rule", "body": "Todo el sistema escala con la raíz fluida; no se fijan tamaños en píxeles para texto. Las dimensiones fijas son solo lámparas (12–26 px), marcadores del mapa, la muestra de rayado de la leyenda y los segmentos del medidor.", "section": "layout" },
+      { "name": "The Flat Board Rule", "body": "Nada flota en reposo. Una superficie se distingue por su escalón tonal o su junta, y solo la pista del mapa se separa del fondo con sombra.", "section": "elevation" },
+      { "name": "The Zero Radius Rule", "body": "Ninguna esquina se redondea. Si un elemento necesita diferenciarse, se hace con juntas, tonos o una forma de estado, no con radio.", "section": "shapes" },
+      { "name": "The Honest Origin Rule", "body": "Cada cifra de la ficha de provincia lleva su origen. Las lecturas del teletipo llevan su hora y la etiqueta de la tira, y las filas del tablero indican MODELO o DEMO en su columna Dato. Un precio nacional nunca se presenta como precio de provincia.", "section": "components" },
+      { "name": "The Hatching Means No Data Rule", "body": "El rayado indica ausencia de dato y no se usa para nada más.", "section": "components" },
+      { "name": "The Lamp Shape Rule", "body": "Un estado se lee por forma y color a la vez. Quitar la forma, o usar solo el color, no es válido.", "section": "components" }
+    ],
+    "dos": [
+      "Do poner el origen junto a cada cifra (EN DIRECTO con hora, DEMO, SUPUESTO, GISCO, MODELO o SIN CONEXIÓN).",
+      "Do marcar el estado con forma y color a la vez: círculo para Viable, triángulo para Con condiciones, aspa para No viable, aro para Sin datos.",
+      "Do reservar amarillo (#ffcc33) para la provincia o el emplazamiento activo.",
+      "Do usar el rayado solo para \"sin datos\".",
+      "Do mostrar cada score junto a sus motivos.",
+      "Do mantener radio cero, juntas de 1 px y escalones tonales en lugar de sombras.",
+      "Do mantener la casilla de flap en 110 ms y el vuelo de mapa en 1,7 s, y anularlos con reducir movimiento.",
+      "Do dar la electricidad y la demanda como nacionales (peninsulares) y decirlo en la etiqueta."
+    ],
+    "donts": [
+      "Don't redondear esquinas ni añadir sombras de caída como decoración.",
+      "Don't usar amarillo en cabeceras, badges, estados o decoración.",
+      "Don't usar rayado para algo que no sea ausencia de dato.",
+      "Don't quitar la forma de la lámpara para dejar solo el color.",
+      "Don't mostrar una cifra sin su origen, ni un número sin datos reales o modelados.",
+      "Don't presentar un precio o una demanda nacional como si fuera de provincia.",
+      "Don't inventar valores: sin datos se muestra \"sin datos todavía\" o un guion \"—\".",
+      "Don't escribir prosa en mayúsculas o mono; el mono es del tablero."
+    ]
+  }
+}

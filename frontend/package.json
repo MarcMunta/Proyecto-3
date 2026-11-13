@@ -1,0 +1,33 @@
+{
+  "name": "p3-cpd-mapa",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Mapa interactivo de España: viabilidad y rentabilidad de un CPD por provincia (Proyecto 3)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "data": "node scripts/run_export.mjs",
+    "geo": "node scripts/build_geo.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "5.3.0",
+    "@fontsource-variable/martian-mono": "5.3.0",
+    "maplibre-gl": "6.18.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/geojson": "7946.0.16",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "mapshaper": "0.7.101",
+    "typescript": "5.9.3",
+    "vite": "8.3.8",
+    "vitest": "5.1.0"
+  }
+}

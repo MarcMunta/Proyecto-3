@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+.impeccable/questions/
+.impeccable/live/
+.claude/
+.geo-tmp/

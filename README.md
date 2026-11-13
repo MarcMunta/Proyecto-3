@@ -79,6 +79,20 @@ o directamente: `.\.venv\Scripts\streamlit.exe run app\streamlit_app.py`. Se abr
 Pestañas: **Ranking**, **Mapa**, **Ficha municipio**, **Económico**, **Previsión demanda** y **Escenarios**.
 La barra lateral permite cambiar los parámetros del CPD y los pesos del score global.
 
+## Mapa interactivo (frontend)
+
+Mapa de España por provincias con zoom a sus municipios, ficha de viabilidad y rentabilidad, y precio de la luz,
+demanda y tiempo en directo. Está en [`frontend/`](frontend/README.md) (Vite + React + TypeScript + MapLibre):
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Los datos del modelo se regeneran con `npm run data` (llama a `cpd.scoring.evaluar()`); ver
+[frontend/README.md](frontend/README.md) para fuentes y qué datos son sintéticos.
+
 ## Cómo ejecutar los tests
 
 ```powershell
@@ -115,6 +129,19 @@ No requiere clave. Desde la raíz del proyecto:
 
 Genera `data/raw/ree/<YYYYMMDD>/demanda_<año>.json` y `data/clean/ree_demanda_mensual.csv`
 (columnas `fecha`, `demanda_mwh`). Sin ese CSV, la pestaña de previsión explica cómo generarlo.
+
+## Datos por API
+
+Capa de datos por provincia (52) que se refresca desde fuentes públicas programáticas (sin claves):
+
+```powershell
+.\.venv\Scripts\python.exe -m cpd.fuentes.actualizar            # completo e incremental
+.\.venv\Scripts\python.exe -m cpd.fuentes.actualizar --rapido   # solo tiempo real
+```
+
+Salidas en `data/curated/`: `panel_provincia_mes` (entrenamiento, provincia × mes desde 2015) y
+`provincias_actual` (52 filas con el último dato y campos de tiempo real). Fuentes, columnas y limitaciones:
+[`docs/datos/tablas_api.md`](docs/datos/tablas_api.md). Los fallos de una fuente no paran el resto y se muestran en el resumen.
 
 ## Metodología resumida
 
