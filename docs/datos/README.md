@@ -61,6 +61,13 @@ Los ficheros raw no están en el repositorio: el mayor pesa 260 MB y GitHub no a
   autónoma y por nudo de la red de transporte.
 - **WRI Aqueduct:** el nivel "province" equivale a comunidad autónoma en España, no a provincia.
 
+## Fuentes en tiempo real
+
+Qué fuentes se actualizan en minutos, horas o días, cuáles se pueden recopilar sin clave y qué problemas
+tienen: [`fuentes_tiempo_real.md`](fuentes_tiempo_real.md). El sondeo en vivo se repite con
+`.\.venv\Scripts\python.exe src\ingesta\sondeo_fuentes.py` y deja el resultado en
+[`sondeo_fuentes.csv`](sondeo_fuentes.csv).
+
 ## Pendiente de descargar
 
 - Clima: AEMET OpenData u Open-Meteo (temperatura, humedad, días de calor extremo).

@@ -1,0 +1,25 @@
+id,fuente,datos,frecuencia,acceso,estado,http,ms,ultimo_dato,edad_h,detalle,sondeo
+ree_demanda_tr,Red Eléctrica · REData,"Demanda peninsular real, prevista y programada",Cada 5 min (288 valores al día),API sin clave,OK,200,582,2026-11-13T19:00+01:00,0.2,"4 series; Prevista, Programada, Real, Programada total",2026-11-13T19:13+01:00
+ree_generacion_dia,Red Eléctrica · REData,Generación por tecnología,Diaria (día anterior),API sin clave,OK,200,482,2026-11-13T00:00+01:00,19.2,"15 series; Hidráulica, Nuclear, Carbón, Motores diésel",2026-11-13T19:13+01:00
+ree_renovable,Red Eléctrica · REData,Generación renovable / no renovable,Diaria,API sin clave,OK,200,454,2026-11-13T00:00+01:00,19.2,"2 series; Renovable, No renovable",2026-11-13T19:13+01:00
+ree_co2,Red Eléctrica · REData,Emisiones CO2 de la generación,Diaria,API sin clave,OK,200,460,2026-11-13T00:00+01:00,19.2,"9 series; Carbón, Motores diésel, Turbina de gas, Turbina de vapor",2026-11-13T19:13+01:00
+ree_precios_tr,Red Eléctrica · REData,Precio horario PVPC y mercado spot,Spot cada 15 min (incluye mañana); PVPC horario,API sin clave,OK,200,454,2026-11-13T23:45+01:00,-4.5,"2 series; PVPC, Precio mercado spot",2026-11-13T19:13+01:00
+ree_balance,Red Eléctrica · REData,Balance eléctrico nacional,Diaria,API sin clave,OK,200,388,2026-11-13T00:00+01:00,19.2,"21 series; Hidráulica, Eólica, Solar fotovoltaica, Solar térmica",2026-11-13T19:13+01:00
+esios,Red Eléctrica · ESIOS,"Más de 1.900 indicadores (demanda, precios, generación)",Tiempo real (minutos),Token gratuito por correo,Requiere clave,403,290,,,Sin token no devuelve datos (HTTP 403); token gratuito,2026-11-13T19:13+01:00
+omie,OMIE,Precio marginal del mercado diario,Diaria (~13:00 para el día siguiente),Ficheros públicos,OK,200,533,2026-11-14T23:59+01:00,-28.8,Fichero del 14/11: 96 periodos de precio,2026-11-13T19:13+01:00
+ree_capacidad,Red Eléctrica,Capacidad de acceso de demanda por nudo,Mensual,CSV público,OK,200,252,2026-11-03T00:00+01:00,259.2,Última publicación: 03/11/2026 (en el repo: 03/11/2026),2026-11-13T19:13+01:00
+aemet,AEMET OpenData,"Observación de estaciones (temperatura, humedad, viento)",Horaria,Clave gratuita por correo,Requiere clave,200,268,,,Sin api_key no devuelve datos (HTTP 200); api_key gratuito,2026-11-13T19:13+01:00
+open_meteo,Open-Meteo,Tiempo actual y previsión por coordenadas,Cada 15 min (modelos meteorológicos),API sin clave (uso no comercial),OK,200,309,2026-11-13T19:00+01:00,0.2,"3 puntos en 1 petición (Madrid, Barcelona, Sevilla): 13.5 °C, 18.3 °C, 19.1 °C",2026-11-13T19:13+01:00
+open_meteo_hist,Open-Meteo (ERA5),Temperatura horaria histórica,Diaria (hasta ayer),API sin clave (uso no comercial),OK,200,313,2026-11-12T23:00+01:00,20.2,Temperatura horaria ERA5 (reanálisis): sirve para horas de free cooling,2026-11-13T19:13+01:00
+miteco_embalses,MITECO · Boletín Hidrológico,Reserva de embalses,Semanal (martes),Fichero público,OK,200,238,2026-11-10T14:21+00:00,75.9,10.2 MB,2026-11-13T19:13+01:00
+ign_terremotos,IGN · Sismología,"Últimos terremotos (fecha, magnitud, lugar)",Continua (minutos),RSS público,OK,200,233,2026-11-13T07:30+01:00,11.7,17 terremotos recientes (incluye zonas cercanas fuera de España),2026-11-13T19:13+01:00
+sepe,SEPE,Paro registrado por municipio,Mensual (primeros días del mes),CSV público,OK,200,304,2026-10-01T00:00+02:00,1052.2,Último mes publicado: 10/2026 (10 meses en el fichero del año),2026-11-13T19:13+01:00
+peeringdb_fac,PeeringDB,Centros de datos existentes (para la etiqueta del ML),Continua,API sin clave (límite por minuto),OK,200,806,2026-10-16T16:16+00:00,674.0,72 centros de datos en España,2026-11-13T19:13+01:00
+peeringdb_ix,PeeringDB,Puntos neutros de Internet (IXP),Continua,API sin clave (límite por minuto),OK,200,1700,2026-09-27T22:53+00:00,1123.3,18 puntos neutros en España,2026-11-13T19:13+01:00
+osm,OpenStreetMap · Overpass,Subestaciones de 220/400 kV,Continua (minutos),API sin clave (uso moderado),OK,200,45287,2026-11-13T18:12+00:00,0.0,896 subestaciones de 220/400 kV en España (overpass-api.de),2026-11-13T19:13+01:00
+osm_geofabrik,OpenStreetMap · Geofabrik,Extracto completo de España (.osm.pbf),Diaria,Fichero público,OK,200,401,2026-11-13T01:24+00:00,16.8,1501.3 MB,2026-11-13T19:13+01:00
+ine_padron,INE,Padrón municipal (CSV de la tabla 29005),Anual,CSV público,OK,200,574,2025-12-11T10:00+00:00,8096.2,,2026-11-13T19:13+01:00
+ine_renta,INE,Atlas de Distribución de Renta (tabla 30824),Anual,CSV público,OK,200,784,2026-10-19T10:11+00:00,608.0,,2026-11-13T19:13+01:00
+gisco,Eurostat GISCO,Límites municipales LAU,Anual,Fichero público,OK,200,330,2026-02-18T11:47+00:00,6438.4,5.6 MB,2026-11-13T19:13+01:00
+snczi,MITECO · SNCZI,Zonas inundables (WMS),Irregular,Servicio público,Error,,254,,,Certificado SSL no válido: usar la descarga de capas del MITECO o datos.gob.es,2026-11-13T19:13+01:00
+natura2000,EEA · Natura 2000,Espacios protegidos (servicio de mapas),Anual,Servicio público,OK,200,434,,,"Servicio ArcGIS de la Agencia Europea de Medio Ambiente; capas: Habitats Directive Sites (pSCI, SCI or SAC), Birds Directive Sites (SPA), Habitats and Birds Directive Sites",2026-11-13T19:13+01:00

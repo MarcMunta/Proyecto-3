@@ -16,7 +16,7 @@ INGESTA = RAIZ / "src" / "ingesta"
 REGISTRO = RAIZ / "data" / "raw" / "_registro_descargas.csv"
 MANIFIESTO = RAIZ / "docs" / "datos" / "manifiesto_raw_2026-11-09.csv"
 
-SCRIPTS = ["utils.py", "01_municipios.py", "02_demografia.py", "03_energia.py", "04_agua.py"]
+SCRIPTS = ["utils.py", "01_municipios.py", "02_demografia.py", "03_energia.py", "04_agua.py", "sondeo_fuentes.py"]
 
 
 def leer_csv(ruta: Path) -> list[dict]:
