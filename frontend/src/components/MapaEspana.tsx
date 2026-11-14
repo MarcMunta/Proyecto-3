@@ -10,14 +10,15 @@ import type {
 import "maplibre-gl/dist/maplibre-gl.css";
 import fuenteTrabajador from "maplibre-gl/dist/maplibre-gl-worker.mjs?raw";
 import type { FeatureCollection } from "geojson";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { Agregado, EstadoMapa, GeoContexto, GeoProvincias, Viabilidad } from "../data/types";
-import { nombreMunicipio, num } from "../format";
-import { C, COLOR_ESTADO, ETIQUETA_ESTADO, colorScore } from "../model/colores";
+import { useEffect, useRef, useState } from "react";
+import type { GeoContexto, GeoProvincias, Municipio } from "../data/types";
+import type { ClaseRentabilidad, Prediccion } from "../data/prediccion";
+import { millones, nombreMunicipio, num } from "../format";
+import { C, COLOR_CLASE, NOMBRE_CLASE, colorClase } from "../model/colores";
 import { CanariasRecuadro } from "./CanariasRecuadro";
+import { IconoClase } from "./IconoClase";
 import { Leyenda } from "./Leyenda";
 import { Flecha } from "./Piezas";
-import { scoreProvincia } from "../data/agregar";
 
 // Vite reempaqueta MapLibre y rompe la ruta de su web worker (y en desarrollo le inyecta su cliente).
 // Se carga el worker original, sin transformar, desde un Blob.
@@ -25,15 +26,37 @@ maplibregl.setWorkerUrl(URL.createObjectURL(new Blob([fuenteTrabajador], { type:
 
 // Algo de océano al oeste y al sur para que el recuadro de Canarias no tape Huelva ni Cádiz.
 const ESPANA: LngLatBoundsLike = [-10.6, 34.45, 4.45, 43.85];
+
+/**
+ * Límites de la cámara: no se puede alejar más que el encuadre de España (o de Canarias cuando se está allí)
+ * ni arrastrar el mapa fuera de la zona. Se recalculan al cambiar el tamaño del mapa.
+ */
+const LIMITES = {
+  peninsula: { encuadre: ESPANA, max: [-14.5, 32.0, 8.5, 46.5] as LngLatBoundsLike },
+  canarias: { encuadre: [-18.4, 27.5, -13.3, 29.5] as LngLatBoundsLike, max: [-21.0, 25.5, -10.5, 31.0] as LngLatBoundsLike },
+};
+type Zona = keyof typeof LIMITES;
+
+function acotar(mapa: MapaML, zona: Zona) {
+  const { encuadre, max } = LIMITES[zona];
+  const camara = mapa.cameraForBounds(encuadre, { padding: 24 });
+  if (camara?.zoom != null) mapa.setMinZoom(Math.max(1, camara.zoom - 0.25));
+  mapa.setMaxBounds(max);
+}
+
+function soltar(mapa: MapaML) {
+  mapa.setMaxBounds(null);
+  mapa.setMinZoom(1);
+}
 const VACIO: FeatureCollection = { type: "FeatureCollection", features: [] };
 const BASE = import.meta.env.BASE_URL;
 
 interface Props {
   geo: GeoProvincias;
   contexto: GeoContexto | null;
-  datos: Viabilidad;
-  agregado: Agregado;
-  onAgregado: (a: Agregado) => void;
+  prediccion: Prediccion;
+  /** Municipios analizados de la demostración (lista vacía con datos reales). */
+  sitios: Municipio[];
   seleccion: string | null;
   sitio: string | null;
   resaltado: string | null;
@@ -47,57 +70,38 @@ interface Pista {
   y: number;
   titulo: string;
   linea: string;
-  estado: EstadoMapa | null;
+  clase: ClaseRentabilidad | null;
+  icono: boolean;
 }
 
-/**
- * Imagen de rayado diagonal para "sin datos todavía" (a 2x). Las provincias usan un rayado marcado;
- * los municipios, uno más fino y tenue para que sigan leyéndose sus límites.
- */
-function rayado(periodo = 8, grosor = 2, alfa = 255) {
+/** Rayado diagonal para «sin datos todavía» (a 2x). */
+function rayado() {
   const n = 16;
   const data = new Uint8Array(n * n * 4);
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
       const i = (y * n + x) * 4;
-      const enLinea = (x + y) % periodo < grosor;
-      data[i] = 0x56;
-      data[i + 1] = 0x59;
-      data[i + 2] = 0x5f;
-      data[i + 3] = enLinea ? alfa : 0;
+      data[i] = 0x4f;
+      data[i + 1] = 0x52;
+      data[i + 2] = 0x5a;
+      data[i + 3] = (x + y) % 10 < 2 ? 255 : 0;
     }
   }
   return { width: n, height: n, data };
 }
 
-const svgLampara = (estado: EstadoMapa) => {
-  const c = COLOR_ESTADO[estado];
-  const forma =
-    estado === "Viable"
-      ? `<circle cx="8" cy="8" r="6.5" fill="${c}"/>`
-      : estado === "Viable con condiciones"
-        ? `<path d="M8 1.2 15.2 14.4H.8Z" fill="${c}"/>`
-        : estado === "No viable"
-          ? `<path d="M2.5 2.5 13.5 13.5M13.5 2.5 2.5 13.5" stroke="${c}" stroke-width="3.4" stroke-linecap="square"/>`
-          : `<circle cx="8" cy="8" r="5.6" fill="none" stroke="${c}" stroke-width="1.8"/>`;
-  return `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">${forma}</svg>`;
-};
-
 export function MapaEspana(props: Props) {
-  const { geo, contexto, datos, agregado, seleccion, sitio, resaltado, reducirMovimiento } = props;
+  const { geo, contexto, prediccion, sitios, seleccion, sitio, resaltado, reducirMovimiento } = props;
   const contenedor = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<MapaML | null>(null);
   const [listo, setListo] = useState(false);
   const [pista, setPista] = useState<Pista | null>(null);
   const propsRef = useRef(props);
   propsRef.current = props;
-  const marcadoresSitio = useRef(new Map<string, { m: maplibregl.Marker; el: HTMLButtonElement }>());
+  const marcadores = useRef(new Map<string, { m: maplibregl.Marker; el: HTMLButtonElement }>());
   const cacheMunicipios = useRef(new Map<string, FeatureCollection>());
   const hoverRef = useRef<{ fuente: string; id: string | number } | null>(null);
-
-  const porIne = useMemo(() => new Map(datos.municipios.map((m) => [m.codigo_ine, m])), [datos]);
-  const porIneRef = useRef(porIne);
-  porIneRef.current = porIne;
+  const zonaRef = useRef<Zona>("peninsula");
 
   // ---------- Creación del mapa (una vez) ----------
   useEffect(() => {
@@ -111,7 +115,7 @@ export function MapaEspana(props: Props) {
       },
       bounds: ESPANA,
       fitBoundsOptions: { padding: 24 },
-      minZoom: 3.6,
+      minZoom: 1,
       maxZoom: 11.5,
       dragRotate: false,
       pitchWithRotate: false,
@@ -132,56 +136,48 @@ export function MapaEspana(props: Props) {
 
     mapa.on("load", () => {
       mapa.addImage("rayado", rayado(), { pixelRatio: 2 });
-      mapa.addImage("rayado-fino", rayado(16, 1, 150), { pixelRatio: 2 });
       mapa.addSource("contexto", { type: "geojson", data: (propsRef.current.contexto ?? VACIO) as FeatureCollection });
       mapa.addSource("provincias", { type: "geojson", data: propsRef.current.geo, promoteId: "codigo" });
       mapa.addSource("municipios", { type: "geojson", data: VACIO, promoteId: "ine" });
 
       mapa.addLayer({ id: "contexto", type: "fill", source: "contexto", paint: { "fill-color": C.contexto } });
-      mapa.addLayer({ id: "prov-fill", type: "fill", source: "provincias", paint: { "fill-color": C.modulo } });
+      mapa.addLayer({ id: "prov-fill", type: "fill", source: "provincias", paint: { "fill-color": C.sinDatos } });
       mapa.addLayer({ id: "prov-rayado", type: "fill", source: "provincias", paint: { "fill-pattern": "rayado" }, filter: ["==", "x", "y"] });
-      mapa.addLayer({ id: "mun-fill", type: "fill", source: "municipios", paint: { "fill-color": C.modulo } });
-      // Municipios sin análisis: mismo rayado que las provincias sin datos ("rayado = sin datos").
       mapa.addLayer({
-        id: "mun-rayado",
+        id: "mun-fill",
         type: "fill",
         source: "municipios",
-        paint: { "fill-pattern": "rayado-fino" },
-        filter: ["!", ["in", ["get", "ine"], ["literal", propsRef.current.datos.municipios.map((m) => m.codigo_ine)]]],
+        paint: {
+          "fill-color": "#ffffff",
+          "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.14, 0],
+        },
       });
       mapa.addLayer({
         id: "mun-linea",
         type: "line",
         source: "municipios",
-        paint: { "line-color": "#6a6e76", "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.6, 10, 1.4] },
-      });
-      mapa.addLayer({
-        id: "mun-hover",
-        type: "line",
-        source: "municipios",
         paint: {
-          "line-color": C.caracter,
-          "line-width": 1.6,
-          "line-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, 0],
+          "line-color": "rgba(17, 18, 20, 0.55)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.5, 10, 1.2],
         },
       });
       mapa.addLayer({
         id: "prov-linea",
         type: "line",
         source: "provincias",
-        paint: { "line-color": C.junta, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1, 8, 2.2] },
+        paint: { "line-color": C.suelo, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 8, 2] },
       });
       mapa.addLayer({
         id: "prov-hover",
         type: "line",
         source: "provincias",
         paint: {
-          "line-color": C.caracter,
-          "line-width": 1.8,
+          "line-color": C.texto,
+          "line-width": 1.5,
           "line-opacity": [
             "case",
             ["any", ["boolean", ["feature-state", "hover"], false], ["boolean", ["feature-state", "resaltado"], false]],
-            1,
+            0.9,
             0,
           ],
         },
@@ -190,46 +186,9 @@ export function MapaEspana(props: Props) {
         id: "prov-sel",
         type: "line",
         source: "provincias",
-        paint: { "line-color": C.amarillo, "line-width": 2.6 },
+        paint: { "line-color": C.texto, "line-width": 2.4 },
         filter: ["==", ["get", "codigo"], ""],
       });
-
-      // Etiquetas de código INE de provincia: el mismo código que en el tablero.
-      for (const f of propsRef.current.geo.features) {
-        if (!f.properties.etiqueta) continue;
-        const el = document.createElement("div");
-        el.className = "tag-prov";
-        el.textContent = f.properties.codigo;
-        el.setAttribute("aria-hidden", "true");
-        const [lon, lat] = f.properties.etiqueta;
-        // Si una lámpara cae justo encima, la etiqueta baja un poco para no taparse.
-        const choca = propsRef.current.datos.municipios.some(
-          (m) => m.lon != null && m.lat != null && Math.hypot(m.lon - lon, m.lat - lat) < 0.32,
-        );
-        new maplibregl.Marker({ element: el, offset: choca ? [0, 17] : [0, 0] }).setLngLat([lon, lat]).addTo(mapa);
-      }
-
-      // Lámparas de los municipios analizados por el modelo.
-      for (const m of propsRef.current.datos.municipios) {
-        if (m.lat == null || m.lon == null) continue;
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = "sitio";
-        el.dataset.provincia = m.provincia_codigo;
-        el.setAttribute("aria-label", `${m.municipio}: ${m.estado}, score ${num(m.score_global, 1)}`);
-        el.innerHTML = svgLampara(m.estado); // SVG fijo generado aquí, sin datos externos
-        const nombre = document.createElement("span");
-        nombre.className = "sitio-nombre";
-        nombre.textContent = m.municipio;
-        el.append(nombre);
-        el.addEventListener("click", (e) => {
-          e.stopPropagation();
-          propsRef.current.onSitio(m.codigo_ine);
-        });
-        const marcador = new maplibregl.Marker({ element: el, anchor: "left", offset: [-8, 0] }).setLngLat([m.lon, m.lat]).addTo(mapa);
-        marcadoresSitio.current.set(m.codigo_ine, { m: marcador, el });
-      }
-
       setListo(true);
     });
 
@@ -252,30 +211,29 @@ export function MapaEspana(props: Props) {
       mapa.getCanvas().style.cursor = prov ? "pointer" : "";
       if (mun && p.seleccion && mun.properties.prov === p.seleccion) {
         ponerHover("municipios", mun.id);
-        const ine = String(mun.properties.ine);
-        const analizado = porIneRef.current.get(ine);
         setPista({
           x: e.point.x,
           y: e.point.y,
           titulo: nombreMunicipio(String(mun.properties.nombre)),
-          linea: analizado
-            ? `${ETIQUETA_ESTADO[analizado.estado]} · SCORE ${num(analizado.score_global, 1)}`
-            : `${num(Number(mun.properties.area_km2), 1)} km² · sin analizar`,
-          estado: analizado ? analizado.estado : null,
+          linea: `${num(Number(mun.properties.area_km2), 1)} km²`,
+          clase: null,
+          icono: false,
         });
         return;
       }
       if (prov) {
         ponerHover("provincias", prov.id);
         const codigo = String(prov.properties.codigo);
-        const r = p.datos.provincias[codigo];
-        const s = scoreProvincia(r, p.agregado, porIneRef.current);
+        const d = p.prediccion.provincias.get(codigo);
         setPista({
           x: e.point.x,
           y: e.point.y,
-          titulo: `${codigo} · ${String(prov.properties.nombre)}`,
-          linea: r ? `${ETIQUETA_ESTADO[r.estado]} · SCORE ${num(s, 1)}` : "SIN DATOS TODAVÍA",
-          estado: r ? r.estado : "Sin datos",
+          titulo: String(prov.properties.nombre),
+          linea: d?.clase
+            ? `Rentabilidad ${NOMBRE_CLASE[d.clase].toLowerCase()}${d.van_eur != null ? ` · VAN ${millones(d.van_eur)}` : ""}`
+            : "Sin datos todavía",
+          clase: d?.clase ?? null,
+          icono: true,
         });
         return;
       }
@@ -289,14 +247,6 @@ export function MapaEspana(props: Props) {
     };
     const alPulsar = (e: MapLayerMouseEvent) => {
       const p = propsRef.current;
-      const mun = mapa.queryRenderedFeatures(e.point, { layers: ["mun-fill"] })[0];
-      if (mun && p.seleccion && mun.properties.prov === p.seleccion) {
-        const ine = String(mun.properties.ine);
-        if (porIneRef.current.has(ine)) {
-          p.onSitio(ine);
-          return;
-        }
-      }
       const prov = mapa.queryRenderedFeatures(e.point, { layers: ["prov-fill"] })[0];
       if (prov) {
         const codigo = String(prov.properties.codigo);
@@ -309,49 +259,69 @@ export function MapaEspana(props: Props) {
     mapa.on("mouseout", alSalir);
     mapa.on("click", alPulsar);
 
-    const ro = new ResizeObserver(() => mapa.resize());
+    const ro = new ResizeObserver(() => {
+      mapa.resize();
+      if (mapa.loaded() && !mapa.isMoving()) acotar(mapa, zonaRef.current);
+    });
     ro.observe(contenedor.current);
     return () => {
       ro.disconnect();
       mapa.remove();
       mapaRef.current = null;
-      marcadoresSitio.current.clear();
+      marcadores.current.clear();
     };
   }, []);
 
-  // ---------- Color de provincias según score (mejor emplazamiento o media) ----------
+  // ---------- Color por clase de rentabilidad ----------
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!listo || !mapa) return;
     const pares: string[] = [];
-    const conDatos: string[] = [];
-    for (const f of geo.features) {
-      const r = datos.provincias[f.properties.codigo];
-      if (!r) continue;
-      conDatos.push(f.properties.codigo);
-      pares.push(f.properties.codigo, colorScore(scoreProvincia(r, agregado, porIne)));
+    const conClase: string[] = [];
+    for (const [codigo, d] of prediccion.provincias) {
+      if (!d.clase) continue;
+      conClase.push(codigo);
+      pares.push(codigo, COLOR_CLASE[d.clase]);
     }
-    const color = (pares.length ? ["match", ["get", "codigo"], ...pares, C.modulo] : C.modulo) as unknown as ExpressionSpecification;
+    const color = (pares.length ? ["match", ["get", "codigo"], ...pares, C.sinDatos] : C.sinDatos) as unknown as ExpressionSpecification;
     mapa.setPaintProperty("prov-fill", "fill-color", color);
-    mapa.setFilter("prov-rayado", ["!", ["in", ["get", "codigo"], ["literal", conDatos]]]);
-    const opacidad = (seleccion
-      ? ["case", ["==", ["get", "codigo"], seleccion], 1, 0.2]
-      : 1) as ExpressionSpecification;
+    mapa.setFilter("prov-rayado", ["!", ["in", ["get", "codigo"], ["literal", conClase]]]);
+    const opacidad = (seleccion ? ["case", ["==", ["get", "codigo"], seleccion], 1, 0.16] : 1) as ExpressionSpecification;
     mapa.setPaintProperty("prov-fill", "fill-opacity", opacidad);
     mapa.setPaintProperty("prov-rayado", "fill-opacity", opacidad);
+  }, [listo, prediccion, seleccion]);
 
-    // Municipios analizados: misma rampa; el resto, módulo apagado.
-    const paresMun: string[] = [];
-    for (const m of datos.municipios) paresMun.push(m.codigo_ine, colorScore(m.score_global));
-    mapa.setPaintProperty("mun-fill", "fill-color", [
-      "case",
-      ["boolean", ["feature-state", "hover"], false],
-      "#2b2e33",
-      (paresMun.length ? ["match", ["get", "ine"], ...paresMun, C.modulo] : C.modulo) as unknown as ExpressionSpecification,
-    ] as ExpressionSpecification);
-  }, [listo, geo, datos, agregado, porIne, seleccion]);
+  // ---------- Puntos de los municipios analizados (solo en la demostración) ----------
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!listo || !mapa) return;
+    for (const { m } of marcadores.current.values()) m.remove();
+    marcadores.current.clear();
+    for (const m of sitios) {
+      if (m.lat == null || m.lon == null) continue;
+      const clase = prediccion.clasesMunicipio.get(m.codigo_ine) ?? null;
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "sitio";
+      el.dataset.provincia = m.provincia_codigo;
+      el.setAttribute("aria-label", `${m.municipio}: rentabilidad ${clase ? NOMBRE_CLASE[clase].toLowerCase() : "sin datos"}`);
+      const punto = document.createElement("span");
+      punto.className = "sitio-punto";
+      punto.style.background = colorClase(clase);
+      const nombre = document.createElement("span");
+      nombre.className = "sitio-nombre";
+      nombre.textContent = m.municipio;
+      el.append(punto, nombre);
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        propsRef.current.onSitio(m.codigo_ine);
+      });
+      const marcador = new maplibregl.Marker({ element: el, anchor: "left", offset: [-6, 0] }).setLngLat([m.lon, m.lat]).addTo(mapa);
+      marcadores.current.set(m.codigo_ine, { m: marcador, el });
+    }
+  }, [listo, sitios, prediccion]);
 
-  // ---------- Resaltado desde el tablero ----------
+  // ---------- Resaltado desde la lista ----------
   useEffect(() => {
     const mapa = mapaRef.current;
     if (!listo || !mapa || !resaltado) return;
@@ -369,7 +339,7 @@ export function MapaEspana(props: Props) {
     if (!listo || !mapa) return;
     mapa.setFilter("prov-sel", ["==", ["get", "codigo"], seleccion ?? ""]);
     contenedor.current?.classList.toggle("en-provincia", Boolean(seleccion));
-    for (const { el } of marcadoresSitio.current.values()) {
+    for (const { el } of marcadores.current.values()) {
       const visible = !seleccion || el.dataset.provincia === seleccion;
       el.classList.toggle("oculto", !visible);
       el.tabIndex = seleccion && visible ? 0 : -1;
@@ -377,13 +347,23 @@ export function MapaEspana(props: Props) {
     const ancho = contenedor.current?.clientWidth ?? 800;
     const margen = Math.max(24, Math.min(90, ancho * 0.07));
     const padding: PaddingOptions = { top: margen, bottom: margen, left: margen, right: margen };
-    const duracion = reducirMovimiento ? 0 : 1700;
+    const duracion = reducirMovimiento ? 0 : 1600;
     const fuente = mapa.getSource("municipios") as GeoJSONSource | undefined;
+
+    // Se sueltan los límites durante el vuelo (Canarias queda fuera de los de la península) y se vuelven a
+    // poner al llegar, ya con la zona nueva.
+    const zona: Zona = seleccion === "35" || seleccion === "38" ? "canarias" : "peninsula";
+    zonaRef.current = zona;
+    soltar(mapa);
+    const alLlegar = () => acotar(mapa, zona);
+    mapa.once("moveend", alLlegar);
 
     if (!seleccion) {
       fuente?.setData(VACIO);
       mapa.fitBounds(ESPANA, { padding: Math.min(32, margen), duration: duracion, essential: true });
-      return;
+      return () => {
+        mapa.off("moveend", alLlegar);
+      };
     }
     const f = geo.features.find((x) => x.properties.codigo === seleccion);
     if (f) mapa.fitBounds(f.properties.bbox, { padding, duration: duracion, essential: true, maxZoom: 9.5 });
@@ -405,15 +385,16 @@ export function MapaEspana(props: Props) {
     }
     return () => {
       cancelado = true;
+      mapa.off("moveend", alLlegar);
     };
   }, [listo, seleccion, geo, reducirMovimiento]);
 
   // ---------- Sitio activo ----------
   useEffect(() => {
-    for (const [ine, { el }] of marcadoresSitio.current) el.classList.toggle("activo", ine === sitio);
-  }, [sitio, listo]);
+    for (const [ine, { el }] of marcadores.current) el.classList.toggle("activo", ine === sitio);
+  }, [sitio, listo, sitios]);
 
-  // ---------- Contexto (Portugal/Francia) cuando llega ----------
+  // ---------- Contexto (Portugal/Francia) ----------
   useEffect(() => {
     const fuente = mapaRef.current?.getSource("contexto") as GeoJSONSource | undefined;
     if (listo && fuente && contexto) fuente.setData(contexto as FeatureCollection);
@@ -427,31 +408,24 @@ export function MapaEspana(props: Props) {
         ref={contenedor}
         className="mapa"
         role="region"
-        aria-label="Mapa de España por provincias. Para elegir con el teclado usa la lista del tablero."
+        aria-label="Mapa de España por provincias coloreado por rentabilidad. Para elegir con el teclado usa la lista."
       />
       {pista && (
         <div className="pista" style={{ transform: `translate(${pista.x + 14}px, ${pista.y + 14}px)` }} aria-hidden="true">
           <span className="pista-titulo">{pista.titulo}</span>
           <span className="pista-linea">
-            {pista.estado && <i className="pista-punto" style={{ background: COLOR_ESTADO[pista.estado] }} />}
+            {pista.icono && <IconoClase clase={pista.clase} tam={13} />}
             {pista.linea}
           </span>
         </div>
       )}
-      {!seleccion && (
-        <CanariasRecuadro geo={geo} datos={datos} agregado={agregado} porIne={porIne} onProvincia={props.onProvincia} />
-      )}
-      {seleccion && !enCanarias && (
+      {!seleccion && <CanariasRecuadro geo={geo} prediccion={prediccion} onProvincia={props.onProvincia} />}
+      {seleccion && (
         <button type="button" className="mapa-volver" onClick={() => props.onProvincia(null)}>
-          <Flecha /> Toda España
+          <Flecha /> {enCanarias ? "Volver a la península" : "Toda España"}
         </button>
       )}
-      {enCanarias && (
-        <button type="button" className="mapa-volver" onClick={() => props.onProvincia(null)}>
-          <Flecha /> Volver a la península
-        </button>
-      )}
-      <Leyenda agregado={agregado} onAgregado={props.onAgregado} />
+      {!seleccion && <Leyenda prediccion={prediccion} />}
     </div>
   );
 }

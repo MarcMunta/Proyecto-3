@@ -1,45 +1,32 @@
-import type { Agregado } from "../data/types";
-import { PARADAS_RAMPA } from "../model/colores";
-import { Lampara } from "./Lampara";
+import metaJson from "../data/provincias.json";
+import type { Prediccion } from "../data/prediccion";
+import { NOMBRE_CLASE, ORDEN_CLASE } from "../model/colores";
 
-const degradado = `linear-gradient(90deg, ${PARADAS_RAMPA.map(([v, c]) => `${c} ${v}%`).join(", ")})`;
+const TOTAL_PROVINCIAS = metaJson.length;
+import { IconoClase } from "./IconoClase";
 
-export function Leyenda({ agregado, onAgregado }: { agregado: Agregado; onAgregado: (a: Agregado) => void }) {
+/** Leyenda compacta del mapa: las cuatro clases (icono + nombre + cuántas provincias) y «sin datos». */
+export function Leyenda({ prediccion }: { prediccion: Prediccion }) {
+  const cuenta = (c: string | null) => [...prediccion.provincias.values()].filter((p) => p.clase === c).length;
+  const sinDatos = TOTAL_PROVINCIAS - [...prediccion.provincias.values()].filter((p) => p.clase).length;
   return (
-    <div className="leyenda">
-      <fieldset className="conmutador">
-        <legend>Color de cada provincia</legend>
-        <label>
-          <input type="radio" name="agregado" checked={agregado === "mejor"} onChange={() => onAgregado("mejor")} />
-          <span>Mejor emplazamiento</span>
-        </label>
-        <label>
-          <input type="radio" name="agregado" checked={agregado === "media"} onChange={() => onAgregado("media")} />
-          <span>Media provincial</span>
-        </label>
-      </fieldset>
-      <div className="leyenda-rampa">
-        <span className="leyenda-t">Score 0–100</span>
-        <span className="rampa" style={{ background: degradado }} />
-        <span className="rampa-marcas" aria-hidden="true">
-          <span>0</span>
-          <span>50</span>
-          <span>100</span>
-        </span>
-      </div>
-      <ul className="leyenda-estados">
-        <li>
-          <span className="muestra-rayado" aria-hidden="true" /> Sin datos todavía
-        </li>
-        <li>
-          <Lampara estado="Viable" tam={12} /> Viable
-        </li>
-        <li>
-          <Lampara estado="Viable con condiciones" tam={12} /> Con condiciones
-        </li>
-        <li>
-          <Lampara estado="No viable" tam={12} /> No viable
-        </li>
+    <div className="leyenda" role="group" aria-label="Leyenda: rentabilidad">
+      <span className="leyenda-t">{prediccion.tipo === "real" ? "Rentabilidad" : "Rentabilidad relativa"}</span>
+      <ul>
+        {ORDEN_CLASE.map((c) => (
+          <li key={c}>
+            <IconoClase clase={c} tam={14} />
+            <span>{NOMBRE_CLASE[c]}</span>
+            <span className="leyenda-n">{cuenta(c)}</span>
+          </li>
+        ))}
+        {sinDatos > 0 && (
+          <li className="leyenda-sin">
+            <span className="muestra-rayado" aria-hidden="true" />
+            <span>Sin datos</span>
+            <span className="leyenda-n">{sinDatos}</span>
+          </li>
+        )}
       </ul>
     </div>
   );

@@ -53,6 +53,13 @@ export function cuartoDelDia(t: number): number {
   return h * 4 + Math.floor(m / 15);
 }
 
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+/** "2026-10" -> "octubre de 2026". */
+export function mesLegible(aaaamm: string): string {
+  const [a, m] = aaaamm.split("-").map(Number) as [number, number];
+  return MESES[m - 1] ? `${MESES[m - 1]} de ${a}` : aaaamm;
+}
+
 /** "Acebeda, La" (formato GISCO) -> "La Acebeda". */
 export function nombreMunicipio(nombre: string): string {
   const m = nombre.match(/^(.*), (La|El|Los|Las|Lo|A|O|Os|As|Es|Sa|Ses|Els|Les|L')$/);

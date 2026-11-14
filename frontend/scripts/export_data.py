@@ -166,6 +166,14 @@ def main() -> None:
         f"OK: {datos['fuente']['n_municipios']} municipios, {len(datos['provincias'])} provincias con datos "
         f"({'SINTÉTICOS' if datos['fuente']['sintetico'] else 'reales'}) -> {args.salida}"
     )
+    # Capa provincial del mapa: las 52 provincias con datos reales (data/curated) y el mismo modelo.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import simular_provincias  # noqa: PLC0415
+
+    try:
+        simular_provincias.main()
+    except FileNotFoundError as error:
+        print(f"AVISO: no se ha simulado la capa provincial ({error}); el mapa usará la demostración.")
 
 
 if __name__ == "__main__":

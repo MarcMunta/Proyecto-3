@@ -7,24 +7,24 @@ related_targets: []
 
 ## Scope
 
-Single-page app `frontend/` — interactive map of Spain for CPD viability. Visitor mode: Operate (evaluate a province), projected in the defence and used on laptop/phone. Audience: master's tribunal + investor.
+Single-page app `frontend/` — interactive map of Spain for CPD viability and profitability. Visitor mode: Operate. Projected in the defence and used on laptop/phone. Audience: master's tribunal + investor.
 
-User steer (chat, 13/11/2026): "Quiero que sea el mapa de España de forma interactiva con las provincias, las zonas de las provincias y etc" → map is the protagonist; zooming into a province reveals its real municipalities.
+User steers: (13/11) "mapa de España interactivo con las provincias y las zonas de las provincias"; (13/11, later, relayed by the parent session) "Improve the interface: more visual, use a red / orange / yellow / green palette to represent profitability, and make it more minimalist and pretty."
 
 ## Direction contract
 
-THESIS: Spain as a departures board: every province is a destination announced with status, score and the time of its data. Refuses the dark dashboard of glass KPI cards.
+THESIS: A map where colour means profitability and nothing else: each province reads green, yellow, orange or red at a glance. Refuses dashboards of cards, borders and labels.
 
-OWN-WORLD: matte black flap modules with hairline joints, warm-white split-flap characters in condensed Martian Mono, Archivo for prose; status lamps green/orange/red each with its own glyph; board yellow only for the active province; zero radius, 1px rules; warm luminance ramp for score; hatching means no data.
+OWN-WORLD: near-black ground #111214, warm ink #f1ecdf; validated profitability palette (#40b97a, #dcbc55, #e47b2f, #b8383f) only on map, legend, class badge and distribution bar; ordinal bar icon per class; hatching = no data; Martian Mono numerals that roll in; Archivo prose; soft radii; hairlines only.
 
-STORY: the visitor sees which provinces "depart" (viable), clicks one, the map dives to its municipalities and the board flips its figures: verdict, reasons, CAPEX/OPEX/VAN, live power price and weather.
+STORY: see which provinces pay off, click one, the map dives to its municipalities, the panel shows the class, three big numbers (VAN, ROI, payback) and small bars for power, climate, water and market, then the reasons.
 
-FIRST VIEWPORT: top strip with clock, live spot price and demand; full-bleed map left 62% with Canarias inset; departures board right 38%; action = click a province or a row.
+FIRST VIEWPORT: thin header (title, live power price, demo seal only on fallback); map ~64% left with compact legend and Canarias inset; right panel with title, distribution bar and list grouped by class.
 
-FORM: Departures board (split-flap), position 7/7, seed bbe2ce6f.
+FORM: user-pinned refinement of the Tablero de Salidas world (seed bbe2ce6f), 13/11/2026.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
-## Unresolved
+## Data
 
-- Province aggregation of the future real master table (best site vs. average): show both.
+Real per-province prediction `data/curated/predicciones_provincia.json` (served by a Vite plugin) when present; otherwise the synthetic demo model with a visible seal and a documented relative class rule (No viable → no rentable; rest by VAN tertiles).

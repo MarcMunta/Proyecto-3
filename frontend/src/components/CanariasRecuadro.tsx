@@ -1,14 +1,12 @@
 import type { Position } from "geojson";
 import { useMemo } from "react";
-import type { Agregado, GeoProvincias, Municipio, Viabilidad } from "../data/types";
-import { scoreProvincia } from "../data/agregar";
-import { C, colorScore } from "../model/colores";
+import type { GeoProvincias } from "../data/types";
+import type { Prediccion } from "../data/prediccion";
+import { NOMBRE_CLASE, colorClase } from "../model/colores";
 
 interface Props {
   geo: GeoProvincias;
-  datos: Viabilidad;
-  agregado: Agregado;
-  porIne: Map<string, Municipio>;
+  prediccion: Prediccion;
   onProvincia: (codigo: string) => void;
 }
 
@@ -16,7 +14,7 @@ const ANCHO = 260;
 const CODIGOS = ["35", "38"];
 
 /** Recuadro de Canarias (como en los mapas oficiales). Pulsar una provincia vuela a su posición real. */
-export function CanariasRecuadro({ geo, datos, agregado, porIne, onProvincia }: Props) {
+export function CanariasRecuadro({ geo, prediccion, onProvincia }: Props) {
   const dibujo = useMemo(() => {
     const feats = geo.features.filter((f) => CODIGOS.includes(f.properties.codigo));
     if (!feats.length) return null;
@@ -41,16 +39,20 @@ export function CanariasRecuadro({ geo, datos, agregado, porIne, onProvincia }: 
   return (
     <figure className="canarias">
       <svg viewBox={`0 0 ${ANCHO} ${dibujo.alto}`} width={ANCHO} height={dibujo.alto} role="group" aria-label="Canarias">
+        <defs>
+          <pattern id="rayado-canarias" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+            <rect width="1" height="5" fill="#4f525a" />
+          </pattern>
+        </defs>
         {dibujo.rutas.map((r) => {
-          const resumen = datos.provincias[r.codigo];
-          const s = scoreProvincia(resumen, agregado, porIne);
+          const clase = prediccion.provincias.get(r.codigo)?.clase ?? null;
           return (
             <g
               key={r.codigo}
               className="canarias-prov"
               role="button"
               tabIndex={0}
-              aria-label={`${r.codigo} ${r.nombre}${resumen ? "" : ": sin datos todavía"}`}
+              aria-label={`${r.nombre}: ${clase ? `rentabilidad ${NOMBRE_CLASE[clase].toLowerCase()}` : "sin datos todavía"}`}
               onClick={() => onProvincia(r.codigo)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -59,17 +61,12 @@ export function CanariasRecuadro({ geo, datos, agregado, porIne, onProvincia }: 
                 }
               }}
             >
-              <title>{`${r.codigo} · ${r.nombre}`}</title>
-              <path d={r.d} fill={resumen ? colorScore(s) : C.modulo} stroke={C.junta} strokeWidth="1" />
-              {!resumen && <path d={r.d} fill="url(#rayado-canarias)" />}
+              <title>{r.nombre}</title>
+              <path d={r.d} fill={colorClase(clase)} />
+              {!clase && <path d={r.d} fill="url(#rayado-canarias)" />}
             </g>
           );
         })}
-        <defs>
-          <pattern id="rayado-canarias" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
-            <rect width="1.4" height="6" fill="#56595f" />
-          </pattern>
-        </defs>
       </svg>
       <figcaption>Canarias</figcaption>
     </figure>

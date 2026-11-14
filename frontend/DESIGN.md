@@ -1,337 +1,347 @@
 ---
-name: Tablero de Salidas
-description: Mapa de España de viabilidad de un centro de datos, presentado como tablero de salidas split-flap.
+name: "Mapa de rentabilidad de centros de datos"
+description: "Mapa de España de viabilidad y rentabilidad de un centro de datos: el color solo significa rentabilidad."
 colors:
   suelo: "#111214"
-  contexto: "#1d1e21"
-  junta: "#08090a"
-  modulo: "#1b1d20"
-  modulo-alto: "#24272b"
-  regla: "#2e3136"
-  caracter: "#f1ecdf"
-  caracter-2: "#b6b0a3"
-  caracter-3: "#8f8a80"
-  amarillo: "#ffcc33"
-  tinta-sobre-activo: "#141414"
-  viable: "#3fd27f"
-  condiciones: "#ff9c40"
-  no-viable: "#ff5b4b"
-  sin-datos: "#6c6f75"
-  puntuacion-0: "#2a2a2c"
-  puntuacion-25: "#4b463e"
-  puntuacion-50: "#7d715c"
-  puntuacion-75: "#bdaa80"
-  puntuacion-100: "#f3e3b8"
+  superficie: "#17181b"
+  contexto: "#1b1c1f"
+  linea: "#26282c"
+  texto: "#f1ecdf"
+  texto-2: "#b6b0a3"
+  texto-3: "#8f8a80"
+  alta: "#40b97a"
+  media: "#dcbc55"
+  baja: "#e47b2f"
+  no-rentable: "#b8383f"
+  sin-datos: "#2b2d32"
+  rayado: "#4f525a"
 typography:
-  display:
+  cifra:
     fontFamily: "Martian Mono Variable, ui-monospace, Cascadia Mono, Consolas, monospace"
-    fontSize: "clamp(3.4rem, 5.2vw, 5.6rem)"
-    fontWeight: 600
+    fontSize: "clamp(1.4rem, 2.2vw, 2.1rem)"
+    fontWeight: 560
     lineHeight: 1
     letterSpacing: "normal"
-  board:
-    fontFamily: "Martian Mono Variable, ui-monospace, Cascadia Mono, Consolas, monospace"
-    fontSize: "1.55rem"
-    fontWeight: 520
-    lineHeight: 1
-    letterSpacing: "normal"
-  headline:
+    fontVariation: "'wdth' 82"
+  titulo-ficha:
     fontFamily: "Archivo Variable, system-ui, Segoe UI, sans-serif"
-    fontSize: "1.45rem"
+    fontSize: "2.1rem"
     fontWeight: 700
-    lineHeight: 1.45
-    letterSpacing: "normal"
-  title:
+    lineHeight: 1.15
+    letterSpacing: "-0.01em"
+  titulo-bloque:
     fontFamily: "Archivo Variable, system-ui, Segoe UI, sans-serif"
-    fontSize: "1.2rem"
+    fontSize: "1.05rem"
     fontWeight: 700
     lineHeight: 1.45
     letterSpacing: "normal"
   body:
     fontFamily: "Archivo Variable, system-ui, Segoe UI, sans-serif"
-    fontSize: "1rem"
+    fontSize: "0.92rem"
     fontWeight: 400
     lineHeight: 1.45
     letterSpacing: "normal"
-  label:
-    fontFamily: "Martian Mono Variable, ui-monospace, Cascadia Mono, Consolas, monospace"
-    fontSize: "0.7rem"
-    fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: "0.08em"
+  etiqueta:
+    fontFamily: "Archivo Variable, system-ui, Segoe UI, sans-serif"
+    fontSize: "0.8rem"
+    fontWeight: 400
+    lineHeight: 1.45
+    letterSpacing: "normal"
 rounded:
-  none: "0px"
+  sm: "3px"
+  radio: "6px"
+  lg: "10px"
+  pill: "999px"
 spacing:
-  xs: "0.3rem"
+  xs: "0.35rem"
   sm: "0.6rem"
-  md: "1rem"
+  md: "0.9rem"
   lg: "1.6rem"
 components:
   volver:
-    backgroundColor: "{colors.modulo}"
-    textColor: "{colors.caracter}"
-    rounded: "{rounded.none}"
-    padding: "0.4rem 0.7rem"
+    backgroundColor: "{colors.superficie}"
+    textColor: "{colors.texto}"
+    rounded: "{rounded.pill}"
+    padding: "0.35rem 0.7rem 0.35rem 0.55rem"
   volver-hover:
-    backgroundColor: "{colors.modulo-alto}"
+    backgroundColor: "{colors.linea}"
   fila:
-    backgroundColor: "{colors.modulo}"
-    textColor: "{colors.caracter}"
-    rounded: "{rounded.none}"
-    padding: "0.4rem 0.7rem"
+    textColor: "{colors.texto}"
+    rounded: "{rounded.radio}"
+    padding: "0.42rem 0.5rem 0.42rem 1.75rem"
   fila-hover:
-    backgroundColor: "{colors.modulo-alto}"
-  fila-sin-datos:
-    textColor: "{colors.caracter-3}"
-  cifra:
-    backgroundColor: "{colors.modulo}"
-    textColor: "{colors.caracter}"
-    rounded: "{rounded.none}"
-    padding: "0.65rem 0.75rem 0.7rem"
-  buscador:
-    backgroundColor: "{colors.junta}"
-    textColor: "{colors.caracter}"
-    rounded: "{rounded.none}"
-    padding: "0.6rem 0.75rem"
-  conmutador-activo:
-    backgroundColor: "{colors.caracter}"
-    textColor: "{colors.suelo}"
-  sitio-activo:
-    backgroundColor: "{colors.amarillo}"
-    textColor: "{colors.tinta-sobre-activo}"
+    backgroundColor: "{colors.superficie}"
+  pista:
+    backgroundColor: "{colors.superficie}"
+    textColor: "{colors.texto}"
+    rounded: "{rounded.radio}"
+    padding: "0.5rem 0.7rem"
+  sello:
+    textColor: "{colors.texto-2}"
+    rounded: "{rounded.pill}"
+    padding: "0.35rem 0.6rem"
+  barra-pista:
+    backgroundColor: "{colors.linea}"
+    rounded: "{rounded.sm}"
+    height: "6px"
+  clase:
+    rounded: "{rounded.lg}"
+    padding: "0.95rem 1.1rem"
 ---
 
-# Design System: Tablero de Salidas
+# Design System: Mapa de rentabilidad de centros de datos
 
-<!-- Escrito a partir del código construido (src/styles.css, src/components, src/model/colores.ts). Los tokens del frontmatter son normativos. -->
+<!-- Escrito a partir del código construido (src/styles.css, src/components, src/model/colores.ts) el 2026-11-14. Sustituye al sistema anterior («Tablero de Salidas», split-flap con casillas). Los tokens del frontmatter son normativos. -->
 
 ## Overview
 
-**Creative North Star: "El Tablero de Salidas"**
+**Creative North Star: "El mapa de una sola señal"**
 
-España como panel de salidas de una estación: cada provincia es un destino anunciado con su estado, su score y la hora de su dato. El mapa ocupa la izquierda (unos 62 % del ancho en escritorio) y es el protagonista; el tablero de la derecha (unos 38 %) lista las provincias como filas de módulos negros mate separados por juntas de 1 px. La densidad es alta pero ordenada: nada flota, nada redondea, todo se lee en filas.
+El mapa es el protagonista: ocupa unos 64 % del ancho en escritorio (`minmax(0, 1.75fr)` frente a `minmax(23rem, 1fr)`). Cada provincia se lee de un vistazo por su color de rentabilidad, y ese color no significa nada más. El resto de la interfaz es tinta cálida sobre un negro casi puro: pocas líneas, mucho aire, cifras grandes en Martian Mono y explicación en Archivo.
 
-La materia es la de un panel físico: módulos casi negros, caracteres split-flap blanco cálido en Martian Mono condensada, prosa en Archivo. El amarillo no decora; solo marca lo elegido. El tono de la rampa de score es cálido (de un panel apagado a un panel encendido), no un verde-rojo de semáforo. Las cifras se mueven como las letras de un tablero real: cada casilla gira y se asienta. El mapa vuela a su destino en 1,7 s.
+Lo que el sistema rechaza, confirmado en el build: paneles de tarjetas con bordes, etiquetas de cabecera en mayúsculas, sombras de decoración y color de acento. Las cifras cambian con un giro corto de carácter, como un panel de salidas, pero sin casillas ni fondos: el giro es el único gesto de movimiento que acompaña al dato.
 
-La honestidad es parte del sistema: cada número dice de dónde viene (en directo, demo, supuesto, dato oficial o modelo), y un score nunca aparece sin sus motivos. Se rechaza de forma confirmada el panel oscuro de tarjetas de vidrio con KPI sueltos.
+La honestidad es parte del sistema: un dato en directo lleva su hora y su fuente; los datos de demostración se marcan con un sello y la clase se etiqueta como relativa; una clase nunca aparece sin sus motivos; el precio y la demanda de la luz se rotulan como nacionales (peninsulares), nunca como de provincia.
 
 **Key Characteristics:**
-- Negro mate en capas tonales, con juntas de 1 px en lugar de sombras.
-- Radio cero en todo el sistema.
-- Caracteres split-flap cálidos para cifras, nombres de provincia y estados.
-- Un solo acento (amarillo) reservado para la selección.
-- Lámparas de estado con forma propia (círculo, triángulo, aspa, aro): el estado nunca depende solo del color.
-- Rayado diagonal = sin datos, sin excepciones.
-- Origen visible en cada cifra (EN DIRECTO, DEMO, SUPUESTO, GISCO, MODELO, SIN CONEXIÓN).
+- Negro casi puro en dos escalones tonales (`suelo`, `superficie`) y hairlines `linea` de 1 px.
+- Cuatro colores de rentabilidad (`alta`, `media`, `baja`, `no-rentable`) reservados a la codificación de clase.
+- Un icono ordinal de barras por clase: la forma dice la clase además del color.
+- Rayado diagonal = sin datos, y solo eso.
+- Cifras en Martian Mono que giran al cambiar; prosa en Archivo.
+- Radios pequeños (3 a 10 px) y píldoras para acciones.
 
 ## Colors
 
-Neutros cálidos casi negros con una única luz de texto cálida y un solo amarillo de selección. Los colores de dato (estados y rampa de score) son los únicos que cargan significado; ningún otro color debe competir con ellos.
+Negro casi puro con tinta cálida en tres niveles. Cuatro colores de rentabilidad que solo codifican clase; todo lo demás es neutro.
 
 ### Primary
-- **Blanco de carácter** (`caracter` #f1ecdf): texto principal, caracteres del flap, cifras, contorno de foco (`:focus-visible`, 2 px), fondo de la opción activa del conmutador (sobre `suelo`).
-- **Amarillo de selección** (`amarillo` #ffcc33): el único acento. Contorno de la provincia elegida en el mapa, etiqueta del emplazamiento activo (con texto `tinta-sobre-activo` #141414) y subrayado del emplazamiento pulsado en el tablero de la ficha. Ver The Yellow Is Selection Rule.
+- **Tinta cálida** (`texto` #f1ecdf): texto principal, cifras, contorno de la provincia elegida (2,4 px) y del hover (1,5 px), relleno de la barra de la fila de comparación en directo, fondo de la opción activa de los municipios (con texto `suelo`) y contorno de foco (2 px, desplazado 2 px).
 
-### Secondary
-- **Viable** (`viable` #3fd27f): estado "VIABLE". Forma: círculo lleno.
-- **Viable con condiciones** (`condiciones` #ff9c40): estado "CON CONDICIONES" o "CONDIC." en el tablero. Forma: triángulo.
-- **No viable** (`no-viable` #ff5b4b): estado "NO VIABLE" y errores de conexión. Forma: aspa.
-- **Sin datos** (`sin-datos` #6c6f75): estado "SIN DATOS". Forma: aro abierto. En el mapa, el "sin datos" se pinta con rayado, no con este color.
+### Secondary (clase de rentabilidad, reservada)
+- **Alta** (`alta` #40b97a): verde. Icono de tres barras encendidas.
+- **Media** (`media` #dcbc55): ocre amarillento. Icono de dos barras.
+- **Baja** (`baja` #e47b2f): naranja. Icono de una barra.
+- **No rentable** (`no-rentable` #b8383f): rojo. Icono sin barras encendidas y con una cruz.
 
-### Tertiary
-- **Rampa de score** (`puntuacion-0` a `puntuacion-100`: #2a2a2c, #4b463e, #7d715c, #bdaa80, #f3e3b8): luminancia cálida que interpola linealmente entre paradas (0, 25, 50, 75, 100). Colorea provincias y municipios analizados. Desde score 58 el texto sobre la casilla pasa a `tinta-sobre-activo` (#141414); por debajo, `caracter`.
+Estos cuatro colores aparecen solo en: relleno de provincias y Canarias en el mapa, leyenda del mapa, insignia de clase de la ficha, barra de reparto del ranking, puntos de los municipios analizados, y el icono de clase en cualquier sitio donde aparezca. La paleta se validó con `validate_palette.js` (skill dataviz) sobre `suelo` #111214: ΔE de daltonismo ≥ 11, ΔE de visión normal ≥ 15,2, contraste ≥ 3:1. La comprobación de banda de luminosidad queda fuera de alcance; el icono y el nombre de clase la compensan.
 
 ### Neutral
-- **Suelo** (`suelo` #111214): fondo de página, fondo del mapa y del tablero, color de la tinta sobre el blanco.
-- **Contexto** (`contexto` #1d1e21): Portugal y Francia en el mapa. Es el valor que pinta el mapa WebGL (ver nota de divergencia).
-- **Junta** (`junta` #08090a): juntas entre módulos, huecos hundidos, fondo de campos y de etiquetas sobre el mapa.
-- **Módulo** (`modulo` #1b1d20): cara de filas, cifras, botones y leyenda.
-- **Módulo alto** (`modulo-alto` #24272b): estado de paso del ratón y foco de filas y botones.
-- **Regla** (`regla` #2e3136): reglas de 1 px, bordes y anillos de paneles.
-- **Carácter 2** (`caracter-2` #b6b0a3): texto secundario, unidades, etiquetas de campo.
-- **Carácter 3** (`caracter-3` #8f8a80): texto terciario, notas, guiones de "sin dato", ejes.
-
-**Sincronía de tokens:** `src/model/colores.ts` (lo que pinta el mapa WebGL) y `:root` en `styles.css` comparten valores: `contexto` #1d1e21 y `caracterTenue` = `caracter-2` #b6b0a3. Si se cambia uno, hay que cambiar el otro.
+- **Suelo** (`suelo` #111214): fondo de página, fondo del mapa, base de la leyenda y de los recuadros sobre el mapa (con transparencia), tinta sobre el texto invertido de la selección.
+- **Superficie** (`superficie` #17181b): fondo del tooltip, de las filas en hover, de la píldora de volver en la ficha y de la ficha sin datos.
+- **Línea** (`linea` #26282c): hairlines de 1 px: pista de las barras, subrayado del buscador, borde de los municipios, barra de desplazamiento y hover de los botones de volver.
+- **Tinta 2** (`texto-2` #b6b0a3): texto secundario, etiquetas, unidades, motivos, la marca «en directo» y el mensaje «sin conexión».
+- **Tinta 3** (`texto-3` #8f8a80): notas, ejes del gráfico, marcadores de los campos, créditos y borde del sello de demostración.
+- **Sin datos** (`sin-datos` #2b2d32) y **Rayado** (`rayado` #4f525a): el patrón de sin datos es el rayado de `rayado` sobre `sin-datos`, a 45°.
+- **Contexto** (`contexto` #1b1c1f): Portugal y Francia en el mapa. No tiene variable CSS: vive solo en `src/model/colores.ts`, que pinta el mapa WebGL.
 
 ### Named Rules
-**The Yellow Is Selection Rule.** El amarillo señala solo lo activo: la provincia elegida y el emplazamiento elegido. No se usa para cabeceras, badges ni estados.
+**The Class Color Is Profitability Rule.** La paleta de rentabilidad codifica clase y nada más: mapa, leyenda, insignia, reparto, puntos de municipios e iconos. Ningún botón, enlace, cabecera ni estado de conexión toma un color de clase.
+
+**The Warm Ink Rule.** Todo lo que no es rentabilidad va en tinta cálida (`texto`, `texto-2`, `texto-3`) sobre `suelo`. La marca «en directo» es neutra (su punto es `texto-2`); el dato en vivo no tiene color propio.
+
+**The Hatching Means No Data Rule.** El rayado indica ausencia de dato y no se usa para otra cosa: provincias sin modelo en el mapa, Canarias, la muestra de la leyenda, el tramo «sin datos» de la barra de reparto y el resumen de provincias sin datos.
+
+**Sincronía.** `src/model/colores.ts` (lo que pinta el mapa WebGL) repite los valores de `:root` en `styles.css`; si se cambia uno, se cambia el otro. `styles.css` es la fuente normativa.
 
 ## Typography
 
-**Display Font:** Martian Mono Variable (con ui-monospace, Cascadia Mono, Consolas, monospace), con `font-stretch` 78 % para las casillas del flap y 75–80 % para etiquetas.
-**Body Font:** Archivo Variable (con system-ui, Segoe UI, sans-serif).
-**Label/Mono Font:** la misma Martian Mono. Las cifras y los códigos van siempre en mono; la prosa siempre en Archivo.
+**Fuente de cifras:** Martian Mono Variable (`--f-num`), con el eje de anchura `wdth` a 78–82 % (`font-stretch`). Fallback: ui-monospace, Cascadia Mono, Consolas, monospace.
+**Fuente de prosa:** Archivo Variable (`--f-texto`). Fallback: system-ui, Segoe UI, sans-serif.
 
-Ambas fuentes se cargan desde `@fontsource-variable` (martian-mono y archivo, versión 5.3.0) en `src/main.tsx`.
+Ambas se cargan desde `@fontsource-variable` (martian-mono y archivo, variante `wdth.css`) en `src/main.tsx`.
 
-**Character:** un tablero que habla en mayúsculas mono condensadas y una prosa de sans legible. El contraste entre el mono de salidas y la prosa es lo que hace que el dato parezca anunciado y la explicación parezca escrita.
+**Character:** cifras de panel en mono condensado y prosa en sans legible. La mono se reserva a cifras, códigos y la tecla Esc; la prosa, los nombres y las etiquetas van siempre en Archivo.
 
-**Escala raíz:** `html { font-size: clamp(15px, 0.42vw + 10.5px, 19px) }`. Todos los `rem` de este documento escalan con la pantalla; los valores son relativos a esa raíz.
+**Escala raíz:** `html { font-size: clamp(15px, 0.42vw + 10.5px, 19px) }`. Todos los `rem` de este documento escalan con la pantalla.
 
 ### Hierarchy
-- **Display** (Martian Mono, 600, `clamp(3.4rem, 5.2vw, 5.6rem)`, line-height 1): solo el score grande de la ficha de provincia (`flap-cartel`). En móvil, 3.2 rem.
-- **Board** (Martian Mono, 520, 1.55 rem, line-height 1): estado de la ficha (`flap-l`, p. ej. "VIABLE"). `flap-xl` (1.75 rem) para código y nombre de la provincia en la cabecera de la ficha. En móvil bajan a 1.15 rem y 1.35 rem.
-- **Headline** (Archivo, 700, 1.45 rem): título del tablero "Provincias".
-- **Title** (Archivo, 700, 1.2 rem, `font-stretch` 92 %): encabezados de bloque de la ficha (Energía, Agua, Costes…).
-- **Body** (Archivo, 400, 1 rem, line-height 1.45): explicaciones y motivos. Medida máxima 60–70 ch (`.explica` 62 ch, `.motivo` 70 ch).
-- **Label** (Martian Mono, 600, 0.6–0.8 rem, tracking 0.05–0.08 em, mayúsculas): cabeceras de columna, origen de cifra, etiquetas del teletipo, ejes del gráfico. Son las etiquetas más pequeñas del sistema y quedan por debajo de lo que pide la proyección a distancia (ver Do's and Don'ts; el tamaño no es una regla).
+- **Cifra grande** (Martian Mono, 560, `clamp(1.4rem, 2.2vw, 2.1rem)`, line-height 1, `wdth` 82): VAN, ROI y recuperación de la ficha. 1.3 rem a 1100 px y 1.1 rem a 560 px. Su unidad va en Archivo 0.85 rem, `texto-2`.
+- **Título de ficha** (Archivo, 700, 2.1 rem, line-height 1.15, tracking -0.01em): nombre de la provincia. 1.7 rem a 560 px. El título del ranking («Rentabilidad de un CPD por provincia») es 1.6 rem.
+- **Título de bloque** (Archivo, 700, 1.05 rem): Luz, Clima y agua, Inversión y mercado, Por qué.
+- **Clase** (Archivo, 700, 1.45 rem): nombre de la clase en la insignia.
+- **Prosa** (Archivo, 400, 0.92 rem, line-height 1.45): motivos, explicación y fuente. Medida máxima 68 ch. Subtítulos y avisos van en 0.86–0.9 rem.
+- **Etiqueta** (Archivo, 400, 0.8 rem, `texto-2` o `texto-3`): etiquetas de pares, la etiqueta «Luz nacional ahora», notas, ejes y créditos. Es el tamaño mínimo de texto del sistema. Los ejes del gráfico de precio se dibujan en unidades SVG de 12 px y escalan con el gráfico.
+- **Cifra de fila y de pares** (Martian Mono, 560, `wdth` 82, 0.85–1.15 rem): valores de las filas del ranking, de los pares y de la barra de comparación.
 
 ### Named Rules
-**The Caps Are The Board Rule.** Las mayúsculas pertenecen al tablero: casillas del flap, códigos, estados y etiquetas de dato. La prosa, los títulos largos y las explicaciones van en Archivo, en caja normal.
+**The Numerals Are Mono Rule.** Las cifras, los códigos y la tecla Esc van en Martian Mono; la prosa, los nombres de provincia y las etiquetas van en Archivo. No se escribe prosa en mono.
 
 ## Layout
 
-**Estructura de escena (escritorio):** cabecera (franja) a todo el ancho y debajo una escena de dos columnas, `minmax(0, 1.62fr)` para el mapa y `minmax(25rem, 1fr)` para el tablero (≈ 62 / 38). La aplicación ocupa `100dvh`; el tablero hace scroll propio y el mapa no.
+**Escena de escritorio:** la aplicación ocupa `100dvh`. Arriba, la cabecera a todo el ancho; debajo, una escena de dos columnas: el mapa en `minmax(0, 1.75fr)` y el panel de detalle en `minmax(23rem, 1fr)` (≈ 64 / 36). El mapa llena su columna (`position: absolute; inset: 0` dentro de un marco con margen de 0,75 rem a la izquierda y abajo). El panel hace su propio scroll; el mapa no.
 
-**Franja superior:** una rejilla de tres columnas (marca, reloj, sello) y debajo la tira de teletipo a todo el ancho con fondo `junta`. Padding 0.55 rem / 1 rem.
+**Cabecera:** una línea flexible con la marca (sigla «CPD» y título), la luz nacional en directo a la derecha y, solo con datos de demostración, el sello. Padding 0,8 rem / 1,25 rem.
 
-**Mapa:** llena su columna (`position: absolute; inset: 0`). Canarias como recuadro inset abajo a la izquierda (13 rem, o 30 vw si es menor); leyenda abajo a la derecha (15.5 rem) con el conmutador de agregado, la rampa 0–100 y las cuatro lámparas.
+**Panel:** padding 1,75 rem (1,75 rem arriba, 1,25 rem abajo). Entre bloques de la ficha y entre secciones del ranking hay 1,6 rem; dentro de un bloque, 0,85 rem.
 
-**Tablero:** cabecera (título, recuento, lámparas de conteo, nota del modelo, buscador) y después el panel de salidas con margen de 0.75 rem.
+**Ritmo de espaciado:** no hay cuadrícula de 4 u 8 px. Los valores recurrentes son 0,35 / 0,5 / 0,6 / 0,75 / 0,85 / 0,9 / 1 / 1,6 rem. Los tokens `spacing` del frontmatter son esos pasos.
 
-**Ritmo de espaciado:** no hay una cuadrícula de 4 u 8 px. Se usan `0.3 / 0.4 / 0.45 / 0.55 / 0.6 / 0.7 / 0.75 / 1 / 1.2 / 1.6 rem`. Los valores recurrentes son gutter horizontal de 1 rem, separaciones de 0.6 rem y padding de bloque de 1.6 rem arriba y 1.2 rem abajo.
-
-### Breakpoints observados
-- **1280 px:** cada fila del tablero pierde el texto del estado y deja solo la lámpara (la forma y el color bastan), con la cabecera de columna como apoyo.
-- **1100 px:** el tablero se estrecha (`minmax(21rem, 0.9fr)`) y la leyenda pasa a 13.5 rem.
-- **900 px:** la escena pasa a bloque; el mapa tiene altura `clamp(24rem, 112vw, 62svh)`; el reloj desaparece; el teletipo se parte en líneas y muestra las cuatro lecturas; la leyenda se oculta cuando hay una provincia abierta; la tecla Esc se oculta en pantallas táctiles o estrechas.
-- **560 px:** se oculta el subtítulo de la marca; las etiquetas de provincia del mapa desaparecen; la leyenda se convierte en un recuadro compacto arriba a la izquierda; desaparece la columna de dato de las filas; los medidores ceden a 7 rem.
+### Breakpoints
+- **1100 px:** la escena pasa a `minmax(0, 1.4fr)` y `minmax(20rem, 1fr)`; el panel reduce su padding a 1,4 rem / 1,25 rem; las cifras grandes bajan a 1,3 rem.
+- **900 px:** la escena y la aplicación pasan a bloque (altura automática); el marco del mapa mide `clamp(20rem, 96vw, 62svh)` con margen lateral de 0,5 rem; la cabecera se parte y la marca ocupa todo el ancho; el panel deja de tener scroll propio; la tecla Esc se oculta. En el móvil, elegir una provincia sube la vista al mapa.
+- **560 px:** la leyenda del mapa desaparece (la barra de reparto del panel ya lleva iconos); la marca baja a 0,98 rem; Canarias mide 8,5 rem; los puntos de municipios (solo en la vista nacional de la demostración) bajan a 8 px; las cifras grandes bajan a 1,1 rem; las filas de comparación pasan a dos columnas con la barra a ancho completo.
 
 ### Named Rules
-**The Fluid Board Rule.** Todo el sistema escala con la raíz fluida; no se fijan tamaños en píxeles para texto. Las dimensiones fijas son solo lámparas (12–26 px), marcadores del mapa, la muestra de rayado de la leyenda y los segmentos del medidor.
+**The Phone Goes To The Map Rule.** En pantallas de 900 px o menos, elegir una provincia sube la vista al mapa, porque el zoom es la respuesta y el panel queda debajo.
+
+**The Fluid Type Rule.** El texto escala con la raíz fluida; no se fijan píxeles para texto. Las dimensiones fijas son iconos de clase (13–34 px), puntos del mapa, la muestra de rayado, la barra de 6 px y los marcadores de los municipios.
+
+### Vistas: nacional y provincia
+
+- **Vista nacional:** el mapa muestra todas las provincias por clase, la leyenda abajo a la derecha, Canarias abajo a la izquierda; el panel muestra el ranking.
+- **Vista de provincia:** el mapa hace zoom y muestra los puntos de municipios con su etiqueta; la leyenda y Canarias desaparecen; el botón «Toda España» aparece arriba a la izquierda; el panel muestra la ficha.
 
 ## Elevation & Depth
 
-Sistema plano por capas tonales. La profundidad se da con los escalones `suelo` → `contexto` → `modulo` → `modulo-alto` y con juntas `junta` de 1 px, no con sombras. Las únicas sombras son de flotación (la pista del mapa) o anillos de 1 px de `regla` o `junta` que delimitan paneles.
+Sistema plano por escalones tonales (`suelo` → `superficie`) y hairlines `linea` de 1 px. Las superficies se separan por tono o por línea, no por sombra. La única sombra difusa es la del tooltip del mapa. Los recuadros sobre el mapa (leyenda, Canarias, botón de volver) son fondos translúcidos de `suelo` (86 %) o de `superficie` (92 %), no elevaciones.
 
 ### Shadow Vocabulary
-- **Pista flotante** (`box-shadow: 0 8px 24px rgb(0 0 0 / 0.45)`): solo la etiqueta que sigue al cursor sobre el mapa. Es la única sombra difusa del sistema.
-- **Anillo de panel** (`box-shadow: 0 0 0 1px var(--regla)`): carcasa del panel de salidas y de los botones de control del mapa.
-- **Anillo de junta** (`box-shadow: 0 0 0 1px var(--junta)`): módulos de cifra y gráfico.
-- **Regla inferior de la franja** (`box-shadow: 0 1px 0 var(--regla)`): una regla de 1 px, no una sombra.
+- **Tooltip del mapa** (`box-shadow: 0 10px 28px rgb(0 0 0 / 0.5)`): solo la pista que sigue al cursor sobre el mapa.
+- **Anillo de punto** (`box-shadow: 0 0 0 2px #111214, 0 0 0 3.5px rgb(241 236 223 / 0.85)`): delimita los puntos de municipios sobre el mapa; en 560 px baja a 1,5 y 2,5 px. Es un contorno de lectura, no una sombra.
 
 ### Named Rules
-**The Flat Board Rule.** Nada flota en reposo. Una superficie se distingue por su escalón tonal o su junta, y solo la pista del mapa se separa del fondo con sombra.
+**The Tonal Depth Rule.** Una superficie se distingue por su escalón tonal o su hairline. Solo la pista del mapa flota con sombra.
 
 ## Shapes
 
-Radio cero en todo el sistema: módulos, botones, campos, barras de desplazamiento (`border-radius: 0`), controles de MapLibre (forzados a 0 con `!important`) y atribución. Los bordes miden 1 px. Las formas que sí son redondas son las lámparas de estado, que son símbolos y no radios.
+Radios observados, de menor a mayor: 2 px (muestra de rayado pequeña), 3 px (barras de progreso, reparto), 4 px (sigla de la marca, etiqueta de punto, muestra de rayado grande), 6 px (`--radio`: tooltip, leyenda, Canarias, filas, bloque de error, controles de MapLibre), 10 px (marco del mapa, insignia de clase) y 999 px (píldoras). Los bordes miden 1 px, en `linea` o, en el sello, discontinuos en `texto-3`.
 
-Formas recurrentes:
-- **Casilla de flap:** rectángulo con una mitad superior y otra inferior de tonos ligeramente distintos y una línea negra de 1 px en la juntura. Cada casilla es un módulo.
-- **Lámpara de estado:** círculo (Viable), triángulo (Con condiciones), aspa (No viable), aro abierto (Sin datos). Es el único lenguaje de forma geométrica del sistema.
-- **Medidor:** diez segmentos rectangulares de 2 px de separación.
-- **Borde discontinuo (1 px dashed):** solo para el sello "Datos de demostración" y la etiqueta DEMO. Marca lo que es ficticio.
-- **Pantalla de estado sin datos:** rayado diagonal a 45° (ver Components).
+**Formas recurrentes:**
+- **Icono de clase:** tres barras de altura creciente (como la cobertura de un móvil). Encendidas según la clase: 3 alta, 2 media, 1 baja, 0 no rentable (con una cruz). Las barras apagadas son `#3b3d43`.
+- **Muestra de rayado:** cuadrado con rayado a 45° (1,5 px de trazo cada 5 px).
+- **Barra de progreso:** pista de 6 px con relleno de la misma altura y umbral de 2 px.
 
 ### Named Rules
-**The Zero Radius Rule.** Ninguna esquina se redondea. Si un elemento necesita diferenciarse, se hace con juntas, tonos o una forma de estado, no con radio.
+**The Pill Is Action Rule.** Las acciones (volver, municipios, reintentar) y el sello de demostración van en píldora de 999 px. Los contenedores de datos van de 3 a 10 px.
+
+**The Dashed Seal Rule.** El borde discontinuo se usa solo en el sello «Datos de demostración». Marca lo ficticio y no se reutiliza.
 
 ## Components
 
-Cada componente tiene carácter de panel: se lee como un módulo de tablero y se comporta como una casilla que cambia de valor.
+Cada componente se lee como una pieza del mapa o de la ficha, sin fondo decorativo. Los estados son de tono y de línea.
 
-### Split-flap (Flap)
-- **Forma:** casillas de `min-width: 1.04ch`, con padding 0.16 em / 0.09 em / 0.13 em, fondo gradiente de dos mitades y línea negra central de 1 px. Código de provincia en tono hundido (`#2c2f34` → `#23262a`, texto `caracter-2`).
-- **Animación:** cada casilla gira en `flap-cae` (rotateX de -85° a 0, brillo de 0.55 a 1) durante **110 ms** con `cubic-bezier(0.25, 0.8, 0.35, 1)`. En JS, cada carácter recorre letras del alfabeto cada 55 ms (secuencia determinista) antes de asentarse en el valor nuevo.
-- **Escalonado:** las filas del tablero entran con 30 ms de retardo por fila (máximo 26 filas), el nombre con +40 ms y el score con +90 ms.
-- **Ancho fijo:** la cifra o el nombre ocupan un número fijo de casillas (relleno a la derecha si es numérico y alineado a la derecha, a la izquierda en el resto). El texto va siempre en mayúsculas.
-- **Accesibilidad:** el texto visible va en `aria-hidden`; un `sr-only` lleva el valor legible.
+### Insignia de clase (`.clase`)
+- **Forma:** radio 10 px, padding 0,95 rem / 1,1 rem, fondo mezclado: 15 % del color de la clase sobre `suelo` (`color-mix`).
+- **Contenido:** icono de clase de 34 px, nombre de la clase (Archivo 700, 1,45 rem). Con datos de demostración, debajo, la nota «relativa · demostración» (0,8 rem, `texto-2`).
+- **Sin datos (`.clase-sin`):** fondo `superficie`, muestra de rayado de 34 px, «Sin datos todavía» y una explicación de hasta 60 ch.
 
-### Lámpara de estado (Lampara)
-- Cuatro formas, una por estado (ver Shapes). Tamaños de 12–26 px según el contexto.
-- Siempre acompaña a la etiqueta o al número del estado; el color nunca es el único canal.
+### Cifras grandes (`.heroes`)
+- Tres columnas de igual anchura (VAN, ROI, recuperación). Etiqueta 0,8 rem en `texto-2`; cifra en Martian Mono; unidad («M€», «%», «años») en 0,85 rem `texto-2`.
+- Sin dato: guion «—»; sin recuperación: «no se recupera» en 1 rem `texto-2`.
+- Cada cifra gira al cambiar; ROI con 80 ms de retardo y recuperación con 160 ms.
 
-### Filas del tablero (Fila)
-- **Forma:** rejilla de cinco columnas (código, nombre, estado, score, dato). Ancho completo, padding 0.4 rem / 0.7 rem, fondo `modulo`. Separación de 1 px por la junta de la carcasa.
-- **Estados:** paso del ratón o foco → `modulo-alto`. Sin datos → nombre y estado en `caracter-3`, score como guion "—".
-- **Cabecera:** fila fija (`sticky`) con fondo `#0d0e10`, borde inferior de 2 px `regla`, etiquetas de label.
+### Barra (`.barra`)
+- Etiqueta 0,88 rem `texto-2` a la izquierda; valor en Martian Mono 560 `texto` a la derecha.
+- Pista de 6 px, radio 3 px, en `linea`; relleno en `texto-2`. La barra no toma color de clase.
+- Umbral opcional: marca de 2 px en `texto` en la posición del umbral (estrés hídrico, 0,7). Lleva `role="meter"`.
+- Nota opcional a 0,8 rem `texto-3`.
+- Usos: viabilidad (0–100), probabilidad de instalación de un CPD, horas de free cooling, reserva hídrica, estrés hídrico.
 
-### Teletipo
-- Tira continua bajo la cabecera, fondo `junta`, con cuatro lecturas nacionales de Red Eléctrica: Luz spot (€/MWh), Media hoy (€/MWh), Demanda (MW), Renovable ayer (%). Cada lectura lleva su hora de dato.
-- Sello inicial con un cuadrado que late (2.4 s de ciclo, opacidad entre 1 y 0.25) e indica "En directo · Red Eléctrica · nacional".
-- Errores: "— sin conexión" en `no-viable`.
+### Comparativa (`.comparativa`)
+- Filas en rejilla: etiqueta (`minmax(8.5rem, 1fr)`), pista de 6 px (`minmax(5rem, 1.4fr)`), valor en Martian Mono con unidad pequeña `texto-3`.
+- Filas de modelo: relleno `texto-3`. Fila en directo (`es-vivo`): relleno `texto` y su marca «en directo» con hora.
+- Con 560 px, dos columnas y la pista ocupa la fila inferior.
 
-### Cifra (Cifra)
-- **Forma:** módulo con fondo `modulo`, anillo de junta de 1 px, padding 0.65 rem / 0.75 rem. Rejilla de módulos con `auto-fill` de 10.5 rem y juntas de 1 px.
-- **Partes:** etiqueta (Archivo 600, 0.76 rem, `caracter-2`), valor (Martian Mono 1.12 rem; "grande" 1.35 rem), unidad (Archivo 0.74 rem, `caracter-2`), origen (etiqueta de origen), nota opcional (0.74 rem, `caracter-3`).
-- CAPEX, OPEX y VAN son cifras "grandes" (`cifra-grande`).
+### Gráfico de precio (`.grafico-precio`)
+- SVG de 6 rem de alto con 96 barras (una por cuarto de hora). Pasado `#5f5c55`, instante actual `texto`, futuro `#33353a`. Son valores fijos del gráfico, no tokens.
+- Línea de referencia discontinua (5 4) en `texto-2`, 1,2 px, con el precio del modelo.
+- Ejes 0/6/12/18 h en Martian Mono de 12 px, `texto-3`. Pie de 0,8 rem `texto-3`.
 
-### Origen (Origen)
-Etiqueta de cada cifra de la ficha. Van en mayúsculas mono de 0.6 rem, con un borde de 1 px.
-- **EN DIRECTO** (`origen-vivo`): borde y texto `caracter-2`/`caracter`, cuadrado que late, hora del dato y fuente (REData o Open-Meteo).
-- **GISCO** (`origen-real`): dato oficial real, con el nombre de la fuente ("GISCO LAU 2024"). Borde `regla`.
-- **DEMO** (`origen-demo`): modelo con indicadores sintéticos. Borde discontinuo `caracter-3`.
-- **SUPUESTO**: valor de referencia del modelo (p. ej. precio de electricidad usado por el modelo). Texto plano sin variante.
-- **MODELO**: columna Dato de cada fila del tablero cuando el modelo no es de demostración.
-- **SIN CONEXIÓN** (`origen-error`): borde y texto `no-viable`.
+### Ranking por clase (`.ranking`)
+- **Cabecera:** título 1,6 rem 700, subtítulo 0,9 rem `texto-2` (predicción con su hora, o «Demostración con datos sintéticos · N de M provincias»).
+- **Reparto:** barra de 0,7 rem de alto, radio 3 px, con tramos proporcionales al número de provincias de cada clase en su color; el tramo «sin datos» va rayado. Bajo ella, la leyenda del reparto con icono, cifra en mono y nombre.
+- **Buscador:** sin fondo; solo una línea inferior de 1 px en `linea` que pasa a `texto-2` al enfocarse; marcador en `texto-3`.
+- **Grupos:** un grupo por clase en el orden alta, media, baja, no rentable. Encabezado 0,95 rem 650 con icono de 15 px, nombre y cuenta en Martian Mono a la derecha (`texto-3`). Dentro, provincias ordenadas por VAN.
+- **Sin datos:** un bloque colapsado («Sin datos todavía», con muestra rayada y cuenta), que se abre al buscar.
 
-### Named Rules
-**The Honest Origin Rule.** Cada cifra de la ficha de provincia lleva su origen. Las lecturas del teletipo llevan su hora y la etiqueta de la tira, y las filas del tablero indican MODELO o DEMO en su columna Dato. Un precio nacional nunca se presenta como precio de provincia.
+### Fila de provincia (`.fila`)
+- Botón de ancho completo, radio 6 px, padding 0,42 rem / 0,5 rem / 0,42 rem / 1,75 rem (el hueco izquierdo es para la sangría del grupo).
+- Nombre en Archivo, una línea con elipsis; VAN en Martian Mono 0,85 rem `texto-2`.
+- Hover y foco: fondo `superficie`. Al pasar el puntero o enfocar, la provincia se resalta en el mapa con su contorno.
 
-### Mapa (MapaEspana)
-- **Relleno por provincia:** la rampa de score (`puntuacion-*`) según el mejor emplazamiento o la media provincial (conmutador de la leyenda). Sin datos → rayado.
-- **Selección:** la provincia elegida conserva opacidad 1; las demás bajan a 0.2. Su contorno es amarillo de 2.6 px.
-- **Municipios analizados:** misma rampa; los no analizados, módulo apagado; el paso del ratón sobre un municipio usa `#2b2e33`.
-- **Bordes:** líneas `caracter` de anchura creciente con el zoom; provincias con línea `junta`.
-- **Emplazamientos:** marcadores circulares de 15–20 px sobre fondo `junta`; el activo tiene su etiqueta en amarillo.
-- **Pista del cursor:** etiqueta `junta` con borde `regla` y la única sombra difusa del sistema.
-- **Controles de MapLibre:** módulo `modulo`, anillo de 1 px `regla`, sin radio, iconos invertidos a claro. Atribución compacta.
-- **Canarias:** recuadro inset con las dos provincias; las sin datos van rayadas, y el paso del ratón da contorno `caracter` de 1.5 px.
+### Leyenda del mapa (`.leyenda`)
+- Esquina inferior derecha del mapa, solo en la vista nacional. Fondo `suelo` al 86 %, radio 6 px, texto 0,82 rem.
+- Título «Rentabilidad» 0,8 rem 600 `texto-3`. Cuatro filas: icono de 14 px, nombre y cuenta en Martian Mono; la última fila, «Sin datos», con su muestra rayada de 14 px.
+- Oculta a 560 px.
 
-### Vuelo de cámara (movimiento del mapa)
-- Al elegir una provincia, `fitBounds` con duración **1700 ms**, `essential: true`, zoom máximo 9.5 y margen de `clamp(24 px, 7 % del ancho, 90 px)`.
-- Al volver a España, el encuadre vuelve a `fitBounds` de la península con margen máximo de 32 px, con la misma duración.
-- Con reducir movimiento la duración es 0.
+### Canarias (`.canarias`)
+- Recuadro inset abajo a la izquierda del mapa, en la vista nacional. Ancho `min(12rem, 30vw)` (8,5 rem a 560 px). Fondo `suelo` al 86 %, radio 6 px.
+- Las dos provincias se rellenan con su color de clase; sin datos, con rayado a -45° (paso de 5 u, trazo de 1 u). Foco y hover: contorno `texto` de 1,5 px.
+- Leyenda «Canarias» a 0,8 rem `texto-3`. Pulsar una provincia vuela a su posición real.
 
-### Botones y controles de volver
-- **Forma:** rectángulo `modulo` con borde de 1 px `regla`, padding 0.4 rem / 0.7 rem. Sin icono de flecha en el sistema; la tecla Esc aparece como `kbd` en la ficha (oculta en táctil o en pantallas de 900 px o menos).
-- **Estados:** paso del ratón → `modulo-alto`. Foco visible → contorno de 2 px `caracter` a 2 px del borde.
+### Tooltip del mapa (`.pista`)
+- Sigue al cursor con 14 px de desplazamiento. Fondo `superficie`, radio 6 px, padding 0,5 rem / 0,7 rem, la única sombra del sistema.
+- Título 650; línea de 0,82 rem `texto-2`. En una provincia, lleva el icono de clase de 13 px y su nombre de clase, y el VAN si existe; en un municipio, su superficie en km².
+- No captura el puntero y es `aria-hidden`: la misma información está en la lista.
 
-### Conmutador (agregado)
-- Dos opciones en rejilla de dos columnas, separadas por juntas de 1 px `junta`. Cada opción: `modulo`, altura mínima 2.4 rem (2 rem en móvil).
-- Opción activa: fondo `caracter`, texto `suelo`, peso 650.
+### Botones de volver (`.mapa-volver`, `.volver`)
+- **Forma:** píldora de 999 px. `.mapa-volver` flota arriba a la izquierda del mapa con fondo `suelo` / `superficie` al 92 %. `.volver` es la cabecera de la ficha, con fondo `superficie`.
+- **Texto:** «Toda España», o «Volver a la península» cuando la provincia es Canarias. La ficha añade la tecla Esc como `kbd` (0,8 rem `texto-3`), oculta en táctil y en 900 px o menos.
+- **Estados:** hover → `linea`. Foco visible → contorno de 2 px `texto` desplazado 2 px.
+- Ambos llevan una flecha de trazo dibujada en SVG. No es un patrón del sistema a replicar.
 
-### Buscador
-- Campo de texto de ancho completo, fondo `junta`, borde de 1 px `regla`, radio 0, texto `caracter`, marcador `caracter-3`.
+### Municipios analizados (`.sitios`)
+- Píldoras de 999 px con borde de 1 px `linea`, texto 0,86 rem, con icono de clase de 13 px.
+- Activa (`aria-pressed`): fondo `texto`, texto y borde del mismo color `suelo`.
 
-### Ficha de provincia
-- Entra con un revelado vertical en `clip-path` durante 380 ms (`cubic-bezier(0.16, 1, 0.3, 1)`).
-- Orden: cabecera (volver, código y nombre, capital y municipios, origen GISCO), veredicto (lámpara, estado en Board, score grande, explicación), bloques por área (ocho, según `BLOQUES`), medidores, índices con umbral (estrés hídrico 0.7, barra que pasa a `condiciones` al superarlo), gráfico de precio de 15 minutos con referencia del modelo, créditos.
-- Sin datos: "SIN DATOS TODAVÍA" en Board, lámpara de aro y explicación; no se muestran estado, score ni cifras económicas.
+### Puntos de municipios (`.sitio`)
+- Punto de 11 px (15 px en la vista de provincia) del color de clase, con anillo de lectura. Su etiqueta aparece solo en la vista de provincia, sobre fondo `suelo` al 85 %; la etiqueta activa invierte a fondo `texto` con texto `suelo`.
 
-### Rayado (no-data pattern)
-- **Mapa, provincias:** líneas diagonales de color `#56595f` en un patrón de 8 píxeles de periodo y 2 de grosor (imagen de 16 × 16 a 2x), con opacidad completa.
-- **Mapa, municipios sin análisis:** mismo color con periodo 16 y grosor 1, opacidad 150/255, para que se lean sus límites.
-- **Canarias:** patrón SVG de 6 unidades, trazo de 1.4, girado -45°.
-- **Leyenda:** muestra de 13 px con `repeating-linear-gradient` a 45°, trazo de 1.5 px cada 4 px.
-- Es la única manera de indicar ausencia de dato en el mapa.
+### Sello de demostración (`.sello`)
+- Píldora de 999 px, borde discontinuo de 1 px `texto-3`, texto 0,8 rem 600 `texto-2`: «Datos de demostración». Su `title` explica qué es sintético y qué es real.
+- Aparece en la cabecera solo cuando la predicción es de demostración.
 
-### Named Rules
-**The Hatching Means No Data Rule.** El rayado indica ausencia de dato y no se usa para nada más.
+### Marca «en directo» (`.vivo-marca`)
+- Texto 0,8 rem `texto-3`: «en directo», hora del dato y fuente («Red Eléctrica», «Open-Meteo»).
+- Punto de 0,42 em en `texto-2` que late: 2,4 s, opacidad de 1 a 0,25 en el 50 %.
+- Es neutra: el dato en directo no tiene color.
 
-**The Lamp Shape Rule.** Un estado se lee por forma y color a la vez. Quitar la forma, o usar solo el color, no es válido.
+### Números que giran (`Flap`)
+- Cifras sin casillas ni fondos: cada carácter va en un hueco con `overflow: hidden` y la cifra nueva entra desde arriba. Es el único gesto de movimiento del dato.
 
-**Movimiento y reducción.** Con `prefers-reduced-motion: reduce`, se desactivan las animaciones de `.flap-g` (la casilla gira), `.ficha` (revelado), `.origen-vivo i` y `.teletipo-sello i` (cuadrados que laten); el flap cambia de golpe; el mapa salta sin vuelo; el scroll del tablero es instantáneo.
+### Buscador, avisos y errores
+- **Aviso** (`.aviso-vivo`): 0,86 rem `texto-2`; el botón «Reintentar» es una píldora de `superficie`.
+- **Línea en directo** (`.linea-vivo`): 0,88 rem `texto-2`, con las cifras en mono `texto`.
+- **Error de carga** (`.error-carga`): radio 6 px, borde de 1 px `texto-3`, con `role="alert"`.
+- **Sin conexión** (`.sin-conexion`): texto 0,85 rem `texto-2`. No usa un color de clase.
+
+### Movimiento
+
+- **Giro de cifra (`Flap`):** en CSS, `gira` 120 ms con `cubic-bezier(0.25, 0.8, 0.35, 1)`, de `translateY(-45 %)` y opacidad 0,2 a la posición. En JS, cada carácter recorre el alfabeto y los dígitos cada 55 ms antes de asentarse; cada casilla se asienta tras un número de pasos que crece con su posición en la cifra.
+- **Revelado de la ficha (`.ficha`):** 320 ms con `cubic-bezier(0.16, 1, 0.3, 1)`, de opacidad 0 y 6 px hacia abajo a la posición.
+- **Vuelo del mapa:** `fitBounds` de 1600 ms, `essential`, zoom máximo 9,5. El margen es `clamp(24 px, 7 % del ancho, 90 px)`. Al volver a España, el margen máximo es 32 px y la duración es la misma.
+- **Latido de «en directo»:** 2,4 s, `ease-in-out`, infinito.
+- **Hover y foco:** sin transiciones. Los cambios de fondo son inmediatos.
+
+**Reducir movimiento** (`prefers-reduced-motion: reduce`, leído por `useMovimientoReducido`): las cifras cambian de golpe; la ficha aparece sin revelado; el latido se detiene; el mapa salta sin vuelo (duración 0); el scroll del panel es instantáneo.
+
+### Estados de dato
+
+- **Demostración (sello y nota relativa):** con predicción de demostración, la cabecera muestra el sello «Datos de demostración», la insignia dice «relativa · demostración» y el pie de la ficha explica que los indicadores son sintéticos y la clase es relativa (tercios del VAN; «no viable» = no rentable). Con la predicción real, no hay sello ni nota.
+- **Sin datos (rayado):** una provincia sin modelo se pinta rayada en el mapa, en Canarias, en la leyenda y en el reparto. Su ficha dice «Sin datos todavía» con la muestra rayada; no muestra estado, score ni cifras económicas.
+- **Sin conexión:** si una fuente en directo falla, la luz de la cabecera dice «sin conexión» en `texto-2` y el bloque afectado ofrece «Reintentar». No hay color de error.
+- **Cargando:** la cabecera muestra «cargando…» y el mapa, «Cargando mapa…».
+- El sello de demostración solo aparece cuando los datos ya han cargado y se sabe que no hay predicción real.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** poner el origen junto a cada cifra (EN DIRECTO con hora, DEMO, SUPUESTO, GISCO, MODELO o SIN CONEXIÓN).
-- **Do** marcar el estado con forma y color a la vez: círculo para Viable, triángulo para Con condiciones, aspa para No viable, aro para Sin datos.
-- **Do** reservar `amarillo` (#ffcc33) para la provincia o el emplazamiento activo.
-- **Do** usar el rayado solo para "sin datos".
-- **Do** mostrar cada score junto a sus motivos.
-- **Do** mantener radio cero, juntas de 1 px y escalones tonales en lugar de sombras.
-- **Do** mantener la casilla de flap en 110 ms y el vuelo de mapa en 1,7 s, y anularlos con reducir movimiento.
-- **Do** dar la electricidad y la demanda como nacionales (peninsulares) y decirlo en la etiqueta.
+- **Do** usar la paleta de rentabilidad solo para clase, y siempre con su icono de barras y su nombre.
+- **Do** rotular cada cifra con su origen: la hora y la fuente en la marca «en directo», o «Datos de demostración» y «relativa · demostración» cuando lo son.
+- **Do** mostrar cada clase con sus motivos («Por qué»).
+- **Do** rotular el precio y la demanda de la luz como nacionales (peninsulares).
+- **Do** usar el rayado solo para «sin datos».
+- **Do** separar superficies con tono y hairline de 1 px.
+- **Do** mantener el giro de cifra en 120 ms y el vuelo del mapa en 1600 ms, y anularlos con reducir movimiento.
+- **Do** dar a cada cifra un valor real, modelado o marcado como sin datos.
 
 ### Don't:
-- **Don't** redondear esquinas ni añadir sombras de caída como decoración.
-- **Don't** usar amarillo en cabeceras, badges, estados o decoración.
+- **Don't** usar un color de clase en cabeceras, enlaces, botones, insignias que no sean de clase ni en estados de conexión.
+- **Don't** quitar el icono de barras y dejar solo el color de la clase.
 - **Don't** usar rayado para algo que no sea ausencia de dato.
-- **Don't** quitar la forma de la lámpara para dejar solo el color.
-- **Don't** mostrar una cifra sin su origen, ni un número sin datos reales o modelados.
+- **Don't** mostrar una cifra de demostración sin su marca.
 - **Don't** presentar un precio o una demanda nacional como si fuera de provincia.
-- **Don't** inventar valores: sin datos se muestra "sin datos todavía" o un guion "—".
-- **Don't** escribir prosa en mayúsculas o mono; el mono es del tablero.
+- **Don't** inventar valores: sin datos se muestra «Sin datos todavía» o un guion «—».
+- **Don't** reintroducir elementos del sistema anterior: casillas split-flap, amarillo de selección, lámparas de estado con formas propias o etiquetas de origen en mayúsculas.
+- **Don't** añadir sombras decorativas ni tarjetas con bordes.
