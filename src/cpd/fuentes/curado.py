@@ -18,6 +18,8 @@ from pathlib import Path
 import pandas as pd
 
 from cpd.config import RUTA_RAIZ
+from cpd.fuentes import agua
+from cpd.fuentes.embalses import AMBITO_POR_PROVINCIA
 from cpd.fuentes.provincias import CODIGOS
 
 CARPETA_CURADO: Path = RUTA_RAIZ / "data" / "curated"
@@ -44,16 +46,21 @@ DICCIONARIO: tuple[Campo, ...] = (
     Campo("provincia", "Nombre de la provincia", "-", "INE", "provincia", "estática"),
     Campo("ccaa", "Comunidad autónoma", "-", "INE", "provincia", "estática"),
     Campo("codigo_ccaa", "Código INE de comunidad autónoma", "-", "INE", "provincia", "estática"),
-    Campo("tmedia_mes_c", "Temperatura media del aire del mes (media de medias diarias)", "°C", "Open-Meteo ERA5", "provincia", "mensual"),
-    Campo("tmax_media_c", "Media mensual de la temperatura máxima diaria", "°C", "Open-Meteo ERA5", "provincia", "mensual"),
-    Campo("tmin_media_c", "Media mensual de la temperatura mínima diaria", "°C", "Open-Meteo ERA5", "provincia", "mensual"),
-    Campo("precipitacion_mes_mm", "Precipitación acumulada en el mes", "mm", "Open-Meteo ERA5", "provincia", "mensual"),
-    Campo("humedad_relativa_media_pct", "Humedad relativa media del mes", "%", "Open-Meteo ERA5", "provincia", "mensual"),
-    Campo("viento_medio_kmh", "Velocidad media del viento a 10 m", "km/h", "Open-Meteo ERA5", "provincia", "mensual"),
-    Campo("et0_mes_mm", "Evapotranspiración de referencia FAO-56 acumulada en el mes", "mm", "Open-Meteo ERA5", "provincia", "mensual"),
-    Campo("dias_con_clima", "Días del mes con dato climático (un mes parcial tiene menos)", "días", "Open-Meteo ERA5", "provincia", "mensual"),
-    Campo("horas_free_cooling", "Horas del mes con temperatura < 18 °C (free-cooling)", "horas", "Open-Meteo ERA5 horario", "provincia", "mensual"),
-    Campo("pct_horas_free_cooling", "Porcentaje de horas del mes con temperatura < 18 °C", "%", "Open-Meteo ERA5 horario", "provincia", "mensual"),
+    Campo("tmedia_mes_c", "Temperatura media del aire del mes (media de medias diarias)", "°C", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("tmax_media_c", "Media mensual de la temperatura máxima diaria", "°C", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("tmin_media_c", "Media mensual de la temperatura mínima diaria", "°C", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("precipitacion_mes_mm", "Precipitación acumulada en el mes", "mm", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("humedad_relativa_media_pct", "Humedad relativa media del mes", "%", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("viento_medio_kmh", "Velocidad media del viento a 10 m", "km/h", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("radiacion_solar_media_kwh_m2_dia", "Radiación solar global media diaria del mes", "kWh/m²/día", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("et0_hargreaves_mes_mm", "ET0 de referencia (Hargreaves-Samani) acumulada en el mes; NaN si el mes está incompleto", "mm", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("dias_mas_35c", "Días del mes con temperatura máxima >= 35 °C", "días", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("balance_hidrico_mes_mm", "Balance hídrico climático del mes: precipitación − ET0 Hargreaves (negativo = demanda superior a la lluvia)", "mm", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("precipitacion_12m_mm", "Precipitación acumulada en los últimos 12 meses", "mm", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("indice_sequia_12m", "Índice de sequía a 12 meses (z-score del acumulado frente a su mismo mes del calendario; < -1 sequía moderada)", "z", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("dias_con_clima", "Días del mes con dato climático (un mes parcial tiene menos)", "días", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
+    Campo("horas_free_cooling", "Horas del mes con temperatura < 18 °C (free-cooling)", "horas", "NASA POWER horario (MERRA-2)", "provincia", "mensual"),
+    Campo("pct_horas_free_cooling", "Porcentaje de horas del mes con temperatura < 18 °C", "%", "NASA POWER horario (MERRA-2)", "provincia", "mensual"),
     Campo("demanda_ccaa_mwh", "Demanda eléctrica mensual de la comunidad autónoma (REData)", "MWh", "Red Eléctrica REData", "ccaa", "mensual"),
     Campo("generacion_total_ccaa_mwh", "Generación eléctrica mensual de la comunidad (todas las tecnologías)", "MWh", "Red Eléctrica REData", "ccaa", "mensual"),
     Campo("generacion_renovable_ccaa_mwh", "Generación renovable mensual de la comunidad", "MWh", "Red Eléctrica REData", "ccaa", "mensual"),
@@ -61,7 +68,12 @@ DICCIONARIO: tuple[Campo, ...] = (
     Campo("emisiones_co2_nacional_tco2eq", "Emisiones de CO2 del sistema eléctrico (total nacional)", "tCO2 eq.", "Red Eléctrica REData", "nacional", "mensual"),
     Campo("precio_spot_medio_mes_eur_mwh", "Precio medio mensual del mercado spot (media de días)", "€/MWh", "Red Eléctrica REData (OMIE)", "nacional", "mensual"),
     Campo("precio_pvpc_medio_mes_eur_mwh", "Precio medio mensual PVPC (tarifa regulada) (media de días)", "€/MWh", "Red Eléctrica REData", "nacional", "mensual"),
-    Campo("poblacion", "Población residente a 1 de enero del año", "habitantes", "INE Tempus3 (2852)", "provincia", "anual"),
+    Campo("poblacion", "Población residente a 1 de enero del año (Tempus3 hasta 2021; padrón municipal 2022 en adelante)", "habitantes", "INE Tempus3 (2852) y padrón (29005)", "provincia", "anual"),
+    Campo("fuente_poblacion", "Tabla de la que procede la población de ese año", "-", "INE", "provincia", "anual"),
+    Campo("diferencia_padron_vs_tempus_pct", "Diferencia relativa padrón frente a Tempus3 en los años solapados (control de consistencia)", "%", "INE", "provincia", "anual"),
+    Campo("temp_prevision_7d_media_c", "Temperatura media prevista para los próximos 7 días en la capital", "°C", "Open-Meteo (forecast)", "provincia", "tiempo real"),
+    Campo("temp_prevision_7d_max_c", "Temperatura máxima prevista para los próximos 7 días en la capital", "°C", "Open-Meteo (forecast)", "provincia", "tiempo real"),
+    Campo("precipitacion_prevision_7d_mm", "Precipitación prevista para los próximos 7 días en la capital", "mm", "Open-Meteo (forecast)", "provincia", "tiempo real"),
     Campo("renta_neta_media_persona_eur", "Renta neta media por persona del año", "€/año", "INE ADRH (53689)", "provincia", "anual"),
     Campo("renta_neta_media_hogar_eur", "Renta neta media por hogar del año", "€/año", "INE ADRH (53689)", "provincia", "anual"),
     Campo("mediana_renta_unidad_consumo_eur", "Mediana de la renta por unidad de consumo del año", "€/año", "INE ADRH (53689)", "provincia", "anual"),
@@ -87,13 +99,22 @@ DICCIONARIO: tuple[Campo, ...] = (
     Campo("demanda_tiempo_real_mw", "Última demanda real publicada, sistema peninsular (cada 5 min)", "MW", "Red Eléctrica REData", "nacional", "tiempo real"),
     Campo("precio_spot_actual_eur_mwh", "Último precio spot publicado (cuarto de hora)", "€/MWh", "Red Eléctrica REData", "nacional", "tiempo real"),
     Campo("precio_spot_manana_medio_eur_mwh", "Precio spot medio del día siguiente (OMIE), si ya está publicado", "€/MWh", "OMIE marginalpdbc", "nacional", "tiempo real"),
+    Campo("ambito_hidrografico", "Ámbito hidrográfico dominante de la provincia (asignación estática aproximada)", "-", "MITECO (embalses) + criterio propio", "provincia", "estática"),
+    Campo("reserva_hidrica_pct", "Reserva de los embalses del ámbito: media mensual de las semanas del mes", "%", "MITECO embalses semanal", "ámbito (se asigna a la provincia)", "mensual"),
+    Campo("reserva_hidrica_hm3", "Volumen embalsado del ámbito: media mensual de las semanas del mes", "hm³", "MITECO embalses semanal", "ámbito (se asigna a la provincia)", "mensual"),
+    Campo("capacidad_embalses_ambito_hm3", "Capacidad total de los embalses del ámbito (media mensual)", "hm³", "MITECO embalses semanal", "ámbito (se asigna a la provincia)", "mensual"),
+    Campo("semanas_reserva_mes", "Semanas con dato de reservas en el mes (un mes parcial tiene menos)", "nº", "MITECO embalses semanal", "ámbito (se asigna a la provincia)", "mensual"),
+    Campo("estres_hidrico_wri_0_1", "Estrés hídrico de referencia (WRI Aqueduct 4.0, indicador bws, escala 0-5 reescalada a 0-1) de la comunidad autónoma", "0-1", "WRI Aqueduct 4.0", "comunidad autónoma", "estática"),
     Campo("cpd_existentes", "Centros de datos existentes en la provincia (PeeringDB); etiqueta positiva", "nº", "PeeringDB", "provincia", "estática"),
 )
 _DESCRIPCION: dict[str, Campo] = {campo.nombre: campo for campo in DICCIONARIO}
 COLUMNAS_TIEMPO_REAL: tuple[str, ...] = (
     "temperatura_actual_c", "humedad_relativa_actual_pct", "viento_actual_kmh", "precipitacion_actual_mm",
-    "momento_observacion", "demanda_tiempo_real_mw", "precio_spot_actual_eur_mwh", "precio_spot_manana_medio_eur_mwh",
+    "momento_observacion", "temp_prevision_7d_media_c", "temp_prevision_7d_max_c", "precipitacion_prevision_7d_mm",
+    "demanda_tiempo_real_mw", "precio_spot_actual_eur_mwh", "precio_spot_manana_medio_eur_mwh",
 )
+UMBRAL_CALOR_EXTREMO_C: float = 35.0  # días >= 35 °C (dias_mas_35c)
+AMBITO_POR_CODIGO: dict[str, str | None] = AMBITO_POR_PROVINCIA
 
 
 def leer_tablas(carpeta: Path = CARPETA_TABLAS) -> dict[str, pd.DataFrame]:
@@ -109,10 +130,16 @@ def _mes(serie: pd.Series) -> pd.Series:
 
 
 def _clima_mensual(clima: pd.DataFrame) -> pd.DataFrame:
+    """Medias y acumulados mensuales por provincia desde la tabla diaria (NASA POWER).
+
+    Los acumulados (precipitación, evapotranspiración) quedan NaN si el mes no está completo:
+    sumar un mes parcial daría un valor falso bajo. Las medias sí se calculan con los días disponibles.
+    """
     if clima.empty:
         return pd.DataFrame(columns=list(CLAVES))
     datos = clima.copy()
     datos["mes"] = _mes(datos["fecha"])
+    datos["dia_calor_extremo"] = (datos["tmax_c"] >= UMBRAL_CALOR_EXTREMO_C).astype(float).where(datos["tmax_c"].notna())
     agregado = datos.groupby(["codigo_provincia", "mes"]).agg(
         tmedia_mes_c=("tmedia_c", "mean"),
         tmax_media_c=("tmax_c", "mean"),
@@ -120,10 +147,16 @@ def _clima_mensual(clima: pd.DataFrame) -> pd.DataFrame:
         precipitacion_mes_mm=("precipitacion_mm", "sum"),
         humedad_relativa_media_pct=("humedad_relativa_media_pct", "mean"),
         viento_medio_kmh=("viento_medio_kmh", "mean"),
-        et0_mes_mm=("et0_mm", "sum"),
+        radiacion_solar_media_kwh_m2_dia=("radiacion_solar_kwh_m2_dia", "mean"),
+        et0_hargreaves_mes_mm=("et0_hargreaves_mm", "sum"),
         dias_con_clima=("tmedia_c", "count"),
-    )
-    return agregado.reset_index()
+        dias_mas_35c=("dia_calor_extremo", "sum"),
+    ).reset_index()
+    completo = agregado["dias_con_clima"] == agregado["mes"].dt.days_in_month
+    for columna in ("precipitacion_mes_mm", "et0_hargreaves_mes_mm"):
+        agregado[columna] = agregado[columna].where(completo)
+    agregado["dias_mas_35c"] = agregado["dias_mas_35c"].where(agregado["dias_con_clima"] > 0)
+    return agregado
 
 
 def _precios_mensuales(precios: pd.DataFrame) -> pd.DataFrame:
@@ -165,12 +198,32 @@ def construir_panel(tablas: dict[str, pd.DataFrame], hasta: pd.Timestamp | None 
     base = pd.MultiIndex.from_product([list(CODIGOS), meses], names=list(CLAVES)).to_frame(index=False)
     base = base.merge(provincias[["codigo_provincia", "provincia", "codigo_ccaa", "ccaa"]], on="codigo_provincia", how="left")
     base["anio"] = base["mes"].dt.year
+    base["ambito_hidrografico"] = base["codigo_provincia"].map(AMBITO_POR_CODIGO)
 
     base = _fusionar(base, _clima_mensual(tablas.get("clima_diario", pd.DataFrame())), list(CLAVES))
     if "free_cooling" in tablas and not tablas["free_cooling"].empty:
         frio = tablas["free_cooling"].assign(mes=lambda d: _mes(d["mes"]))
         frio = frio[["codigo_provincia", "mes", "horas_free_cooling", "pct_horas_free_cooling"]]
         base = base.merge(frio, on=list(CLAVES), how="left")
+    if "precipitacion_mes_mm" in base and "et0_hargreaves_mes_mm" in base:
+        base["balance_hidrico_mes_mm"] = agua.balance_hidrico_mm(base["precipitacion_mes_mm"], base["et0_hargreaves_mes_mm"])
+        sequia = agua.indice_sequia_12m(base[["mes", "codigo_provincia", "precipitacion_mes_mm"]])
+        base = base.merge(sequia, on=list(CLAVES), how="left")
+
+    if "reservas_ambito_mensual" in tablas and not tablas["reservas_ambito_mensual"].empty:
+        reservas = tablas["reservas_ambito_mensual"].assign(mes=lambda d: _mes(d["mes"]))
+        reservas = reservas.rename(columns={
+            "ambito": "ambito_hidrografico",
+            "reserva_pct_media_mes": "reserva_hidrica_pct",
+            "volumen_hm3_media_mes": "reserva_hidrica_hm3",
+            "capacidad_hm3_media_mes": "capacidad_embalses_ambito_hm3",
+            "semanas_con_dato": "semanas_reserva_mes",
+        })[["ambito_hidrografico", "mes", "reserva_hidrica_pct", "reserva_hidrica_hm3",
+            "capacidad_embalses_ambito_hm3", "semanas_reserva_mes"]]
+        base = base.merge(reservas, on=["ambito_hidrografico", "mes"], how="left")
+    if "estres_hidrico_wri" in tablas and not tablas["estres_hidrico_wri"].empty:
+        base = base.merge(tablas["estres_hidrico_wri"][["codigo_provincia", "estres_hidrico_wri_0_1"]],
+                          on="codigo_provincia", how="left")
 
     if "ccaa_demanda" in tablas and not tablas["ccaa_demanda"].empty:
         demanda = tablas["ccaa_demanda"].assign(mes=lambda d: _mes(d["fecha"]))

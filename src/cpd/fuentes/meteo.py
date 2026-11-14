@@ -216,3 +216,37 @@ def clima_actual() -> pd.DataFrame:
             }
         )
     return pd.DataFrame(filas)
+
+
+def prevision_corta(dias: int = 7) -> pd.DataFrame:
+    """Previsión de los próximos `dias` días en cada capital (Open-Meteo, una sola petición).
+
+    Returns:
+        DataFrame: codigo_provincia, temp_prevision_7d_media_c, temp_prevision_7d_max_c,
+        precipitacion_prevision_7d_mm (medias y sumas de los días previstos).
+    """
+    codigos, lats, lons = _coordenadas()
+    parametros = {
+        "latitude": ",".join(lats),
+        "longitude": ",".join(lons),
+        "daily": "temperature_2m_mean,temperature_2m_max,precipitation_sum",
+        "forecast_days": dias,
+        "timezone": ZONA_HORARIA,
+    }
+    datos = json_de(URL_PREVISION, params=parametros, etiqueta=f"{ETIQUETA} previsión")
+    datos = _series_por_ubicacion(datos, "daily", f"{ETIQUETA} previsión")
+    filas = []
+    for codigo, ubicacion in zip(codigos, datos):
+        diario = ubicacion["daily"]
+        medias = [v for v in diario.get("temperature_2m_mean", []) if v is not None]
+        maximas = [v for v in diario.get("temperature_2m_max", []) if v is not None]
+        lluvia = [v for v in diario.get("precipitation_sum", []) if v is not None]
+        filas.append(
+            {
+                "codigo_provincia": codigo,
+                "temp_prevision_7d_media_c": round(sum(medias) / len(medias), 2) if medias else None,
+                "temp_prevision_7d_max_c": max(maximas) if maximas else None,
+                "precipitacion_prevision_7d_mm": round(sum(lluvia), 2) if lluvia else None,
+            }
+        )
+    return pd.DataFrame(filas)

@@ -101,7 +101,12 @@ def _tiempo_real(acta: Actualizacion) -> None:
     """Campos de tiempo real: clima actual por provincia y energía nacional (demanda, precios)."""
     from cpd.fuentes import meteo, omie, ree
 
-    _paso(acta, "clima_actual", lambda: meteo.clima_actual().assign(fecha=dt.date.today().isoformat()))
+    def clima_y_prevision() -> pd.DataFrame:
+        actual = meteo.clima_actual()
+        previsto = meteo.prevision_corta(7)
+        return actual.merge(previsto, on="codigo_provincia", how="left")
+
+    _paso(acta, "clima_actual", lambda: clima_y_prevision().assign(fecha=dt.date.today().isoformat()))
     _paso(acta, "tiempo_real_provincia", lambda: acta.tablas.get("clima_actual", pd.DataFrame()).drop(columns=["fecha"], errors="ignore"))
 
     def energia() -> pd.DataFrame:
@@ -131,9 +136,12 @@ def _tiempo_real(acta: Actualizacion) -> None:
 def _historia(acta: Actualizacion, anio_fin: int) -> None:
     """Series históricas de todas las fuentes (incrementales: los periodos cerrados se leen de caché)."""
     from cpd.fuentes import (
+        agua,
+        embalses,
         ine,
-        meteo,
+        nasa_power,
         natura,
+        padron,
         peeringdb,
         provincias,
         red_capacidad,
@@ -145,13 +153,23 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
 
     _paso(acta, "provincias", lambda: provincias.tabla_provincias())
     poligonos = provincias.cargar_poligonos()
-    _paso(acta, "clima_diario", lambda: meteo.clima_diario(ANIO_INICIO, anio_fin))
-    _paso(acta, "free_cooling", lambda: meteo.free_cooling_mensual(ANIO_INICIO, anio_fin))
+    _paso(acta, "clima_diario", lambda: nasa_power.clima_diario_power(ANIO_INICIO, anio_fin))
+    _paso(acta, "free_cooling", lambda: nasa_power.free_cooling_mensual_power(ANIO_INICIO, anio_fin))
+    _paso(acta, "reservas_ambito_mensual", lambda: embalses.reservas_mensuales_desde_zip())
+    _paso(acta, "estres_hidrico_wri", lambda: agua.estres_hidrico_wri())
     _paso(acta, "ccaa_demanda", lambda: ree.demanda_ccaa_mensual(ANIO_INICIO, anio_fin))
     _paso(acta, "ccaa_generacion", lambda: ree.resumen_renovable(ree.generacion_ccaa_mensual(ANIO_INICIO, anio_fin)))
     _paso(acta, "co2", lambda: ree.co2_nacional_mensual(ANIO_INICIO, anio_fin))
     _paso(acta, "precios_diarios", lambda: ree.precios_diarios_historicos(ANIO_INICIO, anio_fin))
-    _paso(acta, "poblacion", lambda: ine.poblacion_provincias())
+    def poblacion() -> pd.DataFrame:
+        try:
+            tempus = ine.poblacion_provincias()
+        except ErrorFuente:
+            tempus = pd.DataFrame()  # sin Tempus3 se usa solo el padrón
+        ruta = padron.asegurar_fichero()
+        return padron.combinar_poblacion(tempus, padron.leer_padron(ruta))
+
+    _paso(acta, "poblacion", poblacion)
     _paso(acta, "renta", lambda: ine.renta_provincias())
     _paso(acta, "paro", lambda: sepe.paro_provincias_mensual(ANIO_INICIO, anio_fin))
 

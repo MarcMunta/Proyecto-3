@@ -818,3 +818,417 @@ fecha_descarga,fuente,descripcion,url,archivo,tam_kb
 2026-11-13T20:31:53,PeeringDB,Listado fac España,https://www.peeringdb.com/api/fac,data/raw/api/peeringdb/fac_ES.json,68
 2026-11-13T20:31:53,PeeringDB,Listado ix España,https://www.peeringdb.com/api/ix,data/raw/api/peeringdb/ix_ES.json,18
 2026-11-13T20:31:55,EMSC (FDSN),Terremotos M>=1.5 2026,https://www.seismicportal.eu/fdsnws/event/1/query,data/raw/api/emsc_v2/2026.json,483
+2026-11-13T21:18:52,INE padrón municipal (29005),"Padrón municipal, todos los municipios (CSV)",https://www.ine.es/jaxiT3/files/t/es/csv_bdsc/29005.csv,data/raw/api/ine/padron_municipios_29005.csv,26708
+2026-11-13T21:19:29,NASA POWER,Diario 28 2024-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/28_2024_2024.json,54
+2026-11-13T21:19:30,NASA POWER,Horario 28 2024-2024,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/28_2024_2024.json,177
+2026-11-13T21:20:32,NASA POWER,Diario 01 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/01_2015_2019.json,231
+2026-11-13T21:20:33,NASA POWER,Diario 01 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/01_2020_2024.json,231
+2026-11-13T21:20:35,NASA POWER,Diario 01 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/01_2025_2026.json,87
+2026-11-13T21:20:37,NASA POWER,Diario 02 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/02_2015_2019.json,231
+2026-11-13T21:20:38,NASA POWER,Diario 02 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/02_2020_2024.json,231
+2026-11-13T21:20:40,NASA POWER,Diario 02 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/02_2025_2026.json,87
+2026-11-13T21:20:41,NASA POWER,Diario 03 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/03_2015_2019.json,232
+2026-11-13T21:20:43,NASA POWER,Diario 03 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/03_2020_2024.json,232
+2026-11-13T21:20:44,NASA POWER,Diario 03 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/03_2025_2026.json,87
+2026-11-13T21:20:46,NASA POWER,Diario 04 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/04_2015_2019.json,231
+2026-11-13T21:20:47,NASA POWER,Diario 04 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/04_2020_2024.json,232
+2026-11-13T21:20:49,NASA POWER,Diario 04 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/04_2025_2026.json,87
+2026-11-13T21:20:51,NASA POWER,Diario 05 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/05_2015_2019.json,230
+2026-11-13T21:20:52,NASA POWER,Diario 05 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/05_2020_2024.json,230
+2026-11-13T21:20:54,NASA POWER,Diario 05 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/05_2025_2026.json,86
+2026-11-13T21:20:56,NASA POWER,Diario 06 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/06_2015_2019.json,231
+2026-11-13T21:20:57,NASA POWER,Diario 06 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/06_2020_2024.json,231
+2026-11-13T21:20:59,NASA POWER,Diario 06 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/06_2025_2026.json,87
+2026-11-13T21:21:00,NASA POWER,Diario 07 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/07_2015_2019.json,233
+2026-11-13T21:21:02,NASA POWER,Diario 07 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/07_2020_2024.json,233
+2026-11-13T21:21:04,NASA POWER,Diario 07 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/07_2025_2026.json,87
+2026-11-13T21:21:05,NASA POWER,Diario 08 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/08_2015_2019.json,231
+2026-11-13T21:21:07,NASA POWER,Diario 08 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/08_2020_2024.json,232
+2026-11-13T21:21:09,NASA POWER,Diario 08 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/08_2025_2026.json,87
+2026-11-13T21:21:10,NASA POWER,Diario 09 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/09_2015_2019.json,230
+2026-11-13T21:21:12,NASA POWER,Diario 09 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/09_2020_2024.json,230
+2026-11-13T21:21:14,NASA POWER,Diario 09 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/09_2025_2026.json,87
+2026-11-13T21:21:15,NASA POWER,Diario 10 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/10_2015_2019.json,231
+2026-11-13T21:21:17,NASA POWER,Diario 10 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/10_2020_2024.json,231
+2026-11-13T21:21:18,NASA POWER,Diario 10 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/10_2025_2026.json,87
+2026-11-13T21:21:20,NASA POWER,Diario 11 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/11_2015_2019.json,232
+2026-11-13T21:21:21,NASA POWER,Diario 11 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/11_2020_2024.json,232
+2026-11-13T21:21:23,NASA POWER,Diario 11 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/11_2025_2026.json,87
+2026-11-13T21:21:25,NASA POWER,Diario 12 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/12_2015_2019.json,232
+2026-11-13T21:21:26,NASA POWER,Diario 12 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/12_2020_2024.json,232
+2026-11-13T21:21:28,NASA POWER,Diario 12 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/12_2025_2026.json,87
+2026-11-13T21:21:29,NASA POWER,Diario 13 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/13_2015_2019.json,231
+2026-11-13T21:21:31,NASA POWER,Diario 13 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/13_2020_2024.json,231
+2026-11-13T21:21:33,NASA POWER,Diario 13 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/13_2025_2026.json,87
+2026-11-13T21:21:34,NASA POWER,Diario 14 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/14_2015_2019.json,231
+2026-11-13T21:21:36,NASA POWER,Diario 14 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/14_2020_2024.json,231
+2026-11-13T21:21:38,NASA POWER,Diario 14 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/14_2025_2026.json,87
+2026-11-13T21:21:39,NASA POWER,Diario 15 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/15_2015_2019.json,231
+2026-11-13T21:21:41,NASA POWER,Diario 15 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/15_2020_2024.json,232
+2026-11-13T21:21:42,NASA POWER,Diario 15 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/15_2025_2026.json,87
+2026-11-13T21:21:44,NASA POWER,Diario 16 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/16_2015_2019.json,230
+2026-11-13T21:21:46,NASA POWER,Diario 16 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/16_2020_2024.json,231
+2026-11-13T21:21:47,NASA POWER,Diario 16 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/16_2025_2026.json,87
+2026-11-13T21:21:49,NASA POWER,Diario 17 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/17_2015_2019.json,232
+2026-11-13T21:21:50,NASA POWER,Diario 17 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/17_2020_2024.json,232
+2026-11-13T21:21:52,NASA POWER,Diario 17 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/17_2025_2026.json,87
+2026-11-13T21:21:54,NASA POWER,Diario 18 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/18_2015_2019.json,231
+2026-11-13T21:21:55,NASA POWER,Diario 18 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/18_2020_2024.json,231
+2026-11-13T21:21:56,NASA POWER,Diario 18 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/18_2025_2026.json,87
+2026-11-13T21:21:58,NASA POWER,Diario 19 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/19_2015_2019.json,230
+2026-11-13T21:21:59,NASA POWER,Diario 19 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/19_2020_2024.json,231
+2026-11-13T21:22:01,NASA POWER,Diario 19 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/19_2025_2026.json,87
+2026-11-13T21:22:02,NASA POWER,Diario 20 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/20_2015_2019.json,232
+2026-11-13T21:22:04,NASA POWER,Diario 20 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/20_2020_2024.json,232
+2026-11-13T21:22:05,NASA POWER,Diario 20 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/20_2025_2026.json,87
+2026-11-13T21:22:07,NASA POWER,Diario 21 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/21_2015_2019.json,231
+2026-11-13T21:22:08,NASA POWER,Diario 21 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/21_2020_2024.json,232
+2026-11-13T21:22:10,NASA POWER,Diario 21 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/21_2025_2026.json,87
+2026-11-13T21:22:12,NASA POWER,Diario 22 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/22_2015_2019.json,231
+2026-11-13T21:22:13,NASA POWER,Diario 22 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/22_2020_2024.json,231
+2026-11-13T21:22:15,NASA POWER,Diario 22 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/22_2025_2026.json,87
+2026-11-13T21:22:17,NASA POWER,Diario 23 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/23_2015_2019.json,231
+2026-11-13T21:22:18,NASA POWER,Diario 23 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/23_2020_2024.json,231
+2026-11-13T21:22:20,NASA POWER,Diario 23 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/23_2025_2026.json,87
+2026-11-13T21:22:21,NASA POWER,Diario 24 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/24_2015_2019.json,230
+2026-11-13T21:22:23,NASA POWER,Diario 24 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/24_2020_2024.json,230
+2026-11-13T21:22:25,NASA POWER,Diario 24 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/24_2025_2026.json,87
+2026-11-13T21:22:26,NASA POWER,Diario 25 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/25_2015_2019.json,231
+2026-11-13T21:22:28,NASA POWER,Diario 25 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/25_2020_2024.json,231
+2026-11-13T21:22:30,NASA POWER,Diario 25 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/25_2025_2026.json,87
+2026-11-13T21:22:31,NASA POWER,Diario 26 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/26_2015_2019.json,230
+2026-11-13T21:22:33,NASA POWER,Diario 26 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/26_2020_2024.json,231
+2026-11-13T21:22:34,NASA POWER,Diario 26 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/26_2025_2026.json,87
+2026-11-13T21:22:36,NASA POWER,Diario 27 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/27_2015_2019.json,230
+2026-11-13T21:22:38,NASA POWER,Diario 27 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/27_2020_2024.json,231
+2026-11-13T21:22:39,NASA POWER,Diario 27 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/27_2025_2026.json,87
+2026-11-13T21:22:40,NASA POWER,Diario 28 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/28_2015_2019.json,230
+2026-11-13T21:22:42,NASA POWER,Diario 28 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/28_2020_2024.json,231
+2026-11-13T21:22:43,NASA POWER,Diario 28 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/28_2025_2026.json,87
+2026-11-13T21:22:45,NASA POWER,Diario 29 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/29_2015_2019.json,232
+2026-11-13T21:22:46,NASA POWER,Diario 29 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/29_2020_2024.json,233
+2026-11-13T21:22:48,NASA POWER,Diario 29 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/29_2025_2026.json,87
+2026-11-13T21:22:50,NASA POWER,Diario 30 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/30_2015_2019.json,231
+2026-11-13T21:22:51,NASA POWER,Diario 30 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/30_2020_2024.json,232
+2026-11-13T21:22:53,NASA POWER,Diario 30 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/30_2025_2026.json,87
+2026-11-13T21:22:54,NASA POWER,Diario 31 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/31_2015_2019.json,231
+2026-11-13T21:22:56,NASA POWER,Diario 31 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/31_2020_2024.json,231
+2026-11-13T21:22:58,NASA POWER,Diario 31 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/31_2025_2026.json,87
+2026-11-13T21:22:59,NASA POWER,Diario 32 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/32_2015_2019.json,230
+2026-11-13T21:23:01,NASA POWER,Diario 32 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/32_2020_2024.json,231
+2026-11-13T21:23:02,NASA POWER,Diario 32 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/32_2025_2026.json,87
+2026-11-13T21:23:04,NASA POWER,Diario 33 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/33_2015_2019.json,231
+2026-11-13T21:23:06,NASA POWER,Diario 33 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/33_2020_2024.json,232
+2026-11-13T21:23:07,NASA POWER,Diario 33 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/33_2025_2026.json,87
+2026-11-13T21:23:09,NASA POWER,Diario 34 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/34_2015_2019.json,230
+2026-11-13T21:23:11,NASA POWER,Diario 34 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/34_2020_2024.json,231
+2026-11-13T21:23:12,NASA POWER,Diario 34 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/34_2025_2026.json,87
+2026-11-13T21:23:14,NASA POWER,Diario 35 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/35_2015_2019.json,233
+2026-11-13T21:23:16,NASA POWER,Diario 35 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/35_2020_2024.json,233
+2026-11-13T21:23:18,NASA POWER,Diario 35 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/35_2025_2026.json,88
+2026-11-13T21:23:20,NASA POWER,Diario 36 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/36_2015_2019.json,231
+2026-11-13T21:23:21,NASA POWER,Diario 36 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/36_2020_2024.json,232
+2026-11-13T21:23:23,NASA POWER,Diario 36 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/36_2025_2026.json,87
+2026-11-13T21:23:25,NASA POWER,Diario 37 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/37_2015_2019.json,230
+2026-11-13T21:23:26,NASA POWER,Diario 37 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/37_2020_2024.json,231
+2026-11-13T21:23:28,NASA POWER,Diario 37 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/37_2025_2026.json,87
+2026-11-13T21:23:29,NASA POWER,Diario 38 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/38_2015_2019.json,233
+2026-11-13T21:23:31,NASA POWER,Diario 38 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/38_2020_2024.json,233
+2026-11-13T21:23:32,NASA POWER,Diario 38 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/38_2025_2026.json,88
+2026-11-13T21:23:34,NASA POWER,Diario 39 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/39_2015_2019.json,232
+2026-11-13T21:23:36,NASA POWER,Diario 39 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/39_2020_2024.json,232
+2026-11-13T21:23:37,NASA POWER,Diario 39 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/39_2025_2026.json,87
+2026-11-13T21:23:39,NASA POWER,Diario 40 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/40_2015_2019.json,230
+2026-11-13T21:23:40,NASA POWER,Diario 40 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/40_2020_2024.json,230
+2026-11-13T21:23:42,NASA POWER,Diario 40 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/40_2025_2026.json,87
+2026-11-13T21:23:43,NASA POWER,Diario 41 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/41_2015_2019.json,231
+2026-11-13T21:23:45,NASA POWER,Diario 41 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/41_2020_2024.json,232
+2026-11-13T21:23:46,NASA POWER,Diario 41 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/41_2025_2026.json,87
+2026-11-13T21:23:48,NASA POWER,Diario 42 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/42_2015_2019.json,230
+2026-11-13T21:23:49,NASA POWER,Diario 42 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/42_2020_2024.json,230
+2026-11-13T21:23:51,NASA POWER,Diario 42 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/42_2025_2026.json,86
+2026-11-13T21:23:53,NASA POWER,Diario 43 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/43_2015_2019.json,232
+2026-11-13T21:23:54,NASA POWER,Diario 43 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/43_2020_2024.json,232
+2026-11-13T21:23:56,NASA POWER,Diario 43 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/43_2025_2026.json,87
+2026-11-13T21:23:58,NASA POWER,Diario 44 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/44_2015_2019.json,230
+2026-11-13T21:23:59,NASA POWER,Diario 44 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/44_2020_2024.json,230
+2026-11-13T21:24:01,NASA POWER,Diario 44 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/44_2025_2026.json,87
+2026-11-13T21:24:02,NASA POWER,Diario 45 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/45_2015_2019.json,231
+2026-11-13T21:24:04,NASA POWER,Diario 45 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/45_2020_2024.json,231
+2026-11-13T21:24:05,NASA POWER,Diario 45 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/45_2025_2026.json,87
+2026-11-13T21:24:07,NASA POWER,Diario 46 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/46_2015_2019.json,231
+2026-11-13T21:24:09,NASA POWER,Diario 46 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/46_2020_2024.json,232
+2026-11-13T21:24:10,NASA POWER,Diario 46 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/46_2025_2026.json,87
+2026-11-13T21:24:12,NASA POWER,Diario 47 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/47_2015_2019.json,230
+2026-11-13T21:24:14,NASA POWER,Diario 47 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/47_2020_2024.json,231
+2026-11-13T21:24:15,NASA POWER,Diario 47 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/47_2025_2026.json,87
+2026-11-13T21:24:17,NASA POWER,Diario 48 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/48_2015_2019.json,232
+2026-11-13T21:24:18,NASA POWER,Diario 48 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/48_2020_2024.json,232
+2026-11-13T21:24:20,NASA POWER,Diario 48 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/48_2025_2026.json,87
+2026-11-13T21:24:21,NASA POWER,Diario 49 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/49_2015_2019.json,230
+2026-11-13T21:24:23,NASA POWER,Diario 49 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/49_2020_2024.json,231
+2026-11-13T21:24:24,NASA POWER,Diario 49 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/49_2025_2026.json,87
+2026-11-13T21:24:26,NASA POWER,Diario 50 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/50_2015_2019.json,231
+2026-11-13T21:24:28,NASA POWER,Diario 50 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/50_2020_2024.json,231
+2026-11-13T21:24:29,NASA POWER,Diario 50 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/50_2025_2026.json,87
+2026-11-13T21:24:31,NASA POWER,Diario 51 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/51_2015_2019.json,233
+2026-11-13T21:24:32,NASA POWER,Diario 51 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/51_2020_2024.json,233
+2026-11-13T21:24:34,NASA POWER,Diario 51 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/51_2025_2026.json,87
+2026-11-13T21:24:35,NASA POWER,Diario 52 2015-2019,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/52_2015_2019.json,233
+2026-11-13T21:24:37,NASA POWER,Diario 52 2020-2024,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/52_2020_2024.json,233
+2026-11-13T21:24:38,NASA POWER,Diario 52 2025-2026,https://power.larc.nasa.gov/api/temporal/daily/point,data/raw/api/nasa_power/diario/52_2025_2026.json,87
+2026-11-13T21:24:41,NASA POWER,Horario 01 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/01_2015_2017.json,527
+2026-11-13T21:24:43,NASA POWER,Horario 01 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/01_2018_2020.json,527
+2026-11-13T21:24:44,NASA POWER,Horario 01 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/01_2021_2023.json,528
+2026-11-13T21:24:46,NASA POWER,Horario 01 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/01_2024_2026.json,505
+2026-11-13T21:24:48,NASA POWER,Horario 02 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/02_2015_2017.json,529
+2026-11-13T21:24:50,NASA POWER,Horario 02 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/02_2018_2020.json,529
+2026-11-13T21:24:51,NASA POWER,Horario 02 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/02_2021_2023.json,529
+2026-11-13T21:24:53,NASA POWER,Horario 02 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/02_2024_2026.json,506
+2026-11-13T21:24:55,NASA POWER,Horario 03 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/03_2015_2017.json,532
+2026-11-13T21:24:57,NASA POWER,Horario 03 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/03_2018_2020.json,532
+2026-11-13T21:24:58,NASA POWER,Horario 03 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/03_2021_2023.json,532
+2026-11-13T21:25:00,NASA POWER,Horario 03 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/03_2024_2026.json,509
+2026-11-13T21:25:02,NASA POWER,Horario 04 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/04_2015_2017.json,532
+2026-11-13T21:25:04,NASA POWER,Horario 04 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/04_2018_2020.json,531
+2026-11-13T21:25:05,NASA POWER,Horario 04 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/04_2021_2023.json,532
+2026-11-13T21:25:07,NASA POWER,Horario 04 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/04_2024_2026.json,509
+2026-11-13T21:25:08,NASA POWER,Horario 05 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/05_2015_2017.json,527
+2026-11-13T21:25:10,NASA POWER,Horario 05 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/05_2018_2020.json,526
+2026-11-13T21:25:12,NASA POWER,Horario 05 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/05_2021_2023.json,527
+2026-11-13T21:25:14,NASA POWER,Horario 05 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/05_2024_2026.json,503
+2026-11-13T21:25:16,NASA POWER,Horario 06 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/06_2015_2017.json,531
+2026-11-13T21:25:18,NASA POWER,Horario 06 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/06_2018_2020.json,531
+2026-11-13T21:25:19,NASA POWER,Horario 06 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/06_2021_2023.json,531
+2026-11-13T21:25:21,NASA POWER,Horario 06 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/06_2024_2026.json,508
+2026-11-13T21:25:23,NASA POWER,Horario 07 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/07_2015_2017.json,537
+2026-11-13T21:25:25,NASA POWER,Horario 07 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/07_2018_2020.json,537
+2026-11-13T21:25:26,NASA POWER,Horario 07 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/07_2021_2023.json,537
+2026-11-13T21:25:27,NASA POWER,Horario 07 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/07_2024_2026.json,513
+2026-11-13T21:25:29,NASA POWER,Horario 08 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/08_2015_2017.json,531
+2026-11-13T21:25:31,NASA POWER,Horario 08 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/08_2018_2020.json,531
+2026-11-13T21:25:32,NASA POWER,Horario 08 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/08_2021_2023.json,531
+2026-11-13T21:25:34,NASA POWER,Horario 08 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/08_2024_2026.json,508
+2026-11-13T21:25:35,NASA POWER,Horario 09 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/09_2015_2017.json,526
+2026-11-13T21:25:36,NASA POWER,Horario 09 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/09_2018_2020.json,525
+2026-11-13T21:25:38,NASA POWER,Horario 09 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/09_2021_2023.json,526
+2026-11-13T21:25:39,NASA POWER,Horario 09 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/09_2024_2026.json,503
+2026-11-13T21:25:41,NASA POWER,Horario 10 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/10_2015_2017.json,530
+2026-11-13T21:25:43,NASA POWER,Horario 10 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/10_2018_2020.json,530
+2026-11-13T21:25:45,NASA POWER,Horario 10 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/10_2021_2023.json,531
+2026-11-13T21:25:46,NASA POWER,Horario 10 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/10_2024_2026.json,507
+2026-11-13T21:25:48,NASA POWER,Horario 11 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/11_2015_2017.json,536
+2026-11-13T21:25:49,NASA POWER,Horario 11 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/11_2018_2020.json,537
+2026-11-13T21:25:51,NASA POWER,Horario 11 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/11_2021_2023.json,536
+2026-11-13T21:25:53,NASA POWER,Horario 11 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/11_2024_2026.json,513
+2026-11-13T21:25:55,NASA POWER,Horario 12 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/12_2015_2017.json,534
+2026-11-13T21:25:56,NASA POWER,Horario 12 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/12_2018_2020.json,534
+2026-11-13T21:25:58,NASA POWER,Horario 12 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/12_2021_2023.json,534
+2026-11-13T21:26:00,NASA POWER,Horario 12 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/12_2024_2026.json,511
+2026-11-13T21:26:02,NASA POWER,Horario 13 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/13_2015_2017.json,530
+2026-11-13T21:26:03,NASA POWER,Horario 13 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/13_2018_2020.json,529
+2026-11-13T21:26:05,NASA POWER,Horario 13 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/13_2021_2023.json,530
+2026-11-13T21:26:07,NASA POWER,Horario 13 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/13_2024_2026.json,506
+2026-11-13T21:26:09,NASA POWER,Horario 14 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/14_2015_2017.json,531
+2026-11-13T21:26:10,NASA POWER,Horario 14 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/14_2018_2020.json,531
+2026-11-13T21:26:12,NASA POWER,Horario 14 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/14_2021_2023.json,531
+2026-11-13T21:26:14,NASA POWER,Horario 14 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/14_2024_2026.json,508
+2026-11-13T21:26:16,NASA POWER,Horario 15 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/15_2015_2017.json,531
+2026-11-13T21:26:17,NASA POWER,Horario 15 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/15_2018_2020.json,531
+2026-11-13T21:26:19,NASA POWER,Horario 15 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/15_2021_2023.json,532
+2026-11-13T21:26:21,NASA POWER,Horario 15 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/15_2024_2026.json,508
+2026-11-13T21:26:23,NASA POWER,Horario 16 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/16_2015_2017.json,528
+2026-11-13T21:26:24,NASA POWER,Horario 16 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/16_2018_2020.json,527
+2026-11-13T21:26:26,NASA POWER,Horario 16 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/16_2021_2023.json,528
+2026-11-13T21:26:28,NASA POWER,Horario 16 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/16_2024_2026.json,504
+2026-11-13T21:26:29,NASA POWER,Horario 17 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/17_2015_2017.json,533
+2026-11-13T21:26:31,NASA POWER,Horario 17 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/17_2018_2020.json,533
+2026-11-13T21:26:33,NASA POWER,Horario 17 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/17_2021_2023.json,533
+2026-11-13T21:26:35,NASA POWER,Horario 17 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/17_2024_2026.json,510
+2026-11-13T21:26:36,NASA POWER,Horario 18 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/18_2015_2017.json,531
+2026-11-13T21:26:39,NASA POWER,Horario 18 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/18_2018_2020.json,531
+2026-11-13T21:26:40,NASA POWER,Horario 18 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/18_2021_2023.json,532
+2026-11-13T21:26:42,NASA POWER,Horario 18 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/18_2024_2026.json,508
+2026-11-13T21:26:44,NASA POWER,Horario 19 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/19_2015_2017.json,529
+2026-11-13T21:26:45,NASA POWER,Horario 19 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/19_2018_2020.json,528
+2026-11-13T21:26:47,NASA POWER,Horario 19 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/19_2021_2023.json,529
+2026-11-13T21:26:48,NASA POWER,Horario 19 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/19_2024_2026.json,505
+2026-11-13T21:26:50,NASA POWER,Horario 20 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/20_2015_2017.json,532
+2026-11-13T21:26:52,NASA POWER,Horario 20 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/20_2018_2020.json,533
+2026-11-13T21:26:54,NASA POWER,Horario 20 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/20_2021_2023.json,533
+2026-11-13T21:26:56,NASA POWER,Horario 20 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/20_2024_2026.json,510
+2026-11-13T21:26:58,NASA POWER,Horario 21 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/21_2015_2017.json,533
+2026-11-13T21:26:59,NASA POWER,Horario 21 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/21_2018_2020.json,533
+2026-11-13T21:27:01,NASA POWER,Horario 21 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/21_2021_2023.json,533
+2026-11-13T21:27:03,NASA POWER,Horario 21 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/21_2024_2026.json,509
+2026-11-13T21:27:04,NASA POWER,Horario 22 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/22_2015_2017.json,529
+2026-11-13T21:27:06,NASA POWER,Horario 22 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/22_2018_2020.json,528
+2026-11-13T21:27:07,NASA POWER,Horario 22 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/22_2021_2023.json,529
+2026-11-13T21:27:09,NASA POWER,Horario 22 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/22_2024_2026.json,505
+2026-11-13T21:27:11,NASA POWER,Horario 23 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/23_2015_2017.json,531
+2026-11-13T21:27:13,NASA POWER,Horario 23 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/23_2018_2020.json,530
+2026-11-13T21:27:14,NASA POWER,Horario 23 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/23_2021_2023.json,531
+2026-11-13T21:27:16,NASA POWER,Horario 23 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/23_2024_2026.json,507
+2026-11-13T21:27:18,NASA POWER,Horario 24 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/24_2015_2017.json,526
+2026-11-13T21:27:20,NASA POWER,Horario 24 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/24_2018_2020.json,526
+2026-11-13T21:27:21,NASA POWER,Horario 24 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/24_2021_2023.json,526
+2026-11-13T21:27:23,NASA POWER,Horario 24 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/24_2024_2026.json,503
+2026-11-13T21:27:25,NASA POWER,Horario 25 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/25_2015_2017.json,530
+2026-11-13T21:27:27,NASA POWER,Horario 25 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/25_2018_2020.json,530
+2026-11-13T21:27:29,NASA POWER,Horario 25 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/25_2021_2023.json,530
+2026-11-13T21:27:31,NASA POWER,Horario 25 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/25_2024_2026.json,507
+2026-11-13T21:27:32,NASA POWER,Horario 26 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/26_2015_2017.json,527
+2026-11-13T21:27:34,NASA POWER,Horario 26 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/26_2018_2020.json,527
+2026-11-13T21:27:35,NASA POWER,Horario 26 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/26_2021_2023.json,528
+2026-11-13T21:27:37,NASA POWER,Horario 26 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/26_2024_2026.json,504
+2026-11-13T21:27:38,NASA POWER,Horario 27 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/27_2015_2017.json,527
+2026-11-13T21:27:40,NASA POWER,Horario 27 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/27_2018_2020.json,527
+2026-11-13T21:27:42,NASA POWER,Horario 27 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/27_2021_2023.json,528
+2026-11-13T21:27:43,NASA POWER,Horario 27 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/27_2024_2026.json,504
+2026-11-13T21:27:45,NASA POWER,Horario 28 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/28_2015_2017.json,528
+2026-11-13T21:27:46,NASA POWER,Horario 28 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/28_2018_2020.json,528
+2026-11-13T21:27:48,NASA POWER,Horario 28 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/28_2021_2023.json,528
+2026-11-13T21:27:50,NASA POWER,Horario 28 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/28_2024_2026.json,505
+2026-11-13T21:27:52,NASA POWER,Horario 29 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/29_2015_2017.json,537
+2026-11-13T21:27:54,NASA POWER,Horario 29 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/29_2018_2020.json,537
+2026-11-13T21:27:56,NASA POWER,Horario 29 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/29_2021_2023.json,537
+2026-11-13T21:27:57,NASA POWER,Horario 29 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/29_2024_2026.json,513
+2026-11-13T21:27:59,NASA POWER,Horario 30 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/30_2015_2017.json,532
+2026-11-13T21:28:00,NASA POWER,Horario 30 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/30_2018_2020.json,532
+2026-11-13T21:28:02,NASA POWER,Horario 30 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/30_2021_2023.json,532
+2026-11-13T21:28:03,NASA POWER,Horario 30 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/30_2024_2026.json,509
+2026-11-13T21:28:05,NASA POWER,Horario 31 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/31_2015_2017.json,527
+2026-11-13T21:28:07,NASA POWER,Horario 31 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/31_2018_2020.json,527
+2026-11-13T21:28:09,NASA POWER,Horario 31 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/31_2021_2023.json,527
+2026-11-13T21:28:10,NASA POWER,Horario 31 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/31_2024_2026.json,504
+2026-11-13T21:28:12,NASA POWER,Horario 32 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/32_2015_2017.json,528
+2026-11-13T21:28:14,NASA POWER,Horario 32 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/32_2018_2020.json,527
+2026-11-13T21:28:16,NASA POWER,Horario 32 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/32_2021_2023.json,528
+2026-11-13T21:28:17,NASA POWER,Horario 32 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/32_2024_2026.json,505
+2026-11-13T21:28:19,NASA POWER,Horario 33 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/33_2015_2017.json,531
+2026-11-13T21:28:21,NASA POWER,Horario 33 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/33_2018_2020.json,531
+2026-11-13T21:28:22,NASA POWER,Horario 33 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/33_2021_2023.json,531
+2026-11-13T21:28:24,NASA POWER,Horario 33 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/33_2024_2026.json,509
+2026-11-13T21:28:25,NASA POWER,Horario 34 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/34_2015_2017.json,527
+2026-11-13T21:28:27,NASA POWER,Horario 34 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/34_2018_2020.json,527
+2026-11-13T21:28:29,NASA POWER,Horario 34 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/34_2021_2023.json,527
+2026-11-13T21:28:31,NASA POWER,Horario 34 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/34_2024_2026.json,504
+2026-11-13T21:28:33,NASA POWER,Horario 35 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/35_2015_2017.json,537
+2026-11-13T21:28:34,NASA POWER,Horario 35 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/35_2018_2020.json,537
+2026-11-13T21:28:36,NASA POWER,Horario 35 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/35_2021_2023.json,537
+2026-11-13T21:28:38,NASA POWER,Horario 35 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/35_2024_2026.json,513
+2026-11-13T21:28:40,NASA POWER,Horario 36 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/36_2015_2017.json,531
+2026-11-13T21:28:42,NASA POWER,Horario 36 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/36_2018_2020.json,531
+2026-11-13T21:28:44,NASA POWER,Horario 36 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/36_2021_2023.json,532
+2026-11-13T21:28:46,NASA POWER,Horario 36 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/36_2024_2026.json,509
+2026-11-13T21:28:48,NASA POWER,Horario 37 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/37_2015_2017.json,527
+2026-11-13T21:28:50,NASA POWER,Horario 37 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/37_2018_2020.json,527
+2026-11-13T21:28:51,NASA POWER,Horario 37 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/37_2021_2023.json,528
+2026-11-13T21:28:53,NASA POWER,Horario 37 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/37_2024_2026.json,504
+2026-11-13T21:28:55,NASA POWER,Horario 38 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/38_2015_2017.json,537
+2026-11-13T21:28:57,NASA POWER,Horario 38 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/38_2018_2020.json,537
+2026-11-13T21:28:58,NASA POWER,Horario 38 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/38_2021_2023.json,537
+2026-11-13T21:29:00,NASA POWER,Horario 38 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/38_2024_2026.json,513
+2026-11-13T21:29:02,NASA POWER,Horario 39 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/39_2015_2017.json,533
+2026-11-13T21:29:04,NASA POWER,Horario 39 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/39_2018_2020.json,533
+2026-11-13T21:29:06,NASA POWER,Horario 39 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/39_2021_2023.json,533
+2026-11-13T21:29:07,NASA POWER,Horario 39 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/39_2024_2026.json,510
+2026-11-13T21:29:09,NASA POWER,Horario 40 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/40_2015_2017.json,527
+2026-11-13T21:29:11,NASA POWER,Horario 40 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/40_2018_2020.json,527
+2026-11-13T21:29:13,NASA POWER,Horario 40 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/40_2021_2023.json,527
+2026-11-13T21:29:14,NASA POWER,Horario 40 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/40_2024_2026.json,504
+2026-11-13T21:29:16,NASA POWER,Horario 41 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/41_2015_2017.json,532
+2026-11-13T21:29:17,NASA POWER,Horario 41 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/41_2018_2020.json,533
+2026-11-13T21:29:19,NASA POWER,Horario 41 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/41_2021_2023.json,533
+2026-11-13T21:29:21,NASA POWER,Horario 41 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/41_2024_2026.json,509
+2026-11-13T21:29:23,NASA POWER,Horario 42 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/42_2015_2017.json,526
+2026-11-13T21:29:25,NASA POWER,Horario 42 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/42_2018_2020.json,525
+2026-11-13T21:29:26,NASA POWER,Horario 42 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/42_2021_2023.json,526
+2026-11-13T21:29:27,NASA POWER,Horario 42 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/42_2024_2026.json,502
+2026-11-13T21:29:29,NASA POWER,Horario 43 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/43_2015_2017.json,534
+2026-11-13T21:29:31,NASA POWER,Horario 43 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/43_2018_2020.json,535
+2026-11-13T21:29:33,NASA POWER,Horario 43 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/43_2021_2023.json,534
+2026-11-13T21:29:35,NASA POWER,Horario 43 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/43_2024_2026.json,511
+2026-11-13T21:29:36,NASA POWER,Horario 44 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/44_2015_2017.json,527
+2026-11-13T21:29:38,NASA POWER,Horario 44 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/44_2018_2020.json,527
+2026-11-13T21:29:40,NASA POWER,Horario 44 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/44_2021_2023.json,527
+2026-11-13T21:29:42,NASA POWER,Horario 44 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/44_2024_2026.json,503
+2026-11-13T21:29:43,NASA POWER,Horario 45 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/45_2015_2017.json,529
+2026-11-13T21:29:45,NASA POWER,Horario 45 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/45_2018_2020.json,529
+2026-11-13T21:29:47,NASA POWER,Horario 45 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/45_2021_2023.json,530
+2026-11-13T21:29:49,NASA POWER,Horario 45 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/45_2024_2026.json,506
+2026-11-13T21:29:50,NASA POWER,Horario 46 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/46_2015_2017.json,532
+2026-11-13T21:29:52,NASA POWER,Horario 46 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/46_2018_2020.json,532
+2026-11-13T21:29:53,NASA POWER,Horario 46 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/46_2021_2023.json,532
+2026-11-13T21:29:55,NASA POWER,Horario 46 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/46_2024_2026.json,509
+2026-11-13T21:29:57,NASA POWER,Horario 47 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/47_2015_2017.json,528
+2026-11-13T21:29:59,NASA POWER,Horario 47 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/47_2018_2020.json,527
+2026-11-13T21:30:01,NASA POWER,Horario 47 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/47_2021_2023.json,528
+2026-11-13T21:30:02,NASA POWER,Horario 47 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/47_2024_2026.json,504
+2026-11-13T21:30:04,NASA POWER,Horario 48 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/48_2015_2017.json,534
+2026-11-13T21:30:06,NASA POWER,Horario 48 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/48_2018_2020.json,534
+2026-11-13T21:30:07,NASA POWER,Horario 48 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/48_2021_2023.json,534
+2026-11-13T21:30:09,NASA POWER,Horario 48 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/48_2024_2026.json,511
+2026-11-13T21:30:11,NASA POWER,Horario 49 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/49_2015_2017.json,528
+2026-11-13T21:30:13,NASA POWER,Horario 49 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/49_2018_2020.json,527
+2026-11-13T21:30:14,NASA POWER,Horario 49 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/49_2021_2023.json,528
+2026-11-13T21:30:16,NASA POWER,Horario 49 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/49_2024_2026.json,504
+2026-11-13T21:30:18,NASA POWER,Horario 50 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/50_2015_2017.json,530
+2026-11-13T21:30:19,NASA POWER,Horario 50 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/50_2018_2020.json,529
+2026-11-13T21:30:21,NASA POWER,Horario 50 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/50_2021_2023.json,530
+2026-11-13T21:30:23,NASA POWER,Horario 50 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/50_2024_2026.json,507
+2026-11-13T21:30:24,NASA POWER,Horario 51 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/51_2015_2017.json,537
+2026-11-13T21:30:26,NASA POWER,Horario 51 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/51_2018_2020.json,537
+2026-11-13T21:30:28,NASA POWER,Horario 51 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/51_2021_2023.json,537
+2026-11-13T21:30:30,NASA POWER,Horario 51 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/51_2024_2026.json,513
+2026-11-13T21:30:32,NASA POWER,Horario 52 2015-2017,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/52_2015_2017.json,537
+2026-11-13T21:30:34,NASA POWER,Horario 52 2018-2020,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/52_2018_2020.json,537
+2026-11-13T21:30:35,NASA POWER,Horario 52 2021-2023,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/52_2021_2023.json,537
+2026-11-13T21:30:37,NASA POWER,Horario 52 2024-2026,https://power.larc.nasa.gov/api/temporal/hourly/point,data/raw/api/nasa_power/horario/52_2024_2026.json,513
+2026-11-13T21:30:39,MITECO embalses,BD de embalses semanal (zip),https://www.miteco.gob.es/content/dam/miteco/es/agua/temas/evaluacion-de-los-recursos-hidricos/boletin-hidrologico/Historico-de-embalses/BD-Embalses.zip,data/raw/api/miteco/BD-Embalses.zip,9999
+2026-11-13T21:31:32,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '10'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/10_2026.json,1
+2026-11-13T21:31:35,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '7'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/7_2026.json,1
+2026-11-13T21:31:37,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '15'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/15_2026.json,1
+2026-11-13T21:31:40,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '4'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/4_2026.json,1
+2026-11-13T21:31:43,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/8_2026.json,1
+2026-11-13T21:31:46,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '16'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/16_2026.json,1
+2026-11-13T21:31:50,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8743'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/8743_2026.json,1
+2026-11-13T21:31:53,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '9'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/9_2026.json,1
+2026-11-13T21:31:55,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '17'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/17_2026.json,1
+2026-11-13T21:31:58,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '5'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/5_2026.json,1
+2026-11-13T21:32:01,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '20'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/20_2026.json,1
+2026-11-13T21:32:03,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '13'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/13_2026.json,1
+2026-11-13T21:32:06,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '21'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/21_2026.json,1
+2026-11-13T21:32:10,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '14'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/14_2026.json,1
+2026-11-13T21:32:13,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '11'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/11_2026.json,1
+2026-11-13T21:32:16,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8742'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/8742_2026.json,1
+2026-11-13T21:32:18,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '6'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/6_2026.json,1
+2026-11-13T21:32:21,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8744'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/8744_2026.json,1
+2026-11-13T21:32:24,Red Eléctrica (REData API),"demanda/evolucion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8745'}",https://apidatos.ree.es/es/datos/demanda/evolucion,data/raw/api/ree/demanda_ccaa/8745_2026.json,1
+2026-11-13T21:32:27,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '10'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/10_2026.json,10
+2026-11-13T21:32:29,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '7'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/7_2026.json,10
+2026-11-13T21:32:32,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '15'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/15_2026.json,11
+2026-11-13T21:32:34,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '4'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/4_2026.json,10
+2026-11-13T21:32:37,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/8_2026.json,7
+2026-11-13T21:32:39,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '16'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/16_2026.json,9
+2026-11-13T21:32:42,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8743'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/8743_2026.json,13
+2026-11-13T21:32:45,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '9'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/9_2026.json,12
+2026-11-13T21:32:47,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '17'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/17_2026.json,10
+2026-11-13T21:32:50,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '5'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/5_2026.json,8
+2026-11-13T21:32:52,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '20'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/20_2026.json,8
+2026-11-13T21:32:55,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '13'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/13_2026.json,8
+2026-11-13T21:32:57,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '21'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/21_2026.json,9
+2026-11-13T21:33:00,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '14'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/14_2026.json,8
+2026-11-13T21:33:02,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '11'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/11_2026.json,11
+2026-11-13T21:33:05,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8742'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/8742_2026.json,13
+2026-11-13T21:33:07,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '6'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/6_2026.json,9
+2026-11-13T21:33:09,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8744'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/8744_2026.json,4
+2026-11-13T21:33:12,Red Eléctrica (REData API),"generacion/estructura-generacion {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month', 'geo_trunc': 'electric_system', 'geo_limit': 'ccaa', 'geo_ids': '8745'}",https://apidatos.ree.es/es/datos/generacion/estructura-generacion,data/raw/api/ree/generacion_ccaa/8745_2026.json,7
+2026-11-13T21:33:16,Red Eléctrica (REData API),"generacion/no-renovables-detalle-emisiones-CO2 {'start_date': '2026-01-01T00:00', 'end_date': '2026-12-31T23:59', 'time_trunc': 'month'}",https://apidatos.ree.es/es/datos/generacion/no-renovables-detalle-emisiones-CO2,data/raw/api/ree/co2/2026.json,14
+2026-11-13T21:33:24,Red Eléctrica (REData API),"mercados/precios-mercados-tiempo-real {'start_date': '2026-11-01T00:00', 'end_date': '2026-11-30T23:59', 'time_trunc': 'hour'}",https://apidatos.ree.es/es/datos/mercados/precios-mercados-tiempo-real,data/raw/api/ree/precios/202611.json,144
+2026-11-13T21:33:25,INE (Tempus3 API),Tabla 2852,https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/2852,data/raw/api/ine/tabla_2852.json,457
+2026-11-13T21:33:27,INE (Tempus3 API),Tabla 53689,https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/53689,data/raw/api/ine/tabla_53689.json,586
+2026-11-13T21:33:31,SEPE,Paro registrado por municipio 2026,https://sede.sepe.gob.es/es/portaltrabaja/resources/sede/datos_abiertos/datos/Paro_por_municipios_2026_csv.csv,data/raw/api/sepe/Paro_por_municipios_2026_csv.csv,8179
+2026-11-13T21:33:33,PeeringDB,Listado fac España,https://www.peeringdb.com/api/fac,data/raw/api/peeringdb/fac_ES.json,68
+2026-11-13T21:33:33,PeeringDB,Listado ix España,https://www.peeringdb.com/api/ix,data/raw/api/peeringdb/ix_ES.json,18
+2026-11-13T21:33:35,EMSC (FDSN),Terremotos M>=1.5 2026,https://www.seismicportal.eu/fdsnws/event/1/query,data/raw/api/emsc_v2/2026.json,483

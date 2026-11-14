@@ -267,7 +267,8 @@ def _tablas_sinteticas() -> dict[str, pd.DataFrame]:
     clima = pd.DataFrame(
         [
             {"fecha": f"{mes[:8]}{d:02d}", "codigo_provincia": codigo, "tmax_c": 10.0, "tmin_c": 2.0, "tmedia_c": 6.0,
-             "humedad_relativa_media_pct": 70.0, "precipitacion_mm": 1.0, "viento_medio_kmh": 5.0, "et0_mm": 2.0}
+             "humedad_relativa_media_pct": 70.0, "precipitacion_mm": 1.0, "viento_medio_kmh": 5.0,
+             "radiacion_solar_kwh_m2_dia": 5.0, "et0_hargreaves_mm": 2.0}
             for codigo in provincias.CODIGOS
             for mes in meses
             for d in (1, 2)

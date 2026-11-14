@@ -45,3 +45,6 @@ websockets==17.4
 shapely==2.2.0
 pyshp==3.1.8
 pytz==2026.6
+access-parser==0.0.6
+construct==2.10.70
+tabulate==0.10.0
