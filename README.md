@@ -18,6 +18,13 @@ Proyecto del máster *FP IA y Big Data* (Stucom). Entrega: 15/12/2026.
 > (fase de ingesta, ver [Datos reales](#datos-reales-fase-de-ingesta)); falta transformarlos y unirlos en la
 > tabla maestra que sustituirá al CSV de demostración.
 
+## Metodología del equipo
+
+El método de trabajo, las reglas de datos y de Git, la checklist de entrega y el estado del proyecto están en
+[`docs/metodologia/`](docs/metodologia/00_Indice.md). Es un vault de Obsidian: abre esa carpeta como vault o léela
+directamente en GitHub. Empieza por [`00_Indice.md`](docs/metodologia/00_Indice.md) y revisa el estado en
+[`07_Estado_actual.md`](docs/metodologia/07_Estado_actual.md).
+
 ## Estructura
 
 ```
