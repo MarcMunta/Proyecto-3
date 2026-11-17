@@ -1,7 +1,7 @@
 ---
 tags: [metodologia, checklist, entrega, p3]
 estado: borrador
-actualizado: 2026-11-14
+actualizado: 2026-11-17
 ---
 
 # 06 · Checklist de entrega
@@ -11,7 +11,7 @@ Volver a [[00_Indice]]. Ver también [[07_Estado_actual]] (resumen y plan) y [[0
 **Leyenda:** ✅ hecho (hay evidencia verificable) · 🟡 parcial (existe algo incompleto o sin validar) · ❌ pendiente (no encontrado en el repositorio).
 **Evidencia:** ruta de archivo en el repo, o "—" si no hay.
 **Responsable:** vacío hasta asignar en la fase 0.
-**Estado verificado:** 14/11/2026, comparando con el commit `90b91e4` de `main`.
+**Estado verificado:** 17/11/2026, rama `fix/mapa-revision` (EDA, features, modelos y métricas; sin commit todavía).
 
 Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026-10-02_Data_Relation_Modelling]], [[Clase_2026-10-09_Data_Visualization_Correlation]], [[Clase_2026-10-23_Forecasting_Metricas]], [[Clase_2026-11-13_Advanced_Feature_Engineering]]).
 
@@ -23,17 +23,17 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 | Sección | ✅ | 🟡 | ❌ | Total |
 |---|---|---|---|---|
 | A. Objetivo general | 0 | 3 | 0 | 3 |
-| B. Objetivos específicos (1-10) | 0 | 7 | 3 | 10 |
+| B. Objetivos específicos (1-10) | 3 | 7 | 0 | 10 |
 | C. Preguntas funcionales (P1-P8) | 2 | 6 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
 | E. Variables del entorno territorial (enunciado) | 8 | 22 | 17 | 47 |
-| F. Entregables y evidencias | 0 | 4 | 5 | 9 |
+| F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
-| I. Técnicas de clase y de calidad de datos | 4 | 15 | 51 | 70 |
-| **Total** | **27** | **64** | **93** | **184** |
+| I. Técnicas de clase y de calidad de datos | 40 | 14 | 16 | 70 |
+| **Total** | **66** | **64** | **54** | **184** |
 
-Conteos verificados el 14/11/2026 contando las celdas de estado de cada fila. Si se añaden filas, recalcular.
+Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si se añaden filas, recalcular.
 
 ---
 
@@ -51,14 +51,14 @@ Conteos verificados el 14/11/2026 contando las celdas de estado de cada fila. Si
 |---|---|---|---|---|---|
 | B1 | Identificar y recopilar fuentes de datos relevantes | 🟡 | `docs/datos/README.md`, `docs/datos/tablas_api.md`, `src/cpd/fuentes/` | | Integrar AEMET, Confederaciones Hidrográficas y CNMC o justificar sustitución (D2) |
 | B2 | Diseñar procesos ETL para integrar datos heterogéneos | 🟡 | `src/ingesta/01_…04_*.py`, `src/cpd/fuentes/actualizar.py`, `src/cpd/etl/ree.py` | | Documentar el ETL como diagrama y tabla (fases 1-3) |
-| B3 | Limpiar, transformar y validar los datos obtenidos | 🟡 | `src/cpd/fuentes/curado.py` (criterio NaN), `tests/test_datos_nuevos.py` | | Informe de calidad: nulos, duplicados, atípicos por variable (fase 2) |
+| B3 | Limpiar, transformar y validar los datos obtenidos | 🟡 | `src/cpd/fuentes/curado.py` (criterio NaN), `src/cpd/fuentes/calidad.py` (control de calidad de la demanda), `tests/test_datos_nuevos.py`, `tests/test_fuentes.py` | | Informe de calidad: nulos, duplicados, atípicos por variable (fase 2) |
 | B4 | Diseñar un Data Lake y un Data Warehouse | 🟡 | `data/raw/`, `data/almacen/p3_cpd.duckdb`, `src/cpd/almacen.py` | | Completar estrella y escribir documento de almacenamiento (fase 5) |
-| B5 | Realizar análisis exploratorio de datos | ❌ | — | | Crear `notebooks/01_eda_panel.ipynb` (fase 4) |
-| B6 | Detectar correlaciones entre variables territoriales y la viabilidad | ❌ | — | | Matriz de correlación Pearson y Spearman vs score (fase 4) |
-| B7 | Construir modelos predictivos mediante Machine Learning | ❌ | — (aplazado por decisión del equipo; ver D3) | | Entrenar al menos un modelo frente a baseline (fase 7) |
+| B5 | Realizar análisis exploratorio de datos | 🟡 | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` (histogramas, box plots, series, barras, dispersión, correlaciones, pair plot; `python -m cpd.modelos`) | | Notebook `notebooks/01_eda_panel.ipynb` que llame a `cpd.modelos.eda` (la fase 4 lo pide) |
+| B6 | Detectar correlaciones entre variables territoriales y la viabilidad | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5: Pearson y Spearman frente a nº de CPD, score y VAN simulados | | — |
+| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` | | Mejorar features de `prob_cpd` si hay más datos (n = 52) |
 | B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Añadir parámetros del CPD que faltan (ver D) |
 | B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Informe de cuadro de mandos (fase 10) |
-| B10 | Elaborar predicciones de evolución futura mediante series temporales | 🟡 | `src/cpd/forecast.py` (tendencia + estacionalidad, 120 meses) | | Backtesting y métricas de error (fase 7-8) |
+| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (1 y 12 meses, backtesting en `docs/analisis/metricas.md`) | | Previsión a 10 años validada para P5 |
 
 ## C. Preguntas funcionales (enunciado, p. 3; ver [[01_Objetivo_y_alcance]])
 
@@ -68,7 +68,7 @@ Conteos verificados el 14/11/2026 contando las celdas de estado de cada fila. Si
 | P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | 🟡 | `simulator.impacto_local_pct` | | Datos de consumo municipal reales o explicación de límite |
 | P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Análisis por nudo o CCAA; decisión de nivel |
 | P4 | ¿Existe riesgo hídrico? | 🟡 | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m` | | Informe con interpretación y limitación |
-| P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | 🟡 | `src/cpd/forecast.py`, `data/clean/ree_demanda_mensual.csv` | | Modelo con validación temporal y banda de incertidumbre |
+| P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (validación temporal e intervalo a 12 meses); `src/cpd/forecast.py` (120 meses) | | Previsión a 10 años con incertidumbre creciente y explicación |
 | P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py` | | Calibrar precios en `config/settings.yaml` y documentar |
 | P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests | | Documentar tasa de descuento y supuestos |
 | P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico) | | Verificar fuentes de inundación y sísmico y sus unidades |
@@ -204,7 +204,7 @@ Conteos verificados el 14/11/2026 contando las celdas de estado de cada fila. Si
 |---|---|---|---|---|---|
 | F1 | Informe de origen de datos (M4RA1) | 🟡 | `docs/datos/README.md` (borrador) | | Completar con todas las fuentes y licencias |
 | F2 | Informe de cuadro de mandos (M4RA2) | ❌ | — | | Redactar tras fase 10 |
-| F3 | Informe de análisis de los datos (M4RA2) | ❌ | — | | Redactar tras fase 4 y 8 |
+| F3 | Informe de análisis de los datos (M4RA2) | 🟡 | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py`, `docs/analisis/metricas.md` (generados) | | Redactar el informe final integrado (fases 4 y 8) |
 | F4 | Informe de visualización de datos (M4RA4) | ❌ | — | | Redactar en fase 10 |
 | F5 | Documentación descriptiva del sistema de gestión y almacenamiento de datos (M4RA3) | 🟡 | `src/cpd/almacen.py`, `docs/datos/tablas_api.md`, diccionarios en `data/curated/` | | Documento con diagrama y granularidad (fase 5) |
 | F6 | Código fuente con comentarios en las funciones principales, en control de versiones (M4RA1-M4RA4) | 🟡 | Git (`main`, commits); comentarios por función sin verificar | | Auditar docstrings de funciones principales |
@@ -262,19 +262,19 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 
 | ID | Técnica | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| I12 | Gráfico de líneas: evolución temporal (C2 p.6) | 🟡 | Gráficos en `app/streamlit_app.py` (previsión) | | Verificar ejes con unidades |
-| I13 | Gráfico de barras: comparar categorías (C2 p.7) | 🟡 | Ranking en `app/streamlit_app.py` | | Verificar ejes y orden |
-| I14 | Histograma de variables numéricas (C2 p.8) | ❌ | — | | Histograma por variable (fase 4) |
-| I15 | Diagrama de dispersión (C2 p.9) | ❌ | — | | Dispersión variable vs score (fase 4) |
-| I16 | Box plot: outliers, mediana y cuartiles (C2 p.10) | ❌ | — | | Box plot por variable (fase 2 y 4) |
-| I17 | Mapa de calor de correlación (C2 p.11) | ❌ | — | | Heatmap de matriz de correlación (fase 4) |
+| I12 | Gráfico de líneas: evolución temporal (C2 p.6) | ✅ | `docs/figuras/eda/03_serie_demanda.png`, `04_series_precio_agua.png` | | — |
+| I13 | Gráfico de barras: comparar categorías (C2 p.7) | ✅ | `docs/figuras/eda/05_barras_cpd.png` | | — |
+| I14 | Histograma de variables numéricas (C2 p.8) | ✅ | `docs/figuras/eda/01_histogramas.png` | | — |
+| I15 | Diagrama de dispersión (C2 p.9) | ✅ | `docs/figuras/eda/06_dispersion.png` | | — |
+| I16 | Box plot: outliers, mediana y cuartiles (C2 p.10) | 🟡 | `docs/figuras/eda/02_boxplots.png` (temperatura y precio) | | Box plot del resto de variables en el informe de calidad (fase 2) |
+| I17 | Mapa de calor de correlación (C2 p.11) | ✅ | `docs/figuras/eda/07_correlacion_pearson.png`, `08_correlacion_spearman.png` | | — |
 | I18 | Gráfico de sectores (C2 p.12) | ❌ | — (no hay uso; recomendación: evitar) | | No aplica salvo caso puntual |
-| I19 | Pair plot (C2 p.13) | ❌ | — | | Pair plot de variables seleccionadas (fase 4) |
-| I20 | Correlación de −1 a 1 y su interpretación (C2 p.15) | ❌ | — | | Calcular y explicar (fase 4) |
-| I21 | Pearson: lineal, sensible a outliers (C2 p.23) | ❌ | — | | Calcular (fase 4) |
-| I22 | Spearman: monótona, robusta (C2 p.23) | ❌ | — | | Calcular y comparar con Pearson (fase 4) |
-| I23 | Kendall: muestras pequeñas (C2 p.23-24) | ❌ | — | | Calcular si hay pocas filas (fase 4) |
-| I24 | Correlación no implica causalidad (C2 p.18-21) | ❌ | — | | Frase obligatoria en cada conclusión (fase 4) |
+| I19 | Pair plot (C2 p.13) | ✅ | `docs/figuras/eda/09_pair_plot.png` | | — |
+| I20 | Correlación de −1 a 1 y su interpretación (C2 p.15) | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5 | | — |
+| I21 | Pearson: lineal, sensible a outliers (C2 p.23) | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5 | | — |
+| I22 | Spearman: monótona, robusta (C2 p.23) | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5 (con comparación Pearson − Spearman) | | — |
+| I23 | Kendall: muestras pequeñas (C2 p.23-24) | 🟡 | `cpd.modelos.eda.correlaciones` (calcula Kendall) | | Mostrar la tabla de Kendall en el informe |
+| I24 | Correlación no implica causalidad (C2 p.18-21) | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5 y §8 | | — |
 | I25 | Ejercicio de examen (Q1 a Q4) (C2 p.4) | ❌ | Ejercicio de clase, no entregable de P3 (sin hacer) | | Repasar preguntas 3 y 4 para el informe de modelado |
 | I26 | Practicar con datasets de ejemplo (penguins, tips, breast cancer, student dropout) (C2 p.25) | ❌ | — | | Practicar EDA con uno antes de usar datos propios (recomendación) |
 
@@ -282,49 +282,49 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 
 | ID | Técnica | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| I27 | Causas de fallo de previsión: checklist (C3 p.4) | ❌ | — | | Revisar cada causa en fase 7 |
-| I28 | Evitar fuga de información (C3 p.4) | 🟡 | Baseline sin feature de futuro (revisado a ojo) | | Auditoría formal de features (fase 6) |
-| I29 | Horizonte de previsión justificado (C3 p.4) | 🟡 | `forecast.py` (120 meses por defecto) | | Justificar horizonte por pregunta |
-| I30 | Ventana temporal de entrenamiento y validación (C3 p.4) | ❌ | — | | División temporal documentada (fase 7) |
-| I31 | Estacionalidad (C3 p.4) | 🟡 | `forecast.py` (factor estacional por mes) | | Verificar con gráfico y test |
-| I32 | Calidad de la previsión frente a baseline (C3 p.5-6) | ❌ | — | | Tabla de comparación (fase 8) |
-| I33 | Métricas de regresión: distancia al valor real (C3 p.9-11) | ❌ | — | | MAE y RMSE (fase 8) |
-| I34 | Métricas de clasificación (C3 p.13) | ❌ | — | | Solo si se modela clasificación |
-| I35 | Accuracy (C3 p.14) | ❌ | — | | Calcular con baseline de clase mayoritaria |
-| I36 | Precision (C3 p.14, 23) | ❌ | — | | Calcular (fase 8) |
-| I37 | Recall (C3 p.14, 19) | ❌ | — | | Calcular (fase 8) |
-| I38 | F-Score (C3 p.14) | ❌ | — | | Calcular (fase 8) |
-| I39 | ROC-AUC: la métrica que siempre hay que mirar (C3 p.14, 19) | ❌ | — | | Calcular y graficar (fase 8) |
-| I40 | Log-Loss (C3 p.14) | ❌ | — | | Si el modelo da probabilidades |
-| I41 | Matriz de confusión: TP, TN, FP, FN (C3 p.15-17) | ❌ | — | | Matriz en fase 8 |
-| I42 | Errores de tipo I y tipo II (C3 p.16) | ❌ | — | | Explicar coste (fase 8) |
-| I43 | TPR y FPR (C3 p.19) | ❌ | — | | Calcular para curva ROC |
-| I44 | Umbral de decisión (C3 p.19) | ❌ | — | | Elegir y justificar |
-| I45 | Paradoja de la exactitud (C3 p.23) | ❌ | — | | Comprobación explícita (fase 8) |
-| I46 | Coste de un error no es igual para todos (C3 p.8) | ❌ | — | | Regla de coste en la model card |
-| I47 | Sesgos de los datos y cómo comprobarlos (C3 p.22-24) | ❌ | — | | Análisis de sesgo por subgrupo (fase 8) |
+| I27 | Causas de fallo de previsión: checklist (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (fuga, estacionalidad, atípicos, horizonte) | | Lista explícita de las causas de C3 p.4 en el informe |
+| I28 | Evitar fuga de información (C3 p.4) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`test_features_no_usan_datos_posteriores_a_t_menos_h`); `n_ixp` excluida en `src/cpd/features/provincia.py` | | — |
+| I29 | Horizonte de previsión justificado (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (1 y 12 meses justificados) | | Justificar el horizonte de 10 años de P5 |
+| I30 | Ventana temporal de entrenamiento y validación (C3 p.4) | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `tests/test_modelos.py` (`test_particiones_son_temporales_y_no_se_solapan`) | | — |
+| I31 | Estacionalidad (C3 p.4) | ✅ | Baseline estacional y features de mes en `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/figuras/eda/02_boxplots.png` | | — |
+| I32 | Calidad de la previsión frente a baseline (C3 p.5-6) | ✅ | `docs/analisis/metricas.md` | | — |
+| I33 | Métricas de regresión: distancia al valor real (C3 p.9-11) | ✅ | `docs/analisis/metricas.md` (MAE, RMSE, MAPE); `src/cpd/modelos/metricas.py` | | — |
+| I34 | Métricas de clasificación (C3 p.13) | ✅ | `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py` | | — |
+| I35 | Accuracy (C3 p.14) | ✅ | `docs/analisis/metricas.md` (con clase mayoritaria) | | — |
+| I36 | Precision (C3 p.14, 23) | ✅ | `docs/analisis/metricas.md` | | — |
+| I37 | Recall (C3 p.14, 19) | ✅ | `docs/analisis/metricas.md` | | — |
+| I38 | F-Score (C3 p.14) | ✅ | `docs/analisis/metricas.md` | | — |
+| I39 | ROC-AUC: la métrica que siempre hay que mirar (C3 p.14, 19) | ✅ | `docs/analisis/metricas.md`; `docs/figuras/modelos/roc_prob_cpd.png` | | — |
+| I40 | Log-Loss (C3 p.14) | ✅ | `docs/analisis/metricas.md` | | — |
+| I41 | Matriz de confusión: TP, TN, FP, FN (C3 p.15-17) | ✅ | `docs/modelos/prob_cpd.md` (matriz con el umbral elegido) | | — |
+| I42 | Errores de tipo I y tipo II (C3 p.16) | 🟡 | `docs/modelos/prob_cpd.md` (coste de falsos positivos y negativos) | | Nombrar tipo I y tipo II en el informe |
+| I43 | TPR y FPR (C3 p.19) | ✅ | `docs/modelos/prob_cpd.md` | | — |
+| I44 | Umbral de decisión (C3 p.19) | ✅ | `docs/modelos/prob_cpd.md` (Youden sobre la curva ROC) | | — |
+| I45 | Paradoja de la exactitud (C3 p.23) | ✅ | `docs/analisis/metricas.md`; `tests/test_modelos.py` | | — |
+| I46 | Coste de un error no es igual para todos (C3 p.8) | ✅ | `docs/modelos/demanda_ccaa.md`, `docs/modelos/prob_cpd.md` (regla de coste) | | — |
+| I47 | Sesgos de los datos y cómo comprobarlos (C3 p.22-24) | ✅ | `docs/modelos/prob_cpd.md` (territorio y tamaño), `docs/modelos/demanda_ccaa.md` (por comunidad) | | — |
 | I48 | Ejercicio AutoPredict (hoja de cálculo con precision y accuracy) (C3 p.18) | ❌ | Hoja de Google Sheets "PREDICTION" (lectura parcial; ver [[Clase_2026-10-23_Forecasting_Metricas]]) | | Ejercicio de clase, no entregable |
 
 ### I.4 Clase 13/11 · Advanced Feature Engineering
 
 | ID | Técnica | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| I49 | Lags (retardos) (C4 p.7, 12-14) | ❌ | — | | Lags 1, 3, 12 en fase 6 |
-| I50 | Ventanas móviles: media, máximo, mínimo, desviación (C4 p.7, 15) | 🟡 | `src/cpd/fuentes/agua.py` (suma móvil 12 meses) | | Ampliar a más ventanas y estadísticos |
-| I51 | Estacionariedad y estacionalidad (C4 p.16) | 🟡 | `forecast.py` (factor mensual) | | Comprobar estacionariedad y transformar |
-| I52 | Diferencias (C4 p.7, 17) | ❌ | — | | Probar en serie de demanda |
-| I53 | Transformación logarítmica (log, log1p) (C4 p.8, 25-26) | ❌ | Ninguna en `src/` | | Aplicar a variables asimétricas (fase 3) |
-| I54 | Eventos puntuales (DANA, Black Friday) (C4 p.18) | ❌ | — | | Variable binaria con eventos conocidos |
-| I55 | Escalado (scaling) (C4 p.8, 23) | 🟡 | `scoring.normalizar_min_max` (solo para sub-scores) | | Escalado documentado para modelos (fase 3) |
+| I49 | Lags (retardos) (C4 p.7, 12-14) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` | | — |
+| I50 | Ventanas móviles: media, máximo, mínimo, desviación (C4 p.7, 15) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (medias de 3, 6 y 12 meses y desviación de 12) | | — |
+| I51 | Estacionariedad y estacionalidad (C4 p.16) | 🟡 | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (objetivo relativo al nivel de 12 meses, en log) | | Comprobar estacionariedad con media y varianza por año |
+| I52 | Diferencias (C4 p.7, 17) | 🟡 | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`f_desv_12m` sobre diferencias de log) | | Probar un modelo sobre diferencias |
+| I53 | Transformación logarítmica (log, log1p) (C4 p.8, 25-26) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py`; `src/cpd/features/provincia.py` (`log_poblacion`) | | — |
+| I54 | Eventos puntuales (DANA, Black Friday) (C4 p.18) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`f_confinamiento`) | | Añadir más eventos si se conocen |
+| I55 | Escalado (scaling) (C4 p.8, 23) | ✅ | `StandardScaler` dentro del pipeline en `src/cpd/modelos/demanda.py` y `prob_cpd.py` (solo con entrenamiento) | | — |
 | I56 | Normalización min-max (MAX-MIN) (C4 p.23) | ✅ | `src/cpd/scoring.py` (`normalizar_min_max`) | | Verificar que no altera la columna original (R-7) |
-| I57 | Estandarización z-score (C4 p.23) | ❌ | — | | Añadir función y test (fase 3) |
+| I57 | Estandarización z-score (C4 p.23) | ✅ | `StandardScaler` (z-score) en los pipelines de `src/cpd/modelos/` | | — |
 | I58 | Winsorizing (C4 p.8) | ❌ | — | | Recorte de percentiles 1 y 99 (fase 2-3) |
 | I59 | Transformaciones polinómicas (C4 p.8) | ❌ | — | | Solo si se justifica |
-| I60 | One-hot encoding (C4 p.9, 20) | ❌ | — | | Para categorías pocas (fase 3) |
+| I60 | One-hot encoding (C4 p.9, 20) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (mes del año `f_mes_02`…`f_mes_12`) | | — |
 | I61 | Frequency encoding (C4 p.9, 21) | ❌ | — | | Para categorías muchas (fase 3) |
 | I62 | Target encoding (C4 p.9) | ❌ | — | | Solo dentro de partición de entrenamiento |
 | I63 | Embeddings (C4 p.9) | ❌ | — (opcional, "super-ultra-advanced") | | No prioritario |
-| I64 | Variables semánticas: zona climática, región, ranking, extracciones (C4 p.10, 27-28) | 🟡 | `ccaa`, `ambito_hidrografico`, ranking en `scoring.evaluar` | | Añadir zona climática y extracciones |
+| I64 | Variables semánticas: zona climática, región, ranking, extracciones (C4 p.10, 27-28) | 🟡 | `ccaa`, `ambito_hidrografico`, `extrapeninsular` (`src/cpd/features/provincia.py`), ranking en `scoring.evaluar` | | Añadir zona climática y extracciones |
 | I65 | Rankings como variable (C4 p.10) | ✅ | `src/cpd/scoring.py` (ranking) | | — |
 | I66 | Presentar ideas, debilidades y oportunidades (IDEA, WEAKNESS, OPORTUNITY) (C4 p.30) | ❌ | — | | Registrar un DAFO por equipo (recomendación) |
 
@@ -333,9 +333,9 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 | ID | Técnica | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
 | I67 | Limpieza: tipos, duplicados, codificación (recomendación) | 🟡 | `src/cpd/fuentes/curado.py`, `src/ingesta/utils.py`, tests de datos | | Informe de calidad (fase 2) |
-| I68 | Valores ausentes: política explícita (recomendación) | 🟡 | `curado.py`: NaN donde la fuente no tiene dato | | Tabla de nulos y decisiones por variable |
-| I69 | Atípicos (outliers): detección y decisión (recomendación; box plot C2 p.10) | ❌ | — | | Detección por variable y registro de decisiones |
-| I70 | Escalar y normalizar sin perder datos (recomendación; C4 p.23 y R-7) | 🟡 | Normalización de scores; sin política para modelos | | Política R-7 aplicada en fase 3 |
+| I68 | Valores ausentes: política explícita (recomendación) | 🟡 | `curado.py` (NaN); demanda imposible → NaN con registro en `data/curated/calidad_demanda_ccaa.csv`; imputación solo como entrada de modelos en `src/cpd/features/demanda.py` | | Tabla de nulos y decisiones por variable |
+| I69 | Atípicos (outliers): detección y decisión (recomendación; box plot C2 p.10) | 🟡 | Demanda por CCAA: `src/cpd/fuentes/calidad.py` (regla y causa comprobada en REData), `data/curated/calidad_demanda_ccaa.csv`, `docs/datos/tablas_api.md` §9, `docs/analisis/eda_panel.md` §7 | | Detección y registro en el resto de variables |
+| I70 | Escalar y normalizar sin perder datos (recomendación; C4 p.23 y R-7) | ✅ | R-7 en los modelos: columnas originales intactas y escalador ajustado solo con entrenamiento | | — |
 
 ---
 
