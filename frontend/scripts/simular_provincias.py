@@ -39,7 +39,7 @@ import pandas as pd  # noqa: E402
 
 from cpd.config import cargar_settings  # noqa: E402
 from cpd.scoring import evaluar  # noqa: E402
-from cpd.simulator import CPDParams  # noqa: E402
+from cpd.simulator import CPDParams, latencia_rtt_ms  # noqa: E402
 
 CURADO = RAIZ / "data" / "curated"
 SALIDA = RAIZ / "frontend" / "public" / "data" / "provincias_simuladas.json"
@@ -97,6 +97,16 @@ def _redondeo(v: Any, d: int = 6) -> float | None:
     return None if x is None else round(x, d)
 
 
+def cobertura_renovable(curado: Path = CURADO) -> dict[str, float]:
+    """Cobertura renovable prevista por comunidad (%, generación renovable / demanda de los próximos 12 meses), del
+    modelo de `python -m cpd.modelos`. Sin ese fichero, vacío: el indicador queda sin dato (no se inventa)."""
+    ruta = curado / "modelos" / "previsiones_1_anio.json"
+    if not ruta.exists():
+        return {}
+    ccaa = json.loads(ruta.read_text(encoding="utf-8")).get("cobertura_renovable", {}).get("ccaa", {})
+    return {codigo: c["cobertura_prevista_pct"] for codigo, c in ccaa.items() if c.get("cobertura_prevista_pct") is not None}
+
+
 def entradas(actual: pd.DataFrame, panel: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Tabla de entrada de cpd.scoring.evaluar con una fila por provincia, y metadatos del cálculo."""
     nombres = {p["codigo"]: p["nombre"] for p in json.loads(META.read_text(encoding="utf-8"))}
@@ -119,6 +129,7 @@ def entradas(actual: pd.DataFrame, panel: pd.DataFrame) -> tuple[pd.DataFrame, d
     precio_12m = float(ventana.groupby("mes")["precio_spot_medio_mes_eur_mwh"].first().mean())
 
     a = actual.set_index("codigo_provincia")
+    cobertura = cobertura_renovable()
     tension = np.where(a["subestaciones_400kv"] > 0, 400.0, np.where(a["subestaciones_220_400kv"] > 0, 220.0, np.nan))
     df = pd.DataFrame(
         {
@@ -132,6 +143,13 @@ def entradas(actual: pd.DataFrame, panel: pd.DataFrame) -> tuple[pd.DataFrame, d
             "poblacion": a["poblacion"].values,
             "tasa_paro": (a["paro_por_1000_hab"] / 1000).values,
             "capacidad_acceso_mw": a["capacidad_demanda_rdt_disponible_mw"].values,
+            "capacidad_demanda_otorgada_mw": a["capacidad_demanda_rdt_otorgada_mw"].values if "capacidad_demanda_rdt_otorgada_mw" in a else np.nan,
+            "cpd_existentes": a["n_centros_datos"].values if "n_centros_datos" in a else np.nan,
+            "cobertura_renovable_pct": [cobertura.get(c) for c in a["codigo_ccaa"].astype(str).str.zfill(2)],
+            "precio_suelo_urbano_eur_m2": a["precio_suelo_urbano_eur_m2"].values if "precio_suelo_urbano_eur_m2" in a else np.nan,
+            "latencia_hubs_rtt_ms": (
+                [latencia_rtt_ms(v) if pd.notna(v) else np.nan for v in a["distancia_hubs_ixp_km"]] if "distancia_hubs_ixp_km" in a else np.nan
+            ),
             "tension_subestacion_kv": tension,
             "estres_hidrico_idx": a["estres_hidrico_wri_0_1"].values,
             "dist_ixp_km": a["distancia_ixp_km"].values,
@@ -335,6 +353,12 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
                 "demanda_ccaa_hasta": str(dem["ultimos_12m_hasta"]) if dem is not None and pd.notna(dem["ultimos_12m_hasta"]) else None,
                 **{f"van_eur_precio_{clave}": _redondeo(serie.get(codigo), 0) for clave, serie in van_con_precio.items()},
                 "cpd_existentes": _redondeo(extra.get("cpd_existentes"), 0),
+                "cobertura_renovable_pct": _redondeo(fila.get("cobertura_renovable_pct"), 1),
+                "capacidad_demanda_otorgada_mw": _redondeo(fila.get("capacidad_demanda_otorgada_mw"), 0),
+                "capacidad_demanda_pendiente_mw": _redondeo(a.loc[codigo].get("capacidad_demanda_rdt_pendiente_mw"), 0),
+                "capacidad_acceso_disponible_mw": _redondeo(fila.get("capacidad_acceso_mw"), 0),
+                "precio_suelo_urbano_eur_m2": _redondeo(fila.get("precio_suelo_urbano_eur_m2"), 0),
+                "latencia_hubs_rtt_ms": _redondeo(fila.get("latencia_hubs_rtt_ms"), 1),
                 "pue": _redondeo(fila["pue_aplicado"], 3),
                 "latencia_rtt_ms": _redondeo(fila["latencia_rtt_ms"], 2),
                 "motivos": _motivos(fila, extra, faltan),

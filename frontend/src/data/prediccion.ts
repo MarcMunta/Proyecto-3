@@ -36,6 +36,16 @@ export interface ProvinciaPrediccion {
   precio_luz_usado_eur_mwh?: number | null;
   pue?: number | null;
   latencia_rtt_ms?: number | null;
+  /** Comunidad: generación renovable / demanda prevista para 12 meses (%) y capacidad de red de REE para demanda (MW):
+   * otorgada a nuevos grandes consumos, pendiente de resolver y aún disponible. */
+  cobertura_renovable_pct?: number | null;
+  capacidad_demanda_otorgada_mw?: number | null;
+  capacidad_demanda_pendiente_mw?: number | null;
+  capacidad_acceso_disponible_mw?: number | null;
+  /** Suelo urbano (€/m², mediana de 4 trimestres, Ministerio de Transportes) y latencia RTT al más lejano de los dos
+   * grandes nodos de internet (ms). */
+  precio_suelo_urbano_eur_m2?: number | null;
+  latencia_hubs_rtt_ms?: number | null;
   /** Demanda eléctrica de la comunidad (MWh): 12 últimos meses válidos y previsión de los 12 siguientes (cpd.modelos). */
   demanda_ccaa_ultimos_12m_mwh?: number | null;
   demanda_ccaa_prevision_12m_mwh?: number | null;
@@ -146,6 +156,12 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       precio_luz_usado_eur_mwh: numero(fila.precio_luz_usado_eur_mwh),
       pue: numero(fila.pue),
       latencia_rtt_ms: numero(fila.latencia_rtt_ms),
+      cobertura_renovable_pct: numero(fila.cobertura_renovable_pct),
+      capacidad_demanda_otorgada_mw: numero(fila.capacidad_demanda_otorgada_mw),
+      capacidad_demanda_pendiente_mw: numero(fila.capacidad_demanda_pendiente_mw),
+      capacidad_acceso_disponible_mw: numero(fila.capacidad_acceso_disponible_mw),
+      precio_suelo_urbano_eur_m2: numero(fila.precio_suelo_urbano_eur_m2),
+      latencia_hubs_rtt_ms: numero(fila.latencia_hubs_rtt_ms),
       demanda_ccaa_ultimos_12m_mwh: numero(fila.demanda_ccaa_ultimos_12m_mwh),
       demanda_ccaa_prevision_12m_mwh: numero(fila.demanda_ccaa_prevision_12m_mwh),
       demanda_ccaa_prevision_inferior_mwh: numero(fila.demanda_ccaa_prevision_inferior_mwh),

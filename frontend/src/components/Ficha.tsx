@@ -202,6 +202,42 @@ export function Ficha(p: Props) {
                     <dd>{num(d.cpd_existentes)}</dd>
                   </div>
                 )}
+                {d.capacidad_demanda_otorgada_mw != null && (
+                  <div>
+                    <dt>Red otorgada a nuevos grandes consumos (comunidad)</dt>
+                    <dd>{num(d.capacidad_demanda_otorgada_mw)} MW</dd>
+                  </div>
+                )}
+                {d.capacidad_demanda_pendiente_mw != null && (
+                  <div>
+                    <dt>Pedida y en trámite (comunidad)</dt>
+                    <dd>{num(d.capacidad_demanda_pendiente_mw)} MW</dd>
+                  </div>
+                )}
+                {d.capacidad_acceso_disponible_mw != null && (
+                  <div>
+                    <dt>Aún disponible para demanda (comunidad)</dt>
+                    <dd>{num(d.capacidad_acceso_disponible_mw)} MW</dd>
+                  </div>
+                )}
+                {d.precio_suelo_urbano_eur_m2 != null && (
+                  <div>
+                    <dt>Suelo urbano (mediana de 4 trimestres)</dt>
+                    <dd>{num(d.precio_suelo_urbano_eur_m2)} €/m²</dd>
+                  </div>
+                )}
+                {d.latencia_hubs_rtt_ms != null && (
+                  <div>
+                    <dt>Latencia a Madrid y Barcelona (la peor de las dos)</dt>
+                    <dd>{num(d.latencia_hubs_rtt_ms, 1)} ms</dd>
+                  </div>
+                )}
+                {d.cobertura_renovable_pct != null && (
+                  <div>
+                    <dt>Renovable generada / demanda (comunidad, 12 meses previstos)</dt>
+                    <dd>{num(d.cobertura_renovable_pct, 0)} %</dd>
+                  </div>
+                )}
                 {d.pue != null && (
                   <div>
                     <dt>PUE estimado</dt>
