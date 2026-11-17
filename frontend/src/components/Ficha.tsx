@@ -204,9 +204,19 @@ export function Ficha(p: Props) {
                   </div>
                 )}
               </dl>
-              {d.prob_cpd != null && <Barra etiqueta="Probabilidad de que se instale un CPD" valor={d.prob_cpd} max={1} texto={pct(d.prob_cpd)} />}
+              {d.prob_cpd != null && (
+                <Barra
+                  etiqueta="Probabilidad de tener un CPD (modelo)"
+                  valor={d.prob_cpd}
+                  max={1}
+                  texto={pct(d.prob_cpd)}
+                  nota={notaProbCpd(prediccion)}
+                />
+              )}
             </section>
           )}
+
+          <BloqueDemanda d={d} prediccion={prediccion} />
 
           {d.motivos.length > 0 && (
             <section className="bloque" aria-labelledby="b-motivos">
@@ -300,6 +310,71 @@ function BloqueLuz(p: Props & { d: ProvinciaPrediccion; municipio: Municipio | u
           {demanda.datos?.ahora && mix.datos?.renovableAyer && " · "}
           {mix.datos?.renovableAyer && <>renovable ayer {pct(mix.datos.renovableAyer.v)}</>}
           <Vivo momento={demanda.datos?.ahora?.t} fuente="Red Eléctrica" />
+        </p>
+      )}
+    </section>
+  );
+}
+
+const NOMBRE_MODELO: Record<string, string> = {
+  solo_poblacion: "regresión logística con la población",
+  logistica: "regresión logística",
+  bosque: "random forest",
+  estacional: "mismo mes del año anterior",
+  naive: "último valor",
+  tendencia_estacionalidad: "tendencia + estacionalidad",
+  ridge: "regresión Ridge",
+  gradient_boosting: "gradient boosting",
+};
+
+/** Nota de la barra de prob_cpd: qué modelo es y cuánto acierta (sale de docs/modelos/prob_cpd.md). */
+function notaProbCpd(p: Prediccion): string {
+  const m = p.modelos?.prob_cpd;
+  if (!m) return "propensión según provincias parecidas, no la probabilidad de que se construya uno nuevo";
+  return [
+    `${NOMBRE_MODELO[m.modelo] ?? m.modelo}: provincias parecidas a las que ya tienen CPD`,
+    m.provincias_con_cpd != null ? `${num(m.provincias_con_cpd)} de 52 tienen` : null,
+    m.roc_auc != null ? `ROC-AUC ${num(m.roc_auc, 2)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** Demanda eléctrica de la comunidad: último año con datos válidos y previsión de los 12 meses siguientes. */
+function BloqueDemanda({ d, prediccion }: { d: ProvinciaPrediccion; prediccion: Prediccion }) {
+  const ultimos = d.demanda_ccaa_ultimos_12m_mwh;
+  const prevision = d.demanda_ccaa_prevision_12m_mwh;
+  if (ultimos == null && prevision == null) return null;
+  const gwh = (v: number | null | undefined) => (v == null ? "—" : `${num(v / 1e3)} GWh`);
+  const modelo = prediccion.modelos?.demanda;
+  return (
+    <section className="bloque" aria-labelledby="b-demanda">
+      <h3 id="b-demanda">
+        Demanda eléctrica <span className="h-nota">{d.ccaa ?? "comunidad autónoma"} · 12 meses</span>
+      </h3>
+      <dl className="pares">
+        <div>
+          <dt>Último año{d.demanda_ccaa_hasta ? ` (hasta ${mesLegible(d.demanda_ccaa_hasta)})` : ""}</dt>
+          <dd>{gwh(ultimos)}</dd>
+        </div>
+        <div>
+          <dt>Previsión de los 12 meses siguientes</dt>
+          <dd>{gwh(prevision)}</dd>
+        </div>
+      </dl>
+      {(d.demanda_ccaa_prevision_inferior_mwh != null || modelo) && (
+        <p className="dato-linea">
+          {d.demanda_ccaa_prevision_inferior_mwh != null && d.demanda_ccaa_prevision_superior_mwh != null && (
+            <>
+              Rango probable: {gwh(d.demanda_ccaa_prevision_inferior_mwh)} a {gwh(d.demanda_ccaa_prevision_superior_mwh)}.{" "}
+            </>
+          )}
+          {modelo && (
+            <>
+              Modelo: {NOMBRE_MODELO[modelo.modelo] ?? modelo.modelo}
+              {modelo.mape_test_pct != null ? ` (error medio en test ${num(modelo.mape_test_pct, 1)} %)` : ""}.
+            </>
+          )}
         </p>
       )}
     </section>
