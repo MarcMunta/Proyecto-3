@@ -86,6 +86,10 @@ DICCIONARIO: tuple[Campo, ...] = (
     Campo("subestaciones_400kv", "Subestaciones de 400 kV mapeadas en OpenStreetMap", "nº", "OpenStreetMap (Overpass)", "provincia", "estática"),
     Campo("capacidad_demanda_rdt_disponible_mw", "Capacidad de acceso disponible para demanda en red de transporte (comunidad)", "MW", "Red Eléctrica (capacidad de acceso)", "ccaa", "estática"),
     Campo("nudos_acceso_ccaa", "Nudos de la red de transporte de la comunidad con datos de capacidad", "nº", "Red Eléctrica (capacidad de acceso)", "ccaa", "estática"),
+    Campo("distancia_hubs_ixp_km", "Distancia desde la capital al más lejano de los dos grandes nodos de internet (provincias con más IXP: hoy Madrid y Barcelona)", "km", "PeeringDB + coordenadas de las capitales", "provincia", "estática"),
+    Campo("precio_suelo_urbano_eur_m2", "Precio medio del suelo urbano: mediana de los 4 últimos trimestres (aproximación del coste del suelo; no es solo industrial)", "€/m²", "Ministerio de Transportes (precios de suelo)", "provincia", "trimestral"),
+    Campo("capacidad_demanda_rdt_otorgada_mw", "Capacidad de acceso ya otorgada a nueva demanda en red de transporte (comunidad): grandes consumos que se están conectando", "MW", "Red Eléctrica (capacidad de acceso)", "ccaa", "estática"),
+    Campo("capacidad_demanda_rdt_pendiente_mw", "Capacidad de acceso para demanda solicitada y pendiente de resolver en red de transporte (comunidad)", "MW", "Red Eléctrica (capacidad de acceso)", "ccaa", "estática"),
     Campo("pct_superficie_natura2000", "Porcentaje de la superficie provincial en Red Natura 2000", "%", "EEA Natura 2000", "provincia", "estática"),
     Campo("espacios_natura_2000", "Espacios Natura 2000 que intersecan la provincia", "nº", "EEA Natura 2000", "provincia", "estática"),
     Campo("n_terremotos", "Terremotos M>=1.5 con epicentro en la provincia durante el año", "nº", "EMSC (FDSN)", "provincia", "anual"),
@@ -115,6 +119,27 @@ COLUMNAS_TIEMPO_REAL: tuple[str, ...] = (
 )
 UMBRAL_CALOR_EXTREMO_C: float = 35.0  # días >= 35 °C (dias_mas_35c)
 AMBITO_POR_CODIGO: dict[str, str | None] = AMBITO_POR_PROVINCIA
+
+
+def distancia_hubs_ixp(conectividad: pd.DataFrame, provincias: pd.DataFrame, n_hubs: int = 2) -> pd.DataFrame:
+    """Distancia (km) desde la capital de cada provincia al más lejano de los `n_hubs` grandes nodos de internet: las
+    provincias con más IXP según PeeringDB (desempate: más centros de datos). Hoy son Madrid y Barcelona, pero sale
+    de los datos, sin nombres fijos. Un CPD que quiera dar servicio a los dos grandes mercados necesita estar cerca
+    de los dos, así que cuenta el más lejano.
+
+    Returns:
+        `codigo_provincia`, `distancia_hubs_ixp_km`.
+    """
+    from cpd.fuentes.peeringdb import distancia_km
+
+    orden = conectividad.dropna(subset=["n_ixp"]).sort_values(["n_ixp", "n_centros_datos", "codigo_provincia"], ascending=[False, False, True])
+    hubs = [h for h in orden["codigo_provincia"].head(n_hubs) if (orden.set_index("codigo_provincia").loc[h, "n_ixp"] or 0) > 0]
+    coords = provincias.drop_duplicates("codigo_provincia").set_index("codigo_provincia")[["lat_punto", "lon_punto"]].astype(float)
+    filas = []
+    for codigo, (lat, lon) in coords.iterrows():
+        distancias = [distancia_km(lat, lon, coords.at[h, "lat_punto"], coords.at[h, "lon_punto"]) for h in hubs if h in coords.index]
+        filas.append({"codigo_provincia": codigo, "distancia_hubs_ixp_km": round(max(distancias), 1) if distancias else None})
+    return pd.DataFrame(filas, columns=["codigo_provincia", "distancia_hubs_ixp_km"])
 
 
 def leer_tablas(carpeta: Path = CARPETA_TABLAS) -> dict[str, pd.DataFrame]:
@@ -257,13 +282,19 @@ def construir_panel(tablas: dict[str, pd.DataFrame], hasta: pd.Timestamp | None 
 
     if "conectividad" in tablas and not tablas["conectividad"].empty:
         base = base.merge(tablas["conectividad"], on="codigo_provincia", how="left")
+        if "provincias" in tablas and {"lat_punto", "lon_punto"} <= set(tablas["provincias"].columns):
+            base = base.merge(distancia_hubs_ixp(tablas["conectividad"], tablas["provincias"]), on="codigo_provincia", how="left")
+    if "suelo_provincia" in tablas and not tablas["suelo_provincia"].empty:
+        base = base.merge(tablas["suelo_provincia"][["codigo_provincia", "precio_suelo_urbano_eur_m2"]], on="codigo_provincia", how="left")
     if "subestaciones" in tablas and not tablas["subestaciones"].empty:
         base = base.merge(tablas["subestaciones"], on="codigo_provincia", how="left")
     if "natura" in tablas and not tablas["natura"].empty:
         base = base.merge(tablas["natura"], on="codigo_provincia", how="left")
     if "capacidad_ccaa" in tablas and not tablas["capacidad_ccaa"].empty:
         capacidad = tablas["capacidad_ccaa"].rename(columns={"nudos": "nudos_acceso_ccaa"})
-        base = base.merge(capacidad[["codigo_ccaa", "nudos_acceso_ccaa", "capacidad_demanda_rdt_disponible_mw"]], on="codigo_ccaa", how="left")
+        columnas = ["codigo_ccaa", "nudos_acceso_ccaa", "capacidad_demanda_rdt_disponible_mw"]
+        columnas += [c for c in ("capacidad_demanda_rdt_otorgada_mw", "capacidad_demanda_rdt_pendiente_mw") if c in capacidad.columns]
+        base = base.merge(capacidad[columnas], on="codigo_ccaa", how="left")
     if "sismos" in tablas and not tablas["sismos"].empty:
         sismos = tablas["sismos"].rename(columns={"anio": "anio"})
         base = base.merge(sismos, on=["codigo_provincia", "anio"], how="left")

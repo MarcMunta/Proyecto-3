@@ -441,3 +441,65 @@ def test_mibgas_lee_las_hojas_de_distintos_anios(tmp_path):
     assert mibgas._leer_indices(nuevo)["gas_mibgas_es_eur_mwh"].tolist() == [28.17]
     assert mibgas._leer_futuros(viejo)[["producto", "precio_eur_mwh"]].values.tolist() == [["M+1", 16.5]]
     assert mibgas._leer_futuros(nuevo)[["producto", "precio_eur_mwh"]].values.tolist() == [["Y+1", 26.63]]
+
+
+def test_capacidad_lee_la_otorgada_y_la_pendiente_por_comunidad(tmp_path):
+    # CSV SINTÉTICO (solo para el test) con la estructura de REE: dos filas de cabecera y una vacía.
+    contenido = (
+        "Nombre y tensión del nudo;Código de subestación;Comunidad Autónoma;"
+        "SITUACIÓN NUDO CAPACIDAD DE ACCESO OTORGADA;SITUACIÓN NUDO CAPACIDAD DE ACCESO EN CURSO Y PENDIENTE DE RESOLVER;"
+        "CAPACIDAD DE ACCESO DISPONIBLE PARA SOLICITUDES CRITERIO GENERAL RDT\n"
+        ";;;Capacidad de acceso otorgada demanda RdT;Capacidad de acceso solicitada en curso y pendiente resolver demanda RdT;DEMANDA\n"
+        ";;;;;\n"
+        "CALATORAO 220;1;Aragón;650;0;10\n"
+        "ARAGON 400;2;Aragón;444;300;79\n"
+        "ABADES 400;3;Castilla y León;0;;1500\n"
+    )
+    ruta = tmp_path / "2026_01_01_GRT_demanda.csv"
+    ruta.write_text(contenido, encoding="utf-8")
+    tabla = red_capacidad.leer_capacidad(ruta).set_index("codigo_ccaa")
+    assert tabla.loc["02", "capacidad_demanda_rdt_otorgada_mw"] == 1094.0
+    assert tabla.loc["02", "capacidad_demanda_rdt_pendiente_mw"] == 300.0
+    assert tabla.loc["02", "capacidad_demanda_rdt_disponible_mw"] == 89.0
+    assert pd.isna(tabla.loc["07", "capacidad_demanda_rdt_pendiente_mw"])  # celda vacía: sin dato, no 0
+
+
+def test_capacidad_sin_columnas_de_otorgada_las_deja_vacias():
+    tabla = red_capacidad.leer_capacidad(FIXTURES / "ree_capacidad_muestra.csv")
+    assert tabla["capacidad_demanda_rdt_otorgada_mw"].isna().all()
+    assert tabla["capacidad_demanda_rdt_pendiente_mw"].isna().all()
+
+
+def test_suelo_mediana_de_los_ultimos_trimestres_por_provincia():
+    from cpd.fuentes import suelo
+
+    # Hoja SINTÉTICA (solo para el test) con la forma del boletín: años, trimestres, comunidades y provincias.
+    nan = float("nan")
+    rejilla = pd.DataFrame(
+        [
+            [nan, "Unidad: euros/m2", nan, nan, nan, nan, nan],
+            [nan, nan, "Año 2025", nan, nan, nan, "Año 2026"],
+            [nan, nan, "1º", "2º", "3º", "4º", "1º"],
+            [nan, "TOTAL NACIONAL", 100, 110, 120, 130, 140],
+            [nan, "Aragón", 90, 95, 100, 105, 110],
+            [nan, "Zaragoza", 116.56, 23.79, 141.91, 135.21, 114.36],
+            [nan, "Madrid (Comunidad de)", 400, 410, "n.s.", 420, 430],
+            [nan, "Ceuta y Melilla", "n.s.", "n.s.", ".", "n.s.", "n.s."],
+        ]
+    )
+    tabla = suelo.precio_desde_rejilla(rejilla).set_index("codigo_provincia")
+    assert set(tabla.index) == {"50", "28"}  # ni el total ni las comunidades ni Ceuta y Melilla
+    assert tabla.loc["50", "precio_suelo_urbano_eur_m2"] == pytest.approx(124.785, abs=0.01)  # mediana de los 4 últimos: (114,36 + 135,21) / 2
+    assert tabla.loc["50", "ultimo_trimestre"] == "2026-T1"
+    assert tabla.loc["28", "precio_suelo_urbano_eur_m2"] == pytest.approx(415.0)  # «n.s.» no cuenta
+
+
+def test_distancia_a_los_dos_hubs_sale_de_los_datos():
+    from cpd.fuentes.curado import distancia_hubs_ixp
+
+    # Datos SINTÉTICOS (solo para el test): dos provincias con IXP y una sin.
+    conectividad = pd.DataFrame({"codigo_provincia": ["28", "08", "50"], "n_centros_datos": [31, 13, 0], "n_ixp": [7, 7, 0]})
+    provincias = pd.DataFrame({"codigo_provincia": ["28", "08", "50"], "lat_punto": [40.42, 41.39, 41.65], "lon_punto": [-3.70, 2.17, -0.88]})
+    d = distancia_hubs_ixp(conectividad, provincias).set_index("codigo_provincia")["distancia_hubs_ixp_km"]
+    assert d["50"] < d["28"] == d["08"]  # Zaragoza está más cerca del más lejano de los dos que Madrid o Barcelona
+    assert 250 < d["50"] < 300

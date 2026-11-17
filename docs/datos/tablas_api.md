@@ -80,7 +80,7 @@ Derivadas en el panel (ver sección 7): `balance_hidrico_mes_mm` (precipitación
 | `gas_diario` | fecha, gas_mibgas_es_eur_mwh | €/MWh | MIBGAS, ficheros anuales `MIBGAS_Data_<año>.xlsx` (hoja de índices) | N | diaria | desde 2016 |
 | `gas_futuros` | fecha, producto (M+1, Q+1, Y+1), inicio_entrega, fin_entrega, precio_eur_mwh | €/MWh | MIBGAS, hoja de negociación del PVB | N | diaria | M+1 desde 2016; Q+1 e Y+1 desde 2018 |
 | `energia_tiempo_real` | momento_consulta, demanda_tiempo_real_mw, precio_spot_actual_eur_mwh, precio_spot_manana_medio_eur_mwh | MW, €/MWh | `demanda-tiempo-real`; spot; OMIE `marginalpdbc` | N | tiempo real | — |
-| `capacidad_ccaa` | codigo_ccaa, ccaa, nudos, capacidad_demanda_rdt_disponible_mw | MW | CSV de REE "capacidad de acceso" | CCAA | mensual (REE) | última publicación |
+| `capacidad_ccaa` | codigo_ccaa, ccaa, nudos, capacidad_demanda_rdt_disponible_mw, capacidad_demanda_rdt_otorgada_mw, capacidad_demanda_rdt_pendiente_mw | MW | CSV de REE "capacidad de acceso" | CCAA | mensual (REE) | última publicación |
 
 La API de REData responde 400/502 de forma intermitente (se reintenta). Los precios solo funcionan con
 `time_trunc=hour`. Las emisiones de CO2 no tienen desglose por CCAA.
@@ -110,6 +110,7 @@ El paro es **paro registrado** (oficina de empleo), no la tasa EPA. `paro_por_10
 | `subestaciones` | codigo_provincia, subestaciones_220_400kv, subestaciones_400kv | OpenStreetMap vía Overpass (`power=substation`) | P | estática |
 | `sismos` | codigo_provincia, anio, n_terremotos, magnitud_max, n_terremotos_m3_plus | EMSC FDSN (M ≥ 1,5), asignación por polígono | P | anual, desde 2015 |
 | `natura` | codigo_provincia, pct_superficie_natura2000, espacios_natura_2000 | EEA Natura 2000, ArcGIS REST | P | estática |
+| `suelo_provincia` | codigo_provincia, precio_suelo_urbano_eur_m2 (mediana de 4 trimestres), trimestres_usados, ultimo_trimestre | Ministerio de Transportes, Boletín online «Precios de suelo», tabla 4 (`sedal/36400500.XLS`) | P | trimestral |
 
 Los IXP no tienen coordenadas en PeeringDB: se asignan por ciudad y la distancia es aproximada.
 Los terremotos fuera de cualquier polígono provincial no se asignan. Dentro del rango descargado, la ausencia de
