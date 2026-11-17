@@ -12,6 +12,8 @@ export interface ProvinciaPrediccion {
   ccaa: string | null;
   /** Código INE de la comunidad (dos dígitos), para cruzar con la previsión de demanda. */
   codigo_ccaa?: string | null;
+  /** Ámbito hidrográfico de la provincia (para cruzar con la previsión de reservas). */
+  ambito_hidrografico?: string | null;
   clase: ClaseRentabilidad | null;
   score: number | null;
   estado: Estado | null;
@@ -122,6 +124,7 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       nombre: texto(fila.provincia) ?? nombres.get(codigo)!,
       ccaa: texto(fila.ccaa),
       codigo_ccaa: texto(fila.codigo_ccaa),
+      ambito_hidrografico: texto(fila.ambito_hidrografico),
       clase,
       score: numero(fila.score_viabilidad),
       estado,

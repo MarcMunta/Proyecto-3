@@ -275,6 +275,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
 
     df, meta = entradas(actual, panel)
     prob, demanda, resumen_modelos = salidas_modelos(curado, panel)
+    ambito_de = {k: v for k, v in panel.drop_duplicates("codigo_provincia").set_index("codigo_provincia")["ambito_hidrografico"].items() if isinstance(v, str)}
     ccaa_de = panel.drop_duplicates("codigo_provincia").set_index("codigo_provincia")["codigo_ccaa"].astype(str).str.zfill(2).to_dict()
     ajustes = copy.deepcopy(settings)
     ajustes["precios"]["precio_electricidad_eur_mwh"] = meta["precio_12m"]
@@ -308,6 +309,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
             {
                 "codigo_provincia": codigo,
                 "codigo_ccaa": ccaa_de.get(codigo),
+                "ambito_hidrografico": ambito_de.get(codigo),
                 "provincia": fila["provincia"],
                 "ccaa": fila["ccaa"],
                 "rentabilidad_clase": clase[codigo],
@@ -368,7 +370,14 @@ def copiar_previsiones(curado: Path = CURADO, salida: Path = SALIDA.parent / "pr
     origen = curado / "modelos" / "previsiones_1_anio.json"
     if not origen.exists():
         return None
-    salida.write_text(json.dumps(json.loads(origen.read_text(encoding="utf-8")), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    datos = json.loads(origen.read_text(encoding="utf-8"))
+    diez = curado / "modelos" / "prevision_10_anios.json"
+    if diez.exists():
+        datos["demanda_10_anios"] = json.loads(diez.read_text(encoding="utf-8"))
+    control = curado / "modelos" / "control_acierto.csv"
+    if control.exists():
+        datos["control_acierto"] = pd.read_csv(control).round(1).astype(object).where(lambda d: d.notna(), None).to_dict("records")
+    salida.write_text(json.dumps(datos, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     return salida
 
 

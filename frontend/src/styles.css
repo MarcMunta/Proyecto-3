@@ -1212,11 +1212,19 @@ kbd {
   }
 }
 
-/* ---------- Gráfico de previsión a 1 año (GraficoPrevision) ---------- */
+/* ---------- Gráfico de previsión (GraficoPrevision) ----------
+   Real = azul, previsto = magenta: par comprobado con el validador de paletas (daltonismo y contraste) sobre el fondo
+   oscuro. No reutiliza los colores de rentabilidad (verde/amarillo/naranja/rojo), que tienen otro significado. */
+:root {
+  --serie-real: #3987e5;
+  --serie-prev: #d55181;
+}
+
 .grafico-prevision {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
   margin: 0;
+  min-width: 0;
 }
 
 .grafico-prevision .gp-titulo {
@@ -1224,73 +1232,218 @@ kbd {
   color: var(--texto-2);
 }
 
-.grafico-prevision svg {
-  width: 100%;
-  height: 9rem;
+.gp-marco {
+  position: relative;
+  min-width: 0;
+}
+
+.gp-marco svg {
+  display: block;
+  max-width: 100%;
   overflow: visible;
+  touch-action: pan-y;
+  cursor: crosshair;
+  border-radius: var(--radio);
+}
+
+.gp-marco svg:focus {
+  outline: none;
+}
+
+.gp-marco svg:focus-visible {
+  outline: 2px solid var(--texto);
+  outline-offset: 4px;
 }
 
 .gp-rejilla {
   stroke: var(--linea);
   stroke-width: 1;
+  shape-rendering: crispEdges;
 }
 
 .gp-banda {
-  fill: var(--baja);
-  opacity: 0.16;
+  fill: var(--serie-prev);
+  opacity: 0.14;
+}
+
+.gp-real,
+.gp-prevision {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
 }
 
 .gp-real {
-  fill: none;
-  stroke: var(--texto-2);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
+  stroke: var(--serie-real);
 }
 
 .gp-prevision {
-  fill: none;
-  stroke: var(--baja);
-  stroke-width: 2.2;
-  vector-effect: non-scaling-stroke;
+  stroke: var(--serie-prev);
+}
+
+.gp-punto {
+  stroke: var(--superficie);
+  stroke-width: 2;
+}
+
+.gp-punto-real {
+  fill: var(--serie-real);
+}
+
+.gp-punto-prev {
+  fill: var(--serie-prev);
 }
 
 .gp-hoy {
   stroke: var(--texto-3);
   stroke-width: 1;
   stroke-dasharray: 3 3;
-  vector-effect: non-scaling-stroke;
+}
+
+.gp-cruz {
+  stroke: var(--texto-2);
+  stroke-width: 1;
 }
 
 .gp-eje {
   fill: var(--texto-3);
   font-family: var(--f-num);
-  font-size: 11px;
+  font-size: 10.5px;
+}
+
+.gp-valor {
+  fill: var(--texto);
+  font-family: var(--f-num);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.gp-tip {
+  position: absolute;
+  top: 0.25rem;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: var(--suelo);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.45);
+  font-size: 0.78rem;
+  color: var(--texto-2);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.gp-tip-mes {
+  color: var(--texto);
+  font-weight: 600;
+}
+
+.gp-tip-fila {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.gp-tip-fila strong {
+  margin-left: auto;
+  color: var(--texto);
+  font-family: var(--f-num);
+  font-weight: 600;
+}
+
+.gp-tip-int {
+  color: var(--texto-3);
+  font-size: 0.74rem;
 }
 
 .gp-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.9rem;
   margin: 0;
   font-size: 0.78rem;
   color: var(--texto-3);
 }
 
-.gp-leyenda span {
+.gp-leyenda > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.gp-l-real,
+.gp-l-prev,
+.gp-l-banda {
   display: inline-block;
-  width: 0.9rem;
-  height: 0.18rem;
-  vertical-align: middle;
+  flex: none;
+  width: 0.95rem;
+  height: 2px;
   border-radius: 2px;
 }
 
 .gp-l-real {
-  background: var(--texto-2);
+  background: var(--serie-real);
 }
 
 .gp-l-prev {
-  background: var(--baja);
+  background: var(--serie-prev);
 }
 
 .gp-l-banda {
-  background: var(--baja);
+  height: 0.6rem;
+  background: var(--serie-prev);
   opacity: 0.35;
-  height: 0.6rem !important;
+}
+
+.gp-aviso {
+  margin: 0;
+  padding: 0.35rem 0.55rem;
+  border-left: 3px solid var(--no-rentable);
+  background: rgb(184 56 63 / 0.12);
+  font-size: 0.82rem;
+  color: var(--texto);
+}
+
+.gp-datos summary {
+  width: fit-content;
+  font-size: 0.78rem;
+  color: var(--texto-2);
+  cursor: pointer;
+}
+
+.gp-datos summary:hover {
+  color: var(--texto);
+}
+
+.gp-datos table {
+  width: 100%;
+  margin-top: 0.4rem;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.gp-datos th,
+.gp-datos td {
+  padding: 0.2rem 0.4rem;
+  border-bottom: 1px solid var(--linea);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.gp-datos th:first-child {
+  text-align: left;
+  font-weight: 400;
+  color: var(--texto-2);
+}
+
+.gp-datos thead th {
+  color: var(--texto-3);
+  font-weight: 500;
+}
+
+.gp-datos td {
+  font-family: var(--f-num);
+  color: var(--texto);
 }

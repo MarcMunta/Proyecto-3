@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useCallback, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { PuntoMes, PuntoPrevision } from "../data/previsiones";
 import { mesLegible, num } from "../format";
 
@@ -12,91 +12,255 @@ interface Props {
   escala?: number;
   decimales?: number;
   nota?: string;
+  /** Serie anual: `mes` es «AAAA-01» y el eje muestra solo el año. */
+  anual?: boolean;
+  /** Aviso destacado (p. ej. si el modelo no cumple el mínimo de acierto). */
+  aviso?: string;
 }
 
-const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-const corto = (aaaamm: string) => {
-  const [a, m] = aaaamm.split("-").map(Number) as [number, number];
-  return `${MESES_CORTOS[m - 1] ?? m} ${String(a).slice(2)}`;
-};
+interface Punto {
+  mes: string;
+  real: number | null;
+  previsto: number | null;
+  inferior: number | null;
+  superior: number | null;
+}
+
+const ALTO = 176;
+const MARGEN = { arriba: 18, derecha: 52, abajo: 22, izquierda: 44 };
+const ANCHO_POR_DEFECTO = 480;
+
+/** Ancho real del contenedor (px). El SVG se dibuja a ese ancho, así el texto nunca se deforma. */
+function useAncho(): [(el: HTMLDivElement | null) => void, number] {
+  const [ancho, setAncho] = useState(0);
+  const observador = useRef<ResizeObserver | null>(null);
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    observador.current?.disconnect();
+    if (!el) return;
+    if (typeof ResizeObserver === "undefined") {
+      setAncho(ANCHO_POR_DEFECTO);
+      return;
+    }
+    observador.current = new ResizeObserver(([e]) => e && setAncho(Math.round(e.contentRect.width)));
+    observador.current.observe(el);
+  }, []);
+  return [ref, ancho];
+}
+
+/** Eje con marcas «redondas» (1, 2 o 5 × 10ⁿ) que cubren [min, max]. */
+export function ejeRedondo(min: number, max: number, cuantas = 4) {
+  const bruto = (max - min) / cuantas || 1;
+  const potencia = 10 ** Math.floor(Math.log10(bruto));
+  const paso = [1, 2, 5, 10].map((f) => f * potencia).find((p) => p >= bruto) ?? bruto;
+  const inicio = Math.floor(min / paso) * paso;
+  const fin = Math.ceil(max / paso) * paso;
+  const marcas: number[] = [];
+  for (let v = inicio; v <= fin + paso / 1e6; v += paso) marcas.push(Number(v.toFixed(6)));
+  return { marcas, inicio, fin, decimales: Math.max(0, -Math.floor(Math.log10(paso))) };
+}
 
 /**
- * Serie mensual real (línea clara) y previsión a 1 año (línea naranja) con su intervalo (banda). El eje vertical se
- * ajusta a la historia y a la previsión; si el extremo alto del intervalo se sale mucho, la banda se recorta y se dice.
+ * Serie real (azul) y previsión (magenta) con su intervalo 10-90 % (banda). Al pasar el ratón, tocar o usar las
+ * flechas del teclado, una línea vertical marca el mes y un recuadro da sus valores. Los mismos datos están en la tabla
+ * «Ver los datos». Colores comprobados con el validador de paletas (daltonismo y contraste sobre el fondo oscuro).
  */
-export function GraficoPrevision({ titulo, historia, prevision, unidad, escala = 1, decimales = 0, nota }: Props) {
-  const idTitulo = useId();
+export function GraficoPrevision({ titulo, historia, prevision, unidad, escala = 1, decimales = 0, nota, anual = false, aviso }: Props) {
+  const id = useId();
+  const [refMarco, anchoMedido] = useAncho();
+  const [activo, setActivo] = useState<number | null>(null);
+
+  const puntos: Punto[] = useMemo(
+    () => [
+      ...historia.map((p) => ({ mes: p.mes, real: p.valor / escala, previsto: null, inferior: null, superior: null })),
+      ...prevision.map((p) => ({
+        mes: p.mes,
+        real: null,
+        previsto: p.valor / escala,
+        inferior: p.inferior != null ? p.inferior / escala : null,
+        superior: p.superior != null ? p.superior / escala : null,
+      })),
+    ],
+    [historia, prevision, escala],
+  );
+
   if (!prevision.length) return null;
-  const W = 480;
-  const H = 150;
-  const izq = 6;
-  const der = 6;
-  const arriba = 14;
-  const abajo = 20;
-  const meses = [...historia.map((p) => p.mes), ...prevision.map((p) => p.mes)];
-  const n = meses.length;
-  const x = (i: number) => izq + (i / Math.max(n - 1, 1)) * (W - izq - der);
-  const valores = [...historia.map((p) => p.valor), ...prevision.map((p) => p.valor)].map((v) => v / escala);
-  const bajos = prevision.map((p) => (p.inferior ?? p.valor) / escala);
-  const altos = prevision.map((p) => (p.superior ?? p.valor) / escala);
-  const maxDatos = Math.max(...valores);
-  const tope = maxDatos * 1.45;
-  const recortado = Math.max(...altos) > tope;
-  const max = Math.min(Math.max(...altos, maxDatos), tope);
-  const min = Math.max(0, Math.min(...bajos, ...valores) * 0.92);
-  const y = (v: number) => arriba + (1 - (Math.min(v, max) - min) / (max - min || 1)) * (H - arriba - abajo);
+  const n = puntos.length;
   const desde = historia.length;
-  const linea = (pts: { i: number; v: number }[]) => pts.map((p, k) => `${k ? "L" : "M"}${x(p.i).toFixed(1)} ${y(p.v).toFixed(1)}`).join("");
-  const hist = historia.map((p, i) => ({ i, v: p.valor / escala }));
-  const prev = prevision.map((p, k) => ({ i: desde + k, v: p.valor / escala }));
-  const unionPrev = hist.length ? [hist[hist.length - 1]!, ...prev] : prev;
-  const banda =
-    prevision.map((_, k) => `${k ? "L" : "M"}${x(desde + k).toFixed(1)} ${y(altos[k]!).toFixed(1)}`).join("") +
-    prevision
-      .map((_, k) => k)
-      .reverse()
-      .map((k) => `L${x(desde + k).toFixed(1)} ${y(bajos[k]!).toFixed(1)}`)
-      .join("") +
-    "Z";
-  const mediaPrev = prev.reduce((s, p) => s + p.v, 0) / prev.length;
-  const mediaHist = hist.slice(-12).reduce((s, p) => s + p.v, 0) / Math.max(hist.slice(-12).length, 1);
-  const marcas = [0, desde, n - 1].filter((i, k, a) => i < n && a.indexOf(i) === k);
+  const nombreMes = (m: string) => (anual ? m.slice(0, 4) : mesLegible(m));
+  const fmt = (v: number | null) => (v == null ? "—" : num(v, decimales));
+
+  // Escala vertical: datos + intervalo. Si el extremo alto del intervalo se dispara, se recorta (y se dice en la leyenda).
+  const valores = puntos.flatMap((p) => [p.real, p.previsto]).filter((v): v is number => v != null);
+  const altos = puntos.map((p) => p.superior).filter((v): v is number => v != null);
+  const bajos = puntos.map((p) => p.inferior).filter((v): v is number => v != null);
+  const tope = Math.max(...valores) * 1.45;
+  const recortado = altos.some((v) => v > tope);
+  // Con valores negativos (p. ej. temperaturas bajo cero) el eje baja de 0; si no, empieza un poco por debajo del mínimo.
+  const minimo = Math.min(...valores, ...bajos);
+  const eje = ejeRedondo(minimo >= 0 ? minimo * 0.97 : minimo * 1.03, Math.min(Math.max(...valores, ...altos), tope));
+
+  const w = Math.max(anchoMedido || ANCHO_POR_DEFECTO, 260);
+  const anchoPlot = w - MARGEN.izquierda - MARGEN.derecha;
+  const x = (i: number) => MARGEN.izquierda + (i / Math.max(n - 1, 1)) * anchoPlot;
+  const y = (v: number) => MARGEN.arriba + (1 - (Math.min(v, eje.fin) - eje.inicio) / (eje.fin - eje.inicio || 1)) * (ALTO - MARGEN.arriba - MARGEN.abajo);
+  const ruta = (pares: [number, number][]) => pares.map(([i, v], k) => `${k ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+
+  const real = puntos.flatMap((p, i): [number, number][] => (p.real != null ? [[i, p.real]] : []));
+  const previsto = puntos.flatMap((p, i): [number, number][] => (p.previsto != null ? [[i, p.previsto]] : []));
+  const ultimoReal = real[real.length - 1];
+  const final = previsto[previsto.length - 1]!;
+  const conBanda = puntos.flatMap((p, i) => (p.inferior != null && p.superior != null ? [{ i, inf: p.inferior, sup: p.superior }] : []));
+  const banda = conBanda.length
+    ? [
+        ...conBanda.map((b, k) => `${k ? "L" : "M"}${x(b.i).toFixed(1)},${y(b.sup).toFixed(1)}`),
+        ...[...conBanda].reverse().map((b) => `L${x(b.i).toFixed(1)},${y(b.inf).toFixed(1)}`),
+        "Z",
+      ].join("")
+    : "";
+
+  // Eje X: un rótulo por año (enero o cada punto anual), saltando años si no caben (≈ 40 px por rótulo).
+  const anios = puntos.flatMap((p, i) => (anual || p.mes.endsWith("-01") ? [{ i, texto: p.mes.slice(0, 4) }] : []));
+  const salto = Math.max(1, Math.ceil((anios.length * 40) / Math.max(anchoPlot, 1)));
+  const marcasX = anios.filter((_, k) => k % salto === 0);
+
+  const indicePuntero = (e: PointerEvent<SVGSVGElement>) => {
+    const caja = e.currentTarget.getBoundingClientRect();
+    const rel = (e.clientX - caja.left - MARGEN.izquierda) / Math.max(caja.width - MARGEN.izquierda - MARGEN.derecha, 1);
+    return Math.min(n - 1, Math.max(0, Math.round(rel * (n - 1))));
+  };
+  const teclado = (e: KeyboardEvent<SVGSVGElement>) => {
+    const mover: Record<string, (a: number | null) => number> = {
+      ArrowRight: (a) => Math.min(n - 1, a == null ? desde : a + 1),
+      ArrowLeft: (a) => Math.max(0, a == null ? desde - 1 : a - 1),
+      Home: () => 0,
+      End: () => n - 1,
+    };
+    if (mover[e.key]) {
+      e.preventDefault();
+      setActivo((a) => mover[e.key]!(a));
+    } else if (e.key === "Escape") setActivo(null);
+  };
+  const pa = activo != null ? puntos[activo] : undefined;
+  const ANCHO_TIP = 168;
+  const tipX = activo != null ? (x(activo) + 12 + ANCHO_TIP > w ? x(activo) - 12 - ANCHO_TIP : x(activo) + 12) : 0;
+
   return (
-    <figure className="grafico-prevision" aria-labelledby={idTitulo}>
-      <figcaption id={idTitulo} className="gp-titulo">
+    <figure className="grafico-prevision" aria-labelledby={`${id}-t`}>
+      <figcaption id={`${id}-t`} className="gp-titulo">
         {titulo}
       </figcaption>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`${titulo}. Media del último año ${num(mediaHist, decimales)} ${unidad}; media prevista para los próximos 12 meses ${num(mediaPrev, decimales)} ${unidad}, de ${mesLegible(prevision[0]!.mes)} a ${mesLegible(prevision[prevision.length - 1]!.mes)}.`}
-      >
-        {[0.25, 0.5, 0.75].map((f) => (
-          <line key={f} x1={izq} x2={W - der} y1={arriba + f * (H - arriba - abajo)} y2={arriba + f * (H - arriba - abajo)} className="gp-rejilla" />
-        ))}
-        <path d={banda} className="gp-banda" />
-        {desde > 0 && <line x1={x(desde - 1)} x2={x(desde - 1)} y1={arriba - 6} y2={H - abajo} className="gp-hoy" />}
-        <path d={linea(hist)} className="gp-real" />
-        <path d={linea(unionPrev)} className="gp-prevision" />
-        <text x={izq} y={10} className="gp-eje">
-          {num(max, decimales)}
-        </text>
-        <text x={izq} y={H - abajo - 3} className="gp-eje">
-          {num(min, decimales)}
-        </text>
-        {marcas.map((i) => (
-          <text key={i} x={x(i)} y={H - 5} className="gp-eje" textAnchor={i === 0 ? "start" : i === n - 1 ? "end" : "middle"}>
-            {corto(meses[i]!)}
+      {aviso && <p className="gp-aviso">{aviso}</p>}
+      <div className="gp-marco" ref={refMarco}>
+        <svg
+          width={w}
+          height={ALTO}
+          viewBox={`0 0 ${w} ${ALTO}`}
+          role="img"
+          tabIndex={0}
+          aria-label={`${titulo}. Último dato real: ${fmt(ultimoReal?.[1] ?? null)} ${unidad} (${nombreMes(puntos[desde - 1]?.mes ?? puntos[0]!.mes)}). Previsión: ${fmt(final[1])} ${unidad} en ${nombreMes(puntos[n - 1]!.mes)}. Flechas izquierda y derecha para recorrer los ${anual ? "años" : "meses"}.`}
+          onPointerMove={(e) => setActivo(indicePuntero(e))}
+          onPointerDown={(e) => setActivo(indicePuntero(e))}
+          onPointerLeave={() => setActivo(null)}
+          onKeyDown={teclado}
+          onBlur={() => setActivo(null)}
+        >
+          {eje.marcas.map((m) => (
+            <g key={m}>
+              <line x1={MARGEN.izquierda} x2={w - MARGEN.derecha} y1={y(m)} y2={y(m)} className="gp-rejilla" />
+              <text x={MARGEN.izquierda - 8} y={y(m)} className="gp-eje" textAnchor="end" dominantBaseline="middle">
+                {num(m, eje.decimales)}
+              </text>
+            </g>
+          ))}
+          {marcasX.map((m) => (
+            <text key={m.i} x={x(m.i)} y={ALTO - 4} className="gp-eje" textAnchor="middle">
+              {m.texto}
+            </text>
+          ))}
+          {banda && <path d={banda} className="gp-banda" />}
+          {desde > 0 && (
+            <g aria-hidden="true">
+              <line x1={x(desde - 1)} x2={x(desde - 1)} y1={MARGEN.arriba - 6} y2={ALTO - MARGEN.abajo} className="gp-hoy" />
+              <text x={x(desde - 1) + 5} y={MARGEN.arriba - 8} className="gp-eje">
+                previsión
+              </text>
+            </g>
+          )}
+          <path d={ruta(real)} className="gp-real" />
+          <path d={ruta(ultimoReal ? [ultimoReal, ...previsto] : previsto)} className="gp-prevision" />
+          {ultimoReal && <circle cx={x(ultimoReal[0])} cy={y(ultimoReal[1])} r={4} className="gp-punto gp-punto-real" />}
+          <circle cx={x(final[0])} cy={y(final[1])} r={4} className="gp-punto gp-punto-prev" />
+          <text x={x(final[0]) + 8} y={y(final[1])} className="gp-valor" dominantBaseline="middle">
+            {fmt(final[1])}
           </text>
-        ))}
-      </svg>
+          {pa && activo != null && (
+            <g pointerEvents="none" aria-hidden="true">
+              <line x1={x(activo)} x2={x(activo)} y1={MARGEN.arriba} y2={ALTO - MARGEN.abajo} className="gp-cruz" />
+              {pa.real != null && <circle cx={x(activo)} cy={y(pa.real)} r={4} className="gp-punto gp-punto-real" />}
+              {pa.previsto != null && <circle cx={x(activo)} cy={y(pa.previsto)} r={4} className="gp-punto gp-punto-prev" />}
+            </g>
+          )}
+        </svg>
+        {pa && (
+          <div className="gp-tip" style={{ left: tipX, width: ANCHO_TIP }} role="status">
+            <span className="gp-tip-mes">{nombreMes(pa.mes)}</span>
+            {pa.real != null && (
+              <span className="gp-tip-fila">
+                <i className="gp-l-real" aria-hidden="true" />
+                real <strong>{fmt(pa.real)}</strong>
+              </span>
+            )}
+            {pa.previsto != null && (
+              <span className="gp-tip-fila">
+                <i className="gp-l-prev" aria-hidden="true" />
+                previsto <strong>{fmt(pa.previsto)}</strong>
+              </span>
+            )}
+            {pa.inferior != null && pa.superior != null && (
+              <span className="gp-tip-int">
+                entre {fmt(pa.inferior)} y {fmt(pa.superior)}
+              </span>
+            )}
+            <span className="gp-tip-int">{unidad}</span>
+          </div>
+        )}
+      </div>
       <p className="gp-leyenda">
-        <span className="gp-l-real" aria-hidden="true" /> real · <span className="gp-l-prev" aria-hidden="true" /> previsto ·{" "}
-        <span className="gp-l-banda" aria-hidden="true" /> intervalo 10-90 %
-        {recortado ? " (recortado arriba)" : ""} · {unidad}
-        {nota ? ` · ${nota}` : ""}
+        <span>
+          <i className="gp-l-real" aria-hidden="true" /> real
+        </span>
+        <span>
+          <i className="gp-l-prev" aria-hidden="true" /> previsto
+        </span>
+        <span>
+          <i className="gp-l-banda" aria-hidden="true" /> intervalo 10-90 %{recortado ? " (recortado arriba)" : ""}
+        </span>
+        <span>{unidad}</span>
+        {nota && <span>{nota}</span>}
       </p>
+      <details className="gp-datos">
+        <summary>Ver los datos</summary>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{anual ? "Año" : "Mes"}</th>
+              <th scope="col">Real</th>
+              <th scope="col">Previsto</th>
+              <th scope="col">Intervalo 10-90 %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {puntos.slice(Math.max(0, desde - 12)).map((p) => (
+              <tr key={p.mes}>
+                <th scope="row">{nombreMes(p.mes)}</th>
+                <td>{fmt(p.real)}</td>
+                <td>{fmt(p.previsto)}</td>
+                <td>{p.inferior != null && p.superior != null ? `${fmt(p.inferior)}-${fmt(p.superior)}` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
     </figure>
   );
 }

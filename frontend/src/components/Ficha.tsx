@@ -11,7 +11,7 @@ import { Flap } from "./Flap";
 import { IconoClase } from "./IconoClase";
 import { Barra, Comparativa, Flecha, GraficoPrecio, Vivo, type ItemComparativa } from "./Piezas";
 import { GraficoPrevision } from "./GraficoPrevision";
-import type { Previsiones } from "../data/previsiones";
+import { ACIERTO_MINIMO, type Previsiones, type RenovablePrevista, type SeriePrevista, type TemperaturaPrevista } from "../data/previsiones";
 
 interface Props {
   meta: ProvinciaMeta;
@@ -170,7 +170,15 @@ export function Ficha(p: Props) {
 
           <BloqueLuz {...p} d={d} municipio={demo ? elegido : undefined} />
 
-          <BloqueClima d={d} tiempo={tiempo} vivo={p.tiempo} capital={meta.capital} />
+          <BloqueClima
+            d={d}
+            tiempo={tiempo}
+            vivo={p.tiempo}
+            capital={meta.capital}
+            reservas={d.ambito_hidrografico ? p.previsiones?.reservas.get(d.ambito_hidrografico) : undefined}
+            ambito={d.ambito_hidrografico ?? null}
+            temperatura={p.previsiones?.temperatura.get(meta.codigo)}
+          />
 
           {(d.capex_eur != null || d.opex_eur_anual != null || d.prob_cpd != null || d.cpd_existentes != null) && (
             <section className="bloque" aria-labelledby="b-inv">
@@ -314,9 +322,11 @@ function BloqueLuz(p: Props & { d: ProvinciaPrediccion; municipio: Municipio | u
           prevision={p.previsiones.precio.prevision}
           unidad="€/MWh"
           nota={`${NOMBRE_MODELO[p.previsiones.precio.modelo] ?? p.previsiones.precio.modelo}${p.previsiones.precio.errorTest != null ? `; error medio a 1 año ${num(p.previsiones.precio.errorTest, 0)} €/MWh` : ""}`}
+          aviso={avisoAcierto(p.previsiones.precio)}
         />
       )}
       {simulacion && <SensibilidadPrecio d={d} prediccion={prediccion} />}
+      {d.codigo_ccaa && p.previsiones?.renovables.get(d.codigo_ccaa) && <Renovables serie={p.previsiones.renovables.get(d.codigo_ccaa)!} />}
       {(demanda.datos?.ahora || mix.datos?.renovableAyer) && (
         <p className="linea-vivo">
           {demanda.datos?.ahora && <>Demanda {num(demanda.datos.ahora.v)} MW</>}
@@ -327,6 +337,47 @@ function BloqueLuz(p: Props & { d: ProvinciaPrediccion; municipio: Municipio | u
       )}
     </section>
   );
+}
+
+/**
+ * % de generación renovable de la comunidad: gráfico mes a mes (orientativo si no llega al mínimo de acierto) y el %
+ * medio de los próximos 12 meses, que es la cifra útil para un CPD y tiene su propio acierto.
+ */
+function Renovables({ serie }: { serie: RenovablePrevista }) {
+  const anual = [serie.aciertoAnualValidacion, serie.aciertoAnualTest].filter((v): v is number => v != null);
+  return (
+    <>
+      <GraficoPrevision
+        titulo={`Generación renovable de ${serie.nombre}: últimos 3 años y previsión a 1 año`}
+        historia={serie.historia}
+        prevision={serie.prevision}
+        unidad="% renovable"
+        nota={textoAcierto(serie) ? `${textoAcierto(serie)} mes a mes` : undefined}
+        aviso={avisoAcierto(serie)}
+      />
+      {serie.mediaPrevista != null && (
+        <p className="dato-linea">
+          Renovable previsto para los próximos 12 meses: <strong>{num(serie.mediaPrevista, 0)} %</strong>
+          {serie.mediaInferior != null && serie.mediaSuperior != null ? ` (${num(serie.mediaInferior, 0)}-${num(serie.mediaSuperior, 0)} %)` : ""}
+          {serie.media12m != null ? `; último año ${num(serie.media12m, 0)} %` : ""}
+          {anual.length ? `. Acierto de este % anual: ${num(Math.min(...anual), 1)} %.` : "."}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** «acierto 95,6 %» con el peor de validación y test (100 − WAPE). */
+function textoAcierto(s: SeriePrevista): string | undefined {
+  const valores = [s.aciertoValidacion, s.aciertoTest].filter((v): v is number => v != null);
+  return valores.length ? `acierto ${num(Math.min(...valores), 1)} %` : undefined;
+}
+
+/** Aviso si el modelo no llega al mínimo de acierto exigido (85 %). */
+function avisoAcierto(s: SeriePrevista): string | undefined {
+  const valores = [s.aciertoValidacion, s.aciertoTest].filter((v): v is number => v != null);
+  if (!valores.length || Math.min(...valores) >= ACIERTO_MINIMO) return undefined;
+  return `Previsión orientativa: el modelo acierta un ${num(Math.min(...valores), 0)} %, por debajo del mínimo del ${ACIERTO_MINIMO} % exigido. No se usa en el cálculo del VAN.`;
 }
 
 const NOMBRE_MODELO: Record<string, string> = {
@@ -341,6 +392,9 @@ const NOMBRE_MODELO: Record<string, string> = {
   tendencia_estacionalidad: "tendencia + estacionalidad",
   ridge: "regresión Ridge",
   gradient_boosting: "gradient boosting",
+  ridge_gas: "regresión Ridge con el gas",
+  climatologia: "climatología",
+  anomalia_persistente: "anomalía persistente",
 };
 
 /** Nota de la barra de prob_cpd: qué modelo es y cuánto acierta (sale de docs/modelos/prob_cpd.md). */
@@ -422,7 +476,19 @@ function BloqueDemanda({ d, prediccion, previsiones }: { d: ProvinciaPrediccion;
           prevision={serieDemanda.prevision}
           unidad="GWh"
           escala={1000}
-          nota={serieDemanda.errorTest != null ? `error medio a 1 año ${num(serieDemanda.errorTest, 1)} %` : undefined}
+          nota={textoAcierto(serieDemanda)}
+          aviso={avisoAcierto(serieDemanda)}
+        />
+      )}
+      {previsiones?.demanda10 && (
+        <GraficoPrevision
+          titulo="Demanda eléctrica de España: desde 2007 y previsión a 10 años"
+          historia={previsiones.demanda10.historia}
+          prevision={previsiones.demanda10.prevision}
+          unidad="TWh al año"
+          anual
+          nota={textoAcierto(previsiones.demanda10)}
+          aviso={avisoAcierto(previsiones.demanda10)}
         />
       )}
       <dl className="pares">
@@ -454,11 +520,45 @@ function BloqueDemanda({ d, prediccion, previsiones }: { d: ProvinciaPrediccion;
   );
 }
 
-function BloqueClima({ d, tiempo, vivo, capital }: { d: ProvinciaPrediccion; tiempo: TiempoActual | undefined; vivo: EnVivo<Record<string, TiempoActual>>; capital: string }) {
+function BloqueClima({
+  d, tiempo, vivo, capital, reservas, ambito, temperatura,
+}: {
+  d: ProvinciaPrediccion;
+  tiempo: TiempoActual | undefined;
+  vivo: EnVivo<Record<string, TiempoActual>>;
+  capital: string;
+  reservas?: SeriePrevista;
+  ambito: string | null;
+  temperatura?: TemperaturaPrevista;
+}) {
   const hayModelo = d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null;
+  const notaTemperatura = temperatura
+    ? [textoAcierto(temperatura), temperatura.errorTest != null ? `error medio ${num(temperatura.errorTest, 1)} °C al mes` : null].filter(Boolean).join(" · ")
+    : undefined;
   return (
     <section className="bloque" aria-labelledby="b-clima">
       <h3 id="b-clima">Clima y agua</h3>
+      {temperatura && (
+        <GraficoPrevision
+          titulo={`Temperatura media en ${temperatura.nombre}: últimos 3 años y previsión a 1 año`}
+          historia={temperatura.historia}
+          prevision={temperatura.prevision}
+          unidad="°C"
+          decimales={1}
+          nota={notaTemperatura || undefined}
+          aviso={avisoAcierto(temperatura)}
+        />
+      )}
+      {reservas && (
+        <GraficoPrevision
+          titulo={`Reserva de los embalses (${ambito}): últimos 3 años y previsión a 1 año`}
+          historia={reservas.historia}
+          prevision={reservas.prevision}
+          unidad="% de la capacidad"
+          nota={textoAcierto(reservas)}
+          aviso={avisoAcierto(reservas)}
+        />
+      )}
       {hayModelo && (
         <div className="barras">
           {d.horas_free_cooling_anual != null && (
@@ -472,7 +572,16 @@ function BloqueClima({ d, tiempo, vivo, capital }: { d: ProvinciaPrediccion; tie
           )}
           {d.temp_media_anual_c != null && (
             <p className="dato-linea">
-              Temperatura media anual <strong>{num(d.temp_media_anual_c, 1)} °C</strong>
+              Temperatura media anual <strong>{num(d.temp_media_anual_c, 1)} °C</strong> (la que usa el PUE)
+              {temperatura?.mediaPrevista != null && (
+                <>
+                  {" "}
+                  · próximos 12 meses <strong>{num(temperatura.mediaPrevista, 1)} °C</strong>
+                  {temperatura.mediaInferior != null && temperatura.mediaSuperior != null
+                    ? ` (${num(temperatura.mediaInferior, 1)}-${num(temperatura.mediaSuperior, 1)} °C)`
+                    : ""}
+                </>
+              )}
             </p>
           )}
         </div>
