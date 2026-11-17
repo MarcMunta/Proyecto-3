@@ -24,11 +24,13 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Temperatura por provincia a 1 año | 93,8 % | 92,8 % | 100 − WAPE (en °C) | cumple (objetivo 90 %) |
 | Renovables por comunidad a 1 año (mes a mes) | 84,3 % | 89,5 % | 100 − WAPE | no cumple (< 85 %) |
 | Renovables por comunidad: % medio de 12 meses | 88,7 % | 93,6 % | 100 − WAPE de la media anual | cumple |
+| Generación renovable por comunidad a 1 año (mes a mes) | 84,9 % | 88,1 % | 100 − WAPE (MWh) | no cumple (< 85 %) |
+| Generación renovable por comunidad: total de 12 meses | 90,9 % | 94,0 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
 | Precio de la luz a 1 año | 59,0 % | 62,4 % | 100 − WAPE | no cumple (< 85 %) |
 | Demanda nacional a 10 años | 97,3 % | — | 100 − WAPE (backtesting 2012-2025) | cumple (objetivo 90 %) |
 | Probabilidad de CPD (prob_cpd) | 90,4 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
 
-**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
+**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Generación renovable por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
 
 
 ## Cómo se ha buscado el menor error
@@ -266,6 +268,59 @@ orientativo, con aviso.
 previsión a 1 año con su intervalo.
 
 
+## Cobertura renovable por comunidad autónoma
+
+Cuánta energía renovable genera cada comunidad frente a la que consume: **cobertura = generación renovable / demanda**.
+Por encima del 100 %, la comunidad genera en renovables más de lo que consume: hay energía verde de sobra para un CPD
+nuevo. La generación renovable (MWh, REData) se prevé con los mismos candidatos que el % renovable más una ETS sobre el
+logaritmo; la demanda, con su propio modelo (arriba). Comunidades por encima del 100 %: Extremadura, Castilla y León, Castilla-La Mancha, Aragón.
+
+| Modelo | Acierto validación (mes a mes) | Acierto test (mes a mes) |
+|---|---|---|
+| Combinación de los 3 mejores **(elegido)** | 84,9 % | 88,1 % |
+| ETS de 5 años con tendencia amortiguada (en la combinación) | 84,9 % | 86,6 % |
+| ETS de 5 años sin tendencia (en la combinación) | 84,2 % | 87,3 % |
+| ETS de 5 años sobre el logaritmo (en la combinación) | 84,1 % | 87,5 % |
+| ETS (Holt-Winters amortiguado) | 82,7 % | 86,4 % |
+| Anomalía persistente (φ de cada comunidad) | 82,0 % | 84,2 % |
+| Mismo mes del año anterior (estacional) | 80,8 % | 84,4 % |
+| Anomalía persistente (φ común) | 80,3 % | 86,6 % |
+| Último valor (naive) | 72,4 % | 75,5 % |
+| Climatología (media del mes en los años anteriores) | 70,0 % | 69,4 % |
+
+Validación: orígenes 2022-09 a 2024-08 (24 orígenes). Test: meses 2025-09 a 2026-08. **Total de 12 meses** (la cifra que entra en
+la cobertura): **90,9 %** en validación y **94,0 %** en test. El mes a mes depende del viento, la
+lluvia y el sol de cada mes y se enseña solo como orientativo.
+
+![Cobertura renovable](../../docs/figuras/previsiones/13_cobertura_renovable_ccaa.png)
+
+**Figura 9.** Cobertura renovable de cada comunidad: último año real (azul) y previsión de los próximos 12 meses
+(naranja). La línea discontinua marca el 100 %. La demanda de la península termina en junio de 2026 (ver limitaciones),
+así que los dos periodos de 12 meses no coinciden del todo.
+
+| Comunidad | Renovable último año (GWh) | Demanda último año (GWh) | Cobertura último año | Cobertura prevista |
+|---|---|---|---|---|
+| Extremadura | 15.615 | 5.081 | 307 % | 315 % |
+| Castilla y León | 30.956 | 13.336 | 232 % | 241 % |
+| Castilla-La Mancha | 23.002 | 12.243 | 188 % | 199 % |
+| Aragón | 19.320 | 11.369 | 170 % | 170 % |
+| Galicia | 16.562 | 15.599 | 106 % | 98 % |
+| Comunidad Foral de Navarra | 4.249 | 4.838 | 88 % | 86 % |
+| La Rioja | 1.084 | 1.539 | 70 % | 74 % |
+| Andalucía | 24.116 | 41.573 | 58 % | 60 % |
+| Región de Murcia | 3.689 | 9.359 | 39 % | 48 % |
+| Asturias | 3.118 | 8.259 | 38 % | 41 % |
+| Canarias | 1.922 | 9.137 | 21 % | 20 % |
+| Cataluña | 7.808 | 45.353 | 17 % | 17 % |
+| Illes Balears | 739 | 6.659 | 11 % | 12 % |
+| Comunitat Valenciana | 3.270 | 27.718 | 12 % | 12 % |
+| Cantabria | 403 | 3.741 | 11 % | 11 % |
+| País Vasco | 1.105 | 14.876 | 7 % | 6 % |
+| Madrid | 763 | 28.956 | 3 % | 3 % |
+| Melilla | 4 | 238 | 2 % | 0 % |
+| Ceuta | 0 | 209 | 0 % | 0 % |
+
+
 ## Demanda eléctrica nacional a 10 años (P5)
 
 Demanda anual de España (REData, 2007-2025). Backtesting plurianual: desde el final de cada año entre 2011 y
@@ -274,7 +329,7 @@ deriva, tendencia lineal, Holt amortiguado y la combinación de los 3 mejores.
 
 ![Demanda a 10 años](../../docs/figuras/previsiones/07_demanda_nacional_10_anios.png)
 
-**Figura 9.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
+**Figura 10.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
 
 MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirlo):
 
@@ -305,12 +360,12 @@ nacional). El intervalo a más de 7 años se extrapola (σ·√h) porque hay poc
 
 ![Error por horizonte](../../docs/figuras/previsiones/03_error_por_horizonte.png)
 
-**Figura 10.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
+**Figura 11.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
 va en naranja y el resto en gris.
 
 ![Comparación](../../docs/figuras/previsiones/04_comparacion_modelos.png)
 
-**Figura 11.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
+**Figura 12.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
 
 ## Limitaciones
 
