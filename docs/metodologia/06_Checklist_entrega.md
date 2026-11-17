@@ -43,7 +43,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 |---|---|---|---|---|---|
 | A1 | Plataforma Big Data para analizar y predecir la viabilidad de instalar un CPD en cualquier municipio español | 🟡 | `src/cpd/`, `app/streamlit_app.py`, `frontend/` | | Decidir granularidad (D1) y documentarla |
 | A2 | Proporcionar una puntuación global de viabilidad | 🟡 | `src/cpd/scoring.py` (`calcular_score_global`) | | Calibrar pesos y umbrales (`config/settings.yaml`) |
-| A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | 🟡 | `src/cpd/forecast.py` | | Añadir validación y métricas (fase 7-8) |
+| A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | 🟡 | `src/cpd/modelos/operacion.py`: PUE, consumo, emisiones, agua y reserva mínima del ámbito a 1 año por provincia, validado de punta a punta (consumo 99,7 %, emisiones 89,4 %); figura 14 y ficha del mapa | | Medio plazo (10 años) del PUE con la tendencia del clima |
 
 ## B. Objetivos específicos (enunciado, p. 2-3)
 
@@ -71,7 +71,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) | | Escenarios con electrificación y nuevos CPD (fuera del modelo tendencial) |
 | P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md`; temperatura media por provincia a 1 año (la que usa el PUE; acierto 92,8-93,8 %, error de la media anual 0,5 °C) en `docs/analisis/previsiones_1_anio.md` | | Calibrar precios en `config/settings.yaml` y documentar |
 | P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests; sensibilidad del VAN al precio de la luz en la ficha del mapa (`frontend/scripts/simular_provincias.py`) | | Documentar tasa de descuento y supuestos |
-| P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico) | | Verificar fuentes de inundación y sísmico y sus unidades |
+| P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico); peligrosidad sísmica oficial (NCSE-02) por provincia en el filtro y el score; modelo de riesgo sísmico anual (`src/cpd/modelos/sismico.py`, no cumple, no se usa) | | Verificar la fuente de zonas inundables |
 
 ## D. Variables del CPD (enunciado, p. 2-4)
 
@@ -177,7 +177,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | E35 | Disponibilidad de parcelas | ❌ | — | | Buscar fuente |
 | E36 | Calificación urbanística | ❌ | — | | Buscar fuente (planeamiento municipal) |
 | E37 | Riesgos de inundación | 🟡 | Filtro "zona inundable" en `README.md` (fuente por verificar) | | Confirmar fuente y añadir a panel |
-| E38 | Riesgo sísmico | 🟡 | `n_terremotos`, `magnitud_max`, `n_terremotos_m3_plus` (EMSC); filtro de 0,16 g en README | | Verificar que la unidad (g) y la magnitud son coherentes |
+| E38 | Riesgo sísmico | ✅ | `aceleracion_sismica_capital_g`, `aceleracion_sismica_max_g`, `municipios_ab_008_o_mas` (norma NCSE-02, BOE, anejo 1; `src/cpd/fuentes/norma_sismica.py`) en el filtro de 0,16 g y el bloque de riesgos; `n_terremotos`, `magnitud_max`, `n_terremotos_m3_plus` (EMSC) | | Mapa del IGN 2015 si se publica por municipio |
 
 ### E.8 Impacto socioeconómico (enunciado, p. 7)
 
