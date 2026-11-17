@@ -2,6 +2,10 @@
 
 > Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
+> Esta ficha evalúa la demanda a 1 y a 12 meses vista con un único periodo de test. **La previsión a 1 año que usa el
+> mapa** (combinación de modelos elegida con 24 orígenes de backtesting) está en
+> [previsiones_1_anio.md](../analisis/previsiones_1_anio.md).
+
 ## Datos
 
 - Fuente y tabla: `data/curated/panel_provincia_mes`, columna `demanda_ccaa_mwh` (Red Eléctrica REData).
