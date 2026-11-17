@@ -214,3 +214,80 @@ def test_preparar_serie_rellena_meses_sin_fila():
     anterior = serie[(serie["codigo_ccaa"] == "13") & (serie["mes"] == "2019-10-01")]["demanda_mwh"].iloc[0]
     assert fila["demanda_mwh"] == pytest.approx(anterior)
     assert preparada.groupby("codigo_ccaa")["mes"].apply(lambda m: m.diff().dropna().dt.days.max() <= 31).all()
+
+
+# ---------- Precio de la luz (cpd.features.precio, cpd.modelos.precio) ----------
+
+
+def mensual_sintetico(meses: int = 84, semilla: int = 3) -> pd.DataFrame:
+    """Precio, reserva y CO2 mensuales SINTÉTICOS (solo para tests)."""
+    from cpd.features import precio as fp
+
+    rng = np.random.default_rng(semilla)
+    fechas = pd.date_range("2017-01-01", periods=meses, freq="MS")
+    precio = 60 * (1 + 0.2 * np.sin(2 * np.pi * fechas.month / 12)) * np.exp(0.05 * rng.standard_normal(meses))
+    reserva = 50 + 10 * np.cos(2 * np.pi * fechas.month / 12)
+    co2 = 4e6 * (1 + 0.1 * rng.standard_normal(meses))
+    return fp.tabla_mensual(
+        pd.Series(precio, index=fechas, name="precio_eur_mwh"),
+        pd.Series(reserva, index=fechas, name="reserva_nacional_pct"),
+        pd.Series(co2, index=fechas, name="co2_tco2eq"),
+    )
+
+
+def test_precio_mensual_quita_el_mes_en_curso_y_los_incompletos():
+    import datetime as dt
+
+    from cpd.features import precio as fp
+
+    dias = pd.date_range("2026-08-01", "2026-11-14", freq="D").delete(5)  # falta el 6 de agosto
+    diarios = pd.DataFrame({"fecha": dias.strftime("%Y-%m-%d"), "precio_spot_eur_mwh": 100.0})
+    serie = fp.serie_precio_mensual(diarios, hoy=dt.date(2026, 11, 17))
+    assert list(serie.index.strftime("%Y-%m")) == ["2026-09", "2026-10"]
+
+
+def test_features_de_precio_no_usan_datos_posteriores_al_origen():
+    from cpd.features import precio as fp
+
+    mensual = mensual_sintetico()
+    corte = pd.Timestamp("2020-06-01")
+    original = fp.construir_features_precio(mensual)
+    alterado = mensual.copy()
+    alterado.loc[alterado.index > corte, :] *= 2.5
+    cambiado = fp.construir_features_precio(alterado)
+    columnas = [*fp.columnas_features(original), "nivel_eur_mwh"]
+    claves = ["mes", "horizonte_meses"]
+    a = original[original["mes_origen"] <= corte].set_index(claves)[columnas]
+    b = cambiado.set_index(claves).loc[a.index, columnas]
+    pd.testing.assert_frame_equal(a, b)
+
+
+def test_baselines_de_precio():
+    from cpd.features import precio as fp
+    from cpd.modelos import precio as mp
+
+    mensual = mensual_sintetico()
+    filas = fp.construir_features_precio(mensual).dropna(subset=["objetivo_log_ratio"]).head(30)
+    p = mensual["precio_eur_mwh"]
+    np.testing.assert_allclose(mp.prevision_baseline("naive", filas, mensual), p.loc[filas["mes_origen"]].to_numpy())
+    media = [p.loc[o - pd.DateOffset(months=11) : o].mean() for o in filas["mes_origen"]]
+    np.testing.assert_allclose(mp.prevision_baseline("media_12m", filas, mensual), media)
+    np.testing.assert_allclose(mp.prevision_baseline("estacional", filas, mensual), p.loc[filas["mes"] - pd.DateOffset(months=12)].to_numpy())
+
+
+def test_evaluar_precio_y_prevision_final():
+    from cpd.modelos import precio as mp
+
+    mensual = mensual_sintetico()
+    periodos = mp.definir_periodos(mensual)
+    resultado = mp.evaluar(mensual, periodos)
+    metricas = resultado["metricas"]
+    assert set(metricas["modelo"]) == {*mp.BASELINES, "ridge", "gradient_boosting"}
+    todos = metricas[metricas["horizonte"] == "todos"]
+    assert todos.groupby("particion")["n"].nunique().max() == 1  # mismas filas para todos
+    prevision, _ = mp.prevision_final(mensual, resultado)
+    assert len(prevision) == 12 and (prevision["inferior_eur_mwh"] <= prevision["superior_eur_mwh"]).all()
+    assert prevision["mes"].min() == mensual.index.max() + pd.DateOffset(months=1)
+    backtest = mp.media_anual_por_origen(mensual, {"ridge": "alpha=100"}, [pd.Timestamp("2021-01-01")])
+    resumen = mp.resumen_anual(prevision, backtest, mensual)
+    assert resumen["ultimo_mes"] == mensual.index.max().strftime("%Y-%m")

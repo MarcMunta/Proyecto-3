@@ -34,6 +34,8 @@ from cpd.modelos import demanda as md  # noqa: E402
 from cpd.modelos import eda as meda  # noqa: E402
 from cpd.modelos import informe  # noqa: E402
 from cpd.modelos import prob_cpd as mp  # noqa: E402
+from cpd.features import precio as fprecio  # noqa: E402
+from cpd.modelos import precio as mprecio  # noqa: E402
 from cpd.modelos.metricas import mape  # noqa: E402
 
 RUTA_PANEL = RUTA_RAIZ / "data" / "curated" / "panel_provincia_mes.parquet"
@@ -164,6 +166,72 @@ def ejecutar_prob_cpd(panel: pd.DataFrame) -> tuple[dict, pd.DataFrame, str]:
     return resultado, tabla, _figura_roc(tabla, resultado["probabilidades"])
 
 
+def _figura_precio(mensual: pd.DataFrame, prevision: pd.DataFrame, resumen: dict) -> str:
+    """Precio mensual real desde 2019, previsión de los 12 meses siguientes con su intervalo y escenario «último mes»."""
+    historia = mensual["precio_eur_mwh"].dropna().loc["2019-01-01":]
+    figura, eje = plt.subplots(figsize=(11, 4.4))
+    eje.plot(historia.index, historia.values, color="#2c714e", label="precio spot medio real")
+    eje.plot(prevision["mes"], prevision["prevision_eur_mwh"], color="#e47b2f", ls="--", label=f"previsión ({informe.NOMBRES_MODELO.get(resumen['modelo'], resumen['modelo'])})")
+    eje.fill_between(prevision["mes"], prevision["inferior_eur_mwh"], prevision["superior_eur_mwh"], color="#e47b2f", alpha=0.15, label="intervalo mensual (5-95 %)")
+    eje.axhline(resumen["ultimo_mes_eur_mwh"], color="#b8383f", lw=0.9, ls=":", label=f"escenario: se mantiene el último mes ({resumen['ultimo_mes_eur_mwh']:.0f} €/MWh)")
+    eje.set_title("Precio de la electricidad (spot, media mensual) y previsión de los próximos 12 meses")
+    eje.set_xlabel("Mes")
+    eje.set_ylabel("€/MWh")
+    eje.legend(fontsize=8)
+    RUTA_FIG_MODELOS.mkdir(parents=True, exist_ok=True)
+    ruta = RUTA_FIG_MODELOS / "prevision_precio_luz.png"
+    figura.savefig(ruta, dpi=110, bbox_inches="tight")
+    plt.close(figura)
+    return ruta.relative_to(RUTA_RAIZ).as_posix()
+
+
+def ejecutar_precio() -> dict:
+    """Evalúa los modelos del precio de la luz, hace el backtesting anual y la previsión de los 12 meses siguientes."""
+    import json
+
+    from cpd.fuentes.curado import CARPETA_TABLAS
+
+    mensual = fprecio.tabla_mensual(
+        fprecio.serie_precio_mensual(pd.read_csv(CARPETA_TABLAS / "precios_diarios.csv")),
+        fprecio.serie_reserva_nacional(pd.read_csv(CARPETA_TABLAS / "reservas_ambito_mensual.csv")),
+        fprecio.serie_co2(pd.read_csv(CARPETA_TABLAS / "co2.csv")),
+    )
+    periodos = mprecio.definir_periodos(mensual)
+    resultado = mprecio.evaluar(mensual, periodos)
+    print(f"  elegido {resultado['elegido']['modelo']} ({resultado['elegido']['configuracion']})")
+    configuraciones = {f: resultado["metricas"].query("modelo == @f").iloc[0]["configuracion"] for f in ("ridge", "gradient_boosting")}
+    # Backtesting de la media anual: orígenes trimestrales cuyos 12 meses terminan antes de la validación.
+    origenes = list(pd.date_range("2020-01-01", periodos.inicio_validacion - pd.DateOffset(months=12), freq="3MS"))
+    backtest = mprecio.media_anual_por_origen(mensual, configuraciones, origenes)
+    test_anual = mprecio.media_anual_por_origen(mensual, configuraciones, [periodos.inicio_test - pd.DateOffset(months=1)])
+    prevision, ajustado = mprecio.prevision_final(mensual, resultado)
+    resumen = mprecio.resumen_anual(prevision, backtest, mensual)
+    fila_test = resultado["metricas"].query("modelo == @resumen['modelo'] and particion == 'test' and horizonte == 'todos'")
+    resumen["mae_test_eur_mwh"] = float(fila_test["mae"].iloc[0])
+    resumen["generado_en"] = dt.datetime.now().astimezone().isoformat(timespec="seconds")
+
+    RUTA_SALIDAS.mkdir(parents=True, exist_ok=True)
+    resultado["metricas"].to_csv(RUTA_SALIDAS / "metricas_precio.csv", index=False)
+    resultado["seleccion"].to_csv(RUTA_SALIDAS / "seleccion_precio.csv", index=False)
+    resultado["predicciones"].to_csv(RUTA_SALIDAS / "predicciones_precio.csv", index=False)
+    pd.concat([backtest.assign(tipo="backtesting"), test_anual.assign(tipo="test")]).to_csv(RUTA_SALIDAS / "media_anual_precio.csv", index=False)
+    prevision.to_csv(RUTA_SALIDAS / "prevision_precio_luz.csv", index=False)
+    (RUTA_SALIDAS / "resumen_precio_luz.json").write_text(json.dumps(resumen, ensure_ascii=False, indent=1), encoding="utf-8")
+    if ajustado is not None:
+        RUTA_MODELOS.mkdir(exist_ok=True)
+        joblib.dump({"modelo": ajustado, "columnas": resultado["columnas"], "entrenado": dt.date.today().isoformat()}, RUTA_MODELOS / "precio_luz.joblib")
+    return {
+        "periodos": periodos.como_texto(),
+        "resultado": resultado,
+        "backtest": backtest,
+        "test_anual": test_anual,
+        "prevision": prevision,
+        "resumen": resumen,
+        "figura": _figura_precio(mensual, prevision, resumen),
+        "semilla": mprecio.SEMILLA,
+    }
+
+
 def main() -> None:
     """Punto de entrada de `python -m cpd.modelos`."""
     parser = argparse.ArgumentParser(description="EDA, modelos e informes del Proyecto 3")
@@ -176,6 +244,7 @@ def main() -> None:
     print("Diccionario de features")
     filas = [{"modelo": "demanda_ccaa", "horizonte_meses": h, **dataclasses.asdict(f)} for h in md.HORIZONTES for f in diccionario_features_demanda(h)]
     filas += [{"modelo": "prob_cpd", "horizonte_meses": None, **dataclasses.asdict(f)} for f in diccionario_features_provincia()]
+    filas += [{"modelo": "precio_luz", "horizonte_meses": "1-12", **dataclasses.asdict(f)} for f in fprecio.diccionario_features_precio()]
     RUTA_SALIDAS.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(filas).to_csv(RUTA_SALIDAS / "diccionario_features.csv", index=False)
 
@@ -189,11 +258,14 @@ def main() -> None:
     demanda = ejecutar_demanda(panel)
     print("Probabilidad de CPD por provincia")
     prob, tabla, figura_roc = ejecutar_prob_cpd(panel)
+    print("Precio de la luz")
+    precio = ejecutar_precio()
 
     print("Informes")
-    _escribir(informe.informe_metricas(demanda, prob, fecha), RUTA_DOCS / "analisis" / "metricas.md")
+    _escribir(informe.informe_metricas(demanda, prob, fecha, precio), RUTA_DOCS / "analisis" / "metricas.md")
     _escribir(informe.ficha_demanda(demanda, fecha), RUTA_DOCS / "modelos" / "demanda_ccaa.md")
     _escribir(informe.ficha_prob_cpd(prob, tabla, figura_roc, fecha), RUTA_DOCS / "modelos" / "prob_cpd.md")
+    _escribir(informe.ficha_precio(precio, fecha), RUTA_DOCS / "modelos" / "precio_luz.md")
     print(f"Hecho en {time.time() - inicio:.0f} s")
 
 
