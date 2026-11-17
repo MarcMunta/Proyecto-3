@@ -86,6 +86,9 @@ DICCIONARIO: tuple[Campo, ...] = (
     Campo("subestaciones_400kv", "Subestaciones de 400 kV mapeadas en OpenStreetMap", "nº", "OpenStreetMap (Overpass)", "provincia", "estática"),
     Campo("capacidad_demanda_rdt_disponible_mw", "Capacidad de acceso disponible para demanda en red de transporte (comunidad)", "MW", "Red Eléctrica (capacidad de acceso)", "ccaa", "estática"),
     Campo("nudos_acceso_ccaa", "Nudos de la red de transporte de la comunidad con datos de capacidad", "nº", "Red Eléctrica (capacidad de acceso)", "ccaa", "estática"),
+    Campo("aceleracion_sismica_capital_g", "Aceleración sísmica básica ab de la capital (NCSE-02; 0,04 si la norma no la lista, que es el máximo posible)", "g", "BOE (NCSE-02, anejo 1)", "provincia", "estática"),
+    Campo("aceleracion_sismica_max_g", "Aceleración sísmica básica máxima de los municipios de la provincia (NCSE-02)", "g", "BOE (NCSE-02, anejo 1)", "provincia", "estática"),
+    Campo("municipios_ab_008_o_mas", "Municipios de la provincia con ab ≥ 0,08 g (NCSE-02)", "nº", "BOE (NCSE-02, anejo 1)", "provincia", "estática"),
     Campo("distancia_hubs_ixp_km", "Distancia desde la capital al más lejano de los dos grandes nodos de internet (provincias con más IXP: hoy Madrid y Barcelona)", "km", "PeeringDB + coordenadas de las capitales", "provincia", "estática"),
     Campo("precio_suelo_urbano_eur_m2", "Precio medio del suelo urbano: mediana de los 4 últimos trimestres (aproximación del coste del suelo; no es solo industrial)", "€/m²", "Ministerio de Transportes (precios de suelo)", "provincia", "trimestral"),
     Campo("capacidad_demanda_rdt_otorgada_mw", "Capacidad de acceso ya otorgada a nueva demanda en red de transporte (comunidad): grandes consumos que se están conectando", "MW", "Red Eléctrica (capacidad de acceso)", "ccaa", "estática"),
@@ -284,6 +287,9 @@ def construir_panel(tablas: dict[str, pd.DataFrame], hasta: pd.Timestamp | None 
         base = base.merge(tablas["conectividad"], on="codigo_provincia", how="left")
         if "provincias" in tablas and {"lat_punto", "lon_punto"} <= set(tablas["provincias"].columns):
             base = base.merge(distancia_hubs_ixp(tablas["conectividad"], tablas["provincias"]), on="codigo_provincia", how="left")
+    if "peligrosidad_sismica" in tablas and not tablas["peligrosidad_sismica"].empty:
+        columnas = ["codigo_provincia", "aceleracion_sismica_capital_g", "aceleracion_sismica_max_g", "municipios_ab_008_o_mas"]
+        base = base.merge(tablas["peligrosidad_sismica"][columnas], on="codigo_provincia", how="left")
     if "suelo_provincia" in tablas and not tablas["suelo_provincia"].empty:
         base = base.merge(tablas["suelo_provincia"][["codigo_provincia", "precio_suelo_urbano_eur_m2"]], on="codigo_provincia", how="left")
     if "subestaciones" in tablas and not tablas["subestaciones"].empty:

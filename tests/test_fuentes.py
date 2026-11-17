@@ -503,3 +503,23 @@ def test_distancia_a_los_dos_hubs_sale_de_los_datos():
     d = distancia_hubs_ixp(conectividad, provincias).set_index("codigo_provincia")["distancia_hubs_ixp_km"]
     assert d["50"] < d["28"] == d["08"]  # Zaragoza está más cerca del más lejano de los dos que Madrid o Barcelona
     assert 250 < d["50"] < 300
+
+
+def test_norma_sismica_lee_municipios_y_toma_la_capital():
+    from cpd.fuentes import norma_sismica as ns
+
+    # Texto SINTÉTICO (solo para el test) con la forma del anejo 1 de la NCSE-02.
+    texto = (
+        "ANEJO 1. VALORES DE LA ACELERACIÓN SÍSMICA BÁSICA\nANDALUCÍA\nPROVINCIA DE GRANADA\nMunicipio ab/g k\n"
+        "GRANADA 0,23 (1,0)\nHUÉSCAR 0,11 (1,0)\nARAGÓN\nPROVINCIA DE ZARAGOZA\nCALATAYUD 0,05 (1,0)\n"
+        "CIUDAD DE MELILLA\n0,08 (1,0)\n"
+    )
+    municipios = ns.municipios_desde_texto(texto)
+    assert len(municipios) == 4
+    tabla = ns.provincias_desde_municipios(municipios).set_index("codigo_provincia")
+    assert tabla.loc["18", "aceleracion_sismica_capital_g"] == 0.23 and bool(tabla.loc["18", "capital_en_norma"])
+    # Zaragoza capital no está en la lista: menos de 0,04 g → se toma 0,04 (cota superior), y la máxima es 0,05.
+    assert tabla.loc["50", "aceleracion_sismica_capital_g"] == 0.04 and not bool(tabla.loc["50", "capital_en_norma"])
+    assert tabla.loc["50", "aceleracion_sismica_max_g"] == 0.05
+    assert tabla.loc["52", "aceleracion_sismica_capital_g"] == 0.08  # Melilla: valor en la línea siguiente
+    assert tabla.loc["42", "aceleracion_sismica_capital_g"] == 0.04  # Soria: no aparece

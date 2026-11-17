@@ -110,6 +110,7 @@ El paro es **paro registrado** (oficina de empleo), no la tasa EPA. `paro_por_10
 | `subestaciones` | codigo_provincia, subestaciones_220_400kv, subestaciones_400kv | OpenStreetMap vía Overpass (`power=substation`) | P | estática |
 | `sismos` | codigo_provincia, anio, n_terremotos, magnitud_max, n_terremotos_m3_plus | EMSC FDSN (M ≥ 1,5), asignación por polígono | P | anual, desde 2015 |
 | `natura` | codigo_provincia, pct_superficie_natura2000, espacios_natura_2000 | EEA Natura 2000, ArcGIS REST | P | estática |
+| `peligrosidad_sismica` | codigo_provincia, aceleracion_sismica_capital_g, capital_en_norma, aceleracion_sismica_max_g, municipios_ab_008_o_mas | BOE núm. 244 (11/10/2002), NCSE-02, anejo 1 (`A35898-35967.pdf`, mapa de peligrosidad del IGN) | P | estática |
 | `suelo_provincia` | codigo_provincia, precio_suelo_urbano_eur_m2 (mediana de 4 trimestres), trimestres_usados, ultimo_trimestre | Ministerio de Transportes, Boletín online «Precios de suelo», tabla 4 (`sedal/36400500.XLS`) | P | trimestral |
 
 Los IXP no tienen coordenadas en PeeringDB: se asignan por ciudad y la distancia es aproximada.

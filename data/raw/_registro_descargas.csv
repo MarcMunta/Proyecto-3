@@ -1244,3 +1244,4 @@ fecha_descarga,fuente,descripcion,url,archivo,tam_kb
 2026-11-17T19:03:36,MIBGAS,MIBGAS datos 2025,https://www.mibgas.es/es/file-access/MIBGAS_Data_2025.xlsx?path=AGNO_2025/XLS,data/raw/api/mibgas/MIBGAS_Data_2025.xlsx,3303
 2026-11-17T19:03:37,MIBGAS,MIBGAS datos 2026,https://www.mibgas.es/es/file-access/MIBGAS_Data_2026.xlsx?path=AGNO_2026/XLS,data/raw/api/mibgas/MIBGAS_Data_2026.xlsx,3270
 2026-11-17T23:09:52,Ministerio de Transportes (precios de suelo),Precio medio del m² de suelo urbano por provincias (tabla 4),https://apps.fomento.gob.es/BoletinOnline2/sedal/36400500.XLS,data/raw/api/suelo/2026_11_36400500.XLS,94
+2026-11-17T23:42:06,"BOE (NCSE-02, anejo 1)",NCSE-02: aceleración sísmica básica por municipio (anejo 1),https://www.boe.es/boe/dias/2002/10/11/pdfs/A35898-35967.pdf,data/raw/api/boe/A35898-35967.pdf,2429

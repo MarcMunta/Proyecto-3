@@ -148,6 +148,7 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
         ree,
         sepe,
         sismicidad,
+        norma_sismica,
         suelo,
         subestaciones,
     )
@@ -189,6 +190,7 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
         sismicidad.terremotos(ANIO_INICIO, anio_fin), poligonos))
     _paso(acta, "natura", lambda: natura.superficie_natura_por_provincia(poligonos))
     _paso(acta, "suelo_provincia", lambda: suelo.leer_precio_suelo(suelo.descargar()))
+    _paso(acta, "peligrosidad_sismica", lambda: norma_sismica.leer_peligrosidad(norma_sismica.descargar()))
 
 
 def _construir(acta: Actualizacion) -> None:
