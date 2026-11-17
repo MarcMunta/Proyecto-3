@@ -40,9 +40,39 @@ def mape(real, prevision) -> float:
     return float(np.mean(np.abs((y - p) / y)) * 100)
 
 
+def acierto_pct(real, prevision) -> float:
+    """Acierto de una previsión (%) = 100 × (1 − WAPE), con WAPE = Σ|real − previsión| / Σ|real|.
+
+    Es la definición habitual de «forecast accuracy» (recomendación, no viene de clase). A diferencia de 100 − MAPE,
+    no se dispara cuando hay meses con valores muy bajos (p. ej. un precio de la luz de 16 €/MWh), porque pesa cada
+    error por el tamaño total de la serie. Puede ser negativo si el error total supera al valor total.
+    """
+    y, p = _arrays(real, prevision)
+    return float(100 * (1 - np.sum(np.abs(y - p)) / np.sum(np.abs(y))))
+
+
 def metricas_regresion(real, prevision) -> dict[str, float]:
-    """MAE, RMSE y MAPE juntos (diccionario con las claves `mae`, `rmse`, `mape_pct`)."""
-    return {"mae": mae(real, prevision), "rmse": rmse(real, prevision), "mape_pct": mape(real, prevision)}
+    """MAE, RMSE, MAPE y acierto juntos (claves `mae`, `rmse`, `mape_pct`, `acierto_pct`)."""
+    return {"mae": mae(real, prevision), "rmse": rmse(real, prevision), "mape_pct": mape(real, prevision), "acierto_pct": acierto_pct(real, prevision)}
+
+
+# Requisito del proyecto (17/11/2026): todo modelo debe acertar al menos un 85 % (objetivo: 90 %) y ninguno puede
+# llegar al 99,9 %: un acierto así indica casi seguro una fuga de información (el modelo «ve» el resultado).
+ACIERTO_MINIMO: float = 85.0
+ACIERTO_OBJETIVO: float = 90.0
+ACIERTO_SOSPECHOSO: float = 99.9
+
+
+def control_acierto(acierto: float) -> str:
+    """Estado de un acierto (%) frente al requisito: `cumple`, `cumple (objetivo 90 %)`, `no cumple (< 85 %)` o
+    `sospechoso (≥ 99,9 %)`."""
+    if acierto >= ACIERTO_SOSPECHOSO:
+        return "sospechoso (≥ 99,9 %)"
+    if acierto < ACIERTO_MINIMO:
+        return "no cumple (< 85 %)"
+    if acierto >= ACIERTO_OBJETIVO:
+        return "cumple (objetivo 90 %)"
+    return "cumple"
 
 
 def matriz_confusion(real, prediccion) -> dict[str, int]:

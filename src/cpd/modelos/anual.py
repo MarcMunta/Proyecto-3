@@ -1,4 +1,5 @@
-"""Previsión a 1 año (12 meses, mes a mes) con el menor error posible: demanda por comunidad y precio de la luz.
+"""Previsión a 1 año (12 meses, mes a mes) con el menor error posible: demanda por comunidad, precio de la luz,
+reservas de agua por ámbito y temperatura media por provincia.
 
 Protocolo común (fases 7 y 8; R-6):
 - **Orígenes de validación:** 24 orígenes mensuales consecutivos (dos años). En cada origen `r` cada modelo se
@@ -231,6 +232,226 @@ def reales_precio(mensual: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"serie": "ES", "mes": precio.index, "real": precio.to_numpy()})
 
 
+# ------------------------------------------------------------------------------------ reservas de agua por ámbito
+
+
+def series_reservas(reservas: pd.DataFrame, hoy: dt.date | None = None) -> pd.DataFrame:
+    """Reserva de los embalses (% de la capacidad) por ámbito hidrográfico y mes completo (sin el mes en curso).
+
+    Args:
+        reservas: tabla `reservas_ambito_mensual` (MITECO): `mes`, `ambito`, `reserva_pct_media_mes`.
+    """
+    datos = reservas.assign(mes=pd.to_datetime(reservas["mes"]).dt.to_period("M").dt.to_timestamp())
+    en_curso = pd.Timestamp(hoy or dt.date.today()).to_period("M").to_timestamp()
+    datos = datos[datos["mes"] < en_curso].dropna(subset=["reserva_pct_media_mes"])
+    return datos.rename(columns={"ambito": "serie", "reserva_pct_media_mes": "real"})[["serie", "mes", "real"]].sort_values(["serie", "mes"]).reset_index(drop=True)
+
+
+def candidatos_reservas(reales: pd.DataFrame) -> dict[str, Candidato]:
+    """Candidatos para la reserva mensual de cada ámbito (%):
+
+    - `naive`: la reserva del mes de origen se mantiene.
+    - `estacional`: la del mismo mes del año anterior.
+    - `climatologia`: la media de ese mes del calendario en los 10 años anteriores al origen.
+    - `anomalia_persistente`: climatología + la anomalía del origen multiplicada por φ_h, con φ_h ajustado por
+      mínimos cuadrados con los años anteriores al origen (todas las cuencas juntas). Las reservas tienen memoria:
+      una sequía no se arregla en un mes.
+    - `anomalia_por_cuenca`: lo mismo con un φ_h propio de cada cuenca (últimos 20 años): los embalses grandes
+      (Tajo, Guadiana) se recuperan más despacio que los pequeños.
+    - `ets`: Holt-Winters con tendencia amortiguada y estacionalidad aditiva sobre el nivel.
+    Las previsiones se recortan a [0, 100] %.
+    """
+    return candidatos_estacionales(reales, limites=(0.0, 100.0), min_meses=120, nombre_propio="anomalia_por_cuenca")
+
+
+def candidatos_estacionales(
+    reales: pd.DataFrame, limites: tuple[float, float] | None, min_meses: int, nombre_propio: str
+) -> dict[str, Candidato]:
+    """Candidatos para series mensuales muy estacionales (reservas de agua, temperatura): último valor, mismo mes
+    del año anterior, climatología, anomalía persistente (con un φ común y con un φ propio de cada serie, que se
+    llama `nombre_propio`) y ETS. Ver `candidatos_reservas` para el detalle de cada uno.
+
+    Args:
+        reales: `serie`, `mes`, `real`.
+        limites: rango físico en el que se recortan las previsiones (p. ej. 0-100 %), o None para no recortar.
+        min_meses: meses de historia que necesita una serie en el origen para prever (la climatología usa hasta 10
+            años; con menos historia, todos los años disponibles).
+        nombre_propio: nombre del candidato con φ propio de cada serie.
+    """
+    bajo, alto = limites if limites is not None else (-np.inf, np.inf)
+    por_serie = {s: g.set_index("mes")["real"].sort_index() for s, g in reales.groupby("serie")}
+
+    def _hasta(origen: pd.Timestamp) -> dict[str, pd.Series]:
+        return {s: v.loc[:origen] for s, v in por_serie.items() if len(v.loc[:origen]) >= min_meses and v.index.max() >= origen}
+
+    def _clim(s: pd.Series, meses: pd.Series) -> np.ndarray:
+        ultimos = s.iloc[-120:]
+        por_mes = ultimos.groupby(ultimos.index.month).mean()
+        return por_mes.reindex(meses.dt.month).to_numpy()
+
+    def _aplicar(origen: pd.Timestamp, regla: Callable[[pd.Series, pd.DataFrame], np.ndarray]) -> pd.DataFrame:
+        partes = []
+        for serie, s in _hasta(origen).items():
+            filas = _filas_futuras(serie, origen)
+            filas["prevision"] = np.clip(regla(s, filas), bajo, alto)
+            partes.append(filas)
+        return pd.concat(partes, ignore_index=True)
+
+    def naive(origen: pd.Timestamp) -> pd.DataFrame:
+        return _aplicar(origen, lambda s, f: np.repeat(s.iloc[-1], len(f)))
+
+    def estacional(origen: pd.Timestamp) -> pd.DataFrame:
+        return _aplicar(origen, lambda s, f: s.reindex(f["mes"] - pd.DateOffset(months=12)).to_numpy())
+
+    def climatologia(origen: pd.Timestamp) -> pd.DataFrame:
+        return _aplicar(origen, lambda s, f: _clim(s, f["mes"]))
+
+    def _phi(anomalias: list[pd.Series]) -> dict[int, float]:
+        """φ_h por mínimos cuadrados: anomalía(t + h) ≈ φ_h · anomalía(t), con los pares disponibles."""
+        phi = {}
+        for h in range(1, HORIZONTE + 1):
+            x = np.concatenate([a.to_numpy()[:-h] for a in anomalias if len(a) > h] or [np.array([])])
+            y = np.concatenate([a.to_numpy()[h:] for a in anomalias if len(a) > h] or [np.array([])])
+            phi[h] = float(np.dot(x, y) / np.dot(x, x)) if len(x) and np.dot(x, x) > 0 else 0.0  # serie plana: sin memoria
+        return phi
+
+    def _anomalia(origen: pd.Timestamp, por_cuenca: bool) -> pd.DataFrame:
+        # Anomalías hasta el origen (frente a la media del mismo mes de los 10 años anteriores).
+        anomalias = {}
+        for serie, s in _hasta(origen).items():
+            clim = s.groupby(s.index.month).transform(lambda v: v.rolling(10, min_periods=5).mean().shift(1))
+            anomalias[serie] = (s - clim).dropna()
+        comun = _phi(list(anomalias.values()))
+        propio = {serie: _phi([a.iloc[-240:]]) for serie, a in anomalias.items()} if por_cuenca else {}
+
+        partes = []
+        for serie, s in _hasta(origen).items():
+            phi = propio.get(serie, comun)
+            filas = _filas_futuras(serie, origen)
+            ultimos = s.iloc[-121:-1]
+            anomalia = s.iloc[-1] - ultimos[ultimos.index.month == s.index[-1].month].mean()
+            filas["prevision"] = np.clip(_clim(s, filas["mes"]) + anomalia * np.array([phi[h] for h in filas["horizonte_meses"]]), bajo, alto)
+            partes.append(filas)
+        return pd.concat(partes, ignore_index=True)
+
+    def anomalia_persistente(origen: pd.Timestamp) -> pd.DataFrame:
+        return _anomalia(origen, por_cuenca=False)
+
+    def anomalia_propia(origen: pd.Timestamp) -> pd.DataFrame:
+        return _anomalia(origen, por_cuenca=True)
+
+    def ets(origen: pd.Timestamp) -> pd.DataFrame:
+        def regla(s: pd.Series, f: pd.DataFrame) -> np.ndarray:
+            from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                ajuste = ExponentialSmoothing(
+                    s.iloc[-180:].to_numpy(dtype=float), trend="add", damped_trend=True, seasonal="add", seasonal_periods=12, initialization_method="estimated"
+                ).fit()
+            return ajuste.forecast(len(f))
+
+        return _aplicar(origen, regla)
+
+    return {
+        "naive": naive,
+        "estacional": estacional,
+        "climatologia": climatologia,
+        "anomalia_persistente": anomalia_persistente,
+        nombre_propio: anomalia_propia,
+        "ets": ets,
+    }
+
+
+# --------------------------------------------------------------------------- temperatura media por provincia
+
+
+def series_temperatura(clima_diario: pd.DataFrame, hoy: dt.date | None = None) -> pd.DataFrame:
+    """Temperatura media mensual (°C) de cada provincia: media de las diarias, solo meses completos y sin el mes
+    en curso.
+
+    Args:
+        clima_diario: tabla `clima_diario` (NASA POWER): `fecha`, `codigo_provincia`, `tmedia_c` (°C).
+        hoy: fecha de referencia para el mes en curso (por defecto, hoy).
+
+    Returns:
+        `serie` (código INE de provincia, 2 cifras), `mes`, `real` (°C).
+    """
+    datos = clima_diario.assign(
+        mes=pd.to_datetime(clima_diario["fecha"]).dt.to_period("M").dt.to_timestamp(),
+        serie=clima_diario["codigo_provincia"].astype(str).str.zfill(2),
+    ).dropna(subset=["tmedia_c"])
+    resumen = datos.groupby(["serie", "mes"])["tmedia_c"].agg(["mean", "count"]).reset_index()
+    en_curso = pd.Timestamp(hoy or dt.date.today()).to_period("M").to_timestamp()
+    completos = (resumen["count"] >= resumen["mes"].dt.days_in_month) & (resumen["mes"] < en_curso)
+    return resumen[completos].rename(columns={"mean": "real"})[["serie", "mes", "real"]].sort_values(["serie", "mes"]).reset_index(drop=True)
+
+
+def series_renovables(generacion: pd.DataFrame, hoy: dt.date | None = None) -> pd.DataFrame:
+    """Porcentaje de generación renovable (%) de cada comunidad autónoma por mes, sin el mes en curso.
+
+    Deja fuera las comunidades sin ninguna generación renovable en todo el periodo (Ceuta): su serie es siempre 0 y
+    no hay nada que prever.
+
+    Args:
+        generacion: tabla `ccaa_generacion` (REData): `codigo_ccaa`, `fecha` (mes), `pct_renovable` (%).
+        hoy: fecha de referencia para el mes en curso (por defecto, hoy).
+
+    Returns:
+        `serie` (código INE de comunidad, 2 cifras), `mes`, `real` (%).
+    """
+    datos = generacion.assign(
+        mes=pd.to_datetime(generacion["fecha"]).dt.to_period("M").dt.to_timestamp(),
+        serie=generacion["codigo_ccaa"].astype(str).str.zfill(2),
+    ).dropna(subset=["pct_renovable"])
+    en_curso = pd.Timestamp(hoy or dt.date.today()).to_period("M").to_timestamp()
+    datos = datos[datos["mes"] < en_curso]
+    con_renovables = datos.groupby("serie")["pct_renovable"].transform("max") > 0
+    datos = datos[con_renovables].rename(columns={"pct_renovable": "real"})
+    return datos[["serie", "mes", "real"]].sort_values(["serie", "mes"]).reset_index(drop=True)
+
+
+def candidatos_renovables(reales: pd.DataFrame) -> dict[str, Candidato]:
+    """Candidatos para el % renovable mensual de cada comunidad: los de `candidatos_estacionales` (con un φ propio
+    de cada comunidad) y dos variantes de ETS con los últimos 5 años, con tendencia amortiguada y sin tendencia: con
+    tanta potencia solar nueva en 2022-2025, la historia larga frena la tendencia (se vio en la validación, después
+    de la primera prueba). Las previsiones se recortan a [0, 100] %."""
+    candidatos = candidatos_estacionales(reales, limites=(0.0, 100.0), min_meses=60, nombre_propio="anomalia_por_comunidad")
+    por_serie = {s: g.set_index("mes")["real"].sort_index() for s, g in reales.groupby("serie")}
+
+    def _ets_5_anios(tendencia: bool) -> Candidato:
+        def prever(origen: pd.Timestamp) -> pd.DataFrame:
+            from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+            partes = []
+            for serie, s in por_serie.items():
+                s = s.loc[:origen]
+                if len(s) < 60 or s.index.max() < origen:
+                    continue
+                filas = _filas_futuras(serie, origen)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    ajuste = ExponentialSmoothing(
+                        s.iloc[-60:].to_numpy(dtype=float), trend="add" if tendencia else None, damped_trend=tendencia, seasonal="add",
+                        seasonal_periods=12, initialization_method="estimated",
+                    ).fit()
+                filas["prevision"] = np.clip(ajuste.forecast(len(filas)), 0, 100)
+                partes.append(filas)
+            return pd.concat(partes, ignore_index=True)
+
+        return prever
+
+    candidatos["ets_5_anios"] = _ets_5_anios(tendencia=True)
+    candidatos["ets_5_anios_sin_tendencia"] = _ets_5_anios(tendencia=False)
+    return candidatos
+
+
+def candidatos_temperatura(reales: pd.DataFrame) -> dict[str, Candidato]:
+    """Candidatos para la temperatura media mensual de cada provincia (°C): los mismos que las reservas
+    (`candidatos_estacionales`), sin recortar y con 5 años de historia mínima (NASA POWER empieza en 2015)."""
+    return candidatos_estacionales(reales, limites=None, min_meses=60, nombre_propio="anomalia_por_provincia")
+
+
 # ------------------------------------------------------------------------------------------------------ evaluación
 
 
@@ -286,7 +507,10 @@ def evaluar(candidatos: dict[str, Candidato], reales: pd.DataFrame, origenes: Or
     else:
         elegido = "combinacion"
     val = pred[(pred["modelo"] == elegido) & (pred["particion"] == "validacion")]
-    residuos = (np.log(val["real"]) - np.log(val["prevision"])).groupby(val["horizonte_meses"]).apply(lambda r: r.to_numpy())
+    por_h = val["horizonte_meses"]
+    with np.errstate(invalid="ignore", divide="ignore"):  # el log solo tiene sentido con valores > 0 (no en °C)
+        residuos = (np.log(val["real"]) - np.log(val["prevision"])).groupby(por_h).apply(lambda r: r.to_numpy())
+    diferencias = (val["real"] - val["prevision"]).groupby(por_h).apply(lambda r: r.to_numpy())
     return {
         "predicciones": pred,
         "metricas": metricas,
@@ -295,23 +519,28 @@ def evaluar(candidatos: dict[str, Candidato], reales: pd.DataFrame, origenes: Or
         "miembros": miembros,
         "elegido": elegido,
         "residuos_log": residuos.to_dict(),
+        "residuos_abs": diferencias.to_dict(),
         "metrica": metrica,
         "origenes": origenes.como_texto(),
     }
 
 
-def intervalo_media_anual(resultado: dict[str, Any], cuantiles: tuple[float, float] = (0.1, 0.9)) -> pd.DataFrame:
+def intervalo_media_anual(resultado: dict[str, Any], cuantiles: tuple[float, float] = (0.1, 0.9), aditivo: bool = False) -> pd.DataFrame:
     """Rango de la media de los 12 meses: cuantiles, por serie, del cociente real / previsto de la media anual del
     modelo elegido en los orígenes de validación (con todas las series juntas si una tiene pocos orígenes).
 
+    Args:
+        aditivo: usar la diferencia real − previsto en lugar del cociente (para magnitudes sin cero natural, como
+            la temperatura en °C).
+
     Returns:
-        `serie`, `factor_inferior`, `factor_superior` (multiplican la media prevista).
+        `serie`, `factor_inferior`, `factor_superior` (multiplican la media prevista; si `aditivo`, se le suman).
     """
     pred = resultado["predicciones"]
     val = pred[(pred["modelo"] == resultado["elegido"]) & (pred["particion"] == "validacion")]
     medias = val.groupby(["serie", "origen"]).agg(real=("real", "mean"), prevision=("prevision", "mean"), n=("real", "size"))
     medias = medias[medias["n"] == HORIZONTE]
-    cociente = medias["real"] / medias["prevision"]
+    cociente = medias["real"] - medias["prevision"] if aditivo else medias["real"] / medias["prevision"]
     global_bajo, global_alto = np.quantile(cociente, cuantiles)
     filas = []
     for serie, c in cociente.groupby(level="serie"):
@@ -320,10 +549,30 @@ def intervalo_media_anual(resultado: dict[str, Any], cuantiles: tuple[float, flo
     return pd.DataFrame(filas)
 
 
+def acierto_media_anual(resultado: dict[str, Any]) -> dict[str, float]:
+    """Acierto (100 − WAPE, %) de la media de los 12 meses previstos frente a la media real, del modelo elegido y por
+    partición (`validacion`, `test`). Mide la cifra anual, no cada mes: los errores de meses sueltos se compensan."""
+    pred = resultado["predicciones"]
+    pred = pred[pred["modelo"] == resultado["elegido"]]
+    medias = pred.groupby(["particion", "serie", "origen"]).agg(real=("real", "mean"), prevision=("prevision", "mean"), n=("real", "size"))
+    medias = medias[medias["n"] == HORIZONTE]
+    return {
+        str(particion): float(100 * (1 - (d["real"] - d["prevision"]).abs().sum() / d["real"].abs().sum()))
+        for particion, d in medias.groupby(level="particion")
+    }
+
+
 def prevision_final(
-    candidatos: dict[str, Candidato], resultado: dict[str, Any], origen_por_serie: dict[str, pd.Timestamp], cuantiles: tuple[float, float] = (0.1, 0.9)
+    candidatos: dict[str, Candidato],
+    resultado: dict[str, Any],
+    origen_por_serie: dict[str, pd.Timestamp],
+    cuantiles: tuple[float, float] = (0.1, 0.9),
+    aditivo: bool = False,
 ) -> pd.DataFrame:
     """Previsión de los 12 meses siguientes al último dato de cada serie con el modelo elegido (o la combinación).
+
+    El intervalo sale de los cuantiles del error de validación por horizonte: relativo (log real − log previsto)
+    o, si `aditivo`, en la unidad de la serie (real − previsto), que es lo correcto para la temperatura en °C.
 
     Returns:
         `serie`, `mes`, `horizonte_meses`, `prevision`, `inferior`, `superior`, `modelo`, `origen`, `generado_en`.
@@ -336,11 +585,12 @@ def prevision_final(
         juntas = juntas[juntas["serie"].isin(series)]
         partes.append(juntas.groupby(["serie", "mes", "horizonte_meses"], as_index=False)["prevision"].mean().assign(origen=origen))
     salida = pd.concat(partes, ignore_index=True)
-    bajo = salida["horizonte_meses"].map(lambda h: np.quantile(resultado["residuos_log"][h], cuantiles[0]))
-    alto = salida["horizonte_meses"].map(lambda h: np.quantile(resultado["residuos_log"][h], cuantiles[1]))
+    residuos = resultado["residuos_abs" if aditivo else "residuos_log"]
+    bajo = salida["horizonte_meses"].map(lambda h: np.quantile(residuos[h], cuantiles[0]))
+    alto = salida["horizonte_meses"].map(lambda h: np.quantile(residuos[h], cuantiles[1]))
     return salida.assign(
-        inferior=salida["prevision"] * np.exp(bajo),
-        superior=salida["prevision"] * np.exp(alto),
+        inferior=salida["prevision"] + bajo if aditivo else salida["prevision"] * np.exp(bajo),
+        superior=salida["prevision"] + alto if aditivo else salida["prevision"] * np.exp(alto),
         modelo=resultado["elegido"],
         generado_en=dt.datetime.now().astimezone().isoformat(timespec="seconds"),
     )

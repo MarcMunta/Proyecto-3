@@ -39,6 +39,13 @@ NOMBRES_MODELO = {
     "ridge_gas": "Ridge con gas (ML)",
     "estacional_tendencia": "Mismo mes del año anterior × tendencia",
     "combinacion": "Combinación de los 3 mejores",
+    "climatologia": "Climatología (media del mes en los años anteriores)",
+    "anomalia_persistente": "Anomalía persistente (φ común)",
+    "anomalia_por_cuenca": "Anomalía persistente (φ de cada cuenca)",
+    "anomalia_por_provincia": "Anomalía persistente (φ de cada provincia)",
+    "anomalia_por_comunidad": "Anomalía persistente (φ de cada comunidad)",
+    "ets_5_anios": "ETS de 5 años con tendencia amortiguada",
+    "ets_5_anios_sin_tendencia": "ETS de 5 años sin tendencia",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
@@ -382,8 +389,283 @@ Modelo elegido (menor log-loss): **{NOMBRES_MODELO.get(prob['elegido'], prob['el
 """
 
 
-def informe_anual(anual: dict[str, Any], fecha: str) -> str:
-    """Informe de la previsión a 1 año con todos los gráficos (`docs/analisis/previsiones_1_anio.md`)."""
+def _seccion_control(control: pd.DataFrame, figura: str) -> str:
+    """Tabla y gráfico del requisito de acierto (85 % ≤ acierto < 99,9 %)."""
+    tabla = pd.DataFrame(
+        {
+            "Modelo": control["modelo"],
+            "Acierto validación / backtesting": control["acierto_validacion"].map(lambda v: f"{_n(v, 1)} %"),
+            "Acierto test": control["acierto_test"].map(lambda v: "—" if pd.isna(v) else f"{_n(v, 1)} %"),
+            "Cómo se mide": control["definicion"],
+            "Estado": control["estado"],
+        }
+    )
+    fallan = control[~control["estado"].str.startswith("cumple")]
+    aviso = (
+        "Todos los modelos cumplen el requisito."
+        if fallan.empty
+        else "**No cumplen:** "
+        + "; ".join(f"{f.modelo} ({f.estado})" for f in fallan.itertuples())
+        + ". Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador."
+    )
+    return f"""## Control de acierto (requisito: 85 % ≤ acierto < 99,9 %)
+
+**Acierto** = 100 × (1 − WAPE), con WAPE = Σ|real − previsto| / Σ|real| (en clasificación, la accuracy). Se usa el
+WAPE y no 100 − MAPE porque el MAPE se dispara en los meses con valores muy bajos: un precio de 16 €/MWh con un error
+de 30 €/MWh cuenta como un 190 % de error. Un acierto de 99,9 % o más se marca como **sospechoso**: casi seguro
+indica una fuga de información. El control se ejecuta en cada `python -m cpd.modelos` y avisa en la consola.
+
+![Control de acierto]({figura})
+
+{_tabla(tabla)}
+
+{aviso}
+"""
+
+
+def _seccion_reservas(reservas: dict[str, Any], figura: str) -> str:
+    r = reservas["resultado"]
+    t = r["metricas"].pivot(index="modelo", columns="particion", values="acierto_pct").sort_values("validacion", ascending=False)
+    m = r["metricas"].pivot(index="modelo", columns="particion", values="mae")
+    filas = [
+        {
+            "Modelo": NOMBRES_MODELO.get(mo, mo) + (" **(elegido)**" if mo == r["elegido"] else (" (en la combinación)" if mo in r["miembros"] else "")),
+            "Acierto validación": f"{_n(f['validacion'], 1)} %",
+            "Acierto test": f"{_n(f['test'], 1)} %",
+            "MAE test (puntos)": _n(m.loc[mo, "test"], 1),
+        }
+        for mo, f in t.iterrows()
+    ]
+    o = r["origenes"]
+    return f"""## Reservas de agua por ámbito hidrográfico (riesgo hídrico, P4)
+
+Reserva de los embalses (% de la capacidad) de los 16 ámbitos del Boletín Hidrológico (MITECO, desde 1987), mes a
+mes, 1 año vista. Candidatos: se mantiene el último mes, mismo mes del año anterior, **climatología** (media del mes en
+los 10 años anteriores), **anomalía persistente** (climatología + la anomalía actual, que se va diluyendo con un factor
+φ por horizonte ajustado con los años anteriores), la misma con un **φ propio de cada cuenca**, y ETS. Se probó también
+la lluvia reciente de la cuenca (NASA POWER): no mejoraba y se descartó.
+
+**Transparencia.** El candidato con φ por cuenca se añadió después de una primera ejecución en la que la combinación
+elegida (con «último mes») no llegaba al 85 % en test. La elección sigue siendo con la validación, pero el test de las
+reservas ya no es del todo independiente, y su acierto (85,3 %) está justo en el mínimo.
+
+![Reservas por ámbito]({figura})
+
+**Figura 4.** Últimos 3 años y previsión a 1 año de cada ámbito.
+
+{_tabla(pd.DataFrame(filas))}
+
+Validación: orígenes {o['origenes_validacion']}. Test: meses {o['meses_test']}. Error en puntos porcentuales de reserva.
+"""
+
+
+def _seccion_10_anios(diez: dict[str, Any]) -> str:
+    r = diez["resultado"]
+    ph = r["por_horizonte"].pivot(index="horizonte_anios", columns="modelo", values="mape_pct")
+    origenes = r["por_horizonte"].query("modelo == @r['elegido']").set_index("horizonte_anios")["origenes"]
+    filas = [
+        {"Años vista": h, "Orígenes": int(origenes[h]), **{NOMBRES_MODELO.get(c, c): f"{_n(ph.loc[h, c], 1)} %" for c in [r["elegido"], *[x for x in r["miembros"] if x != r["elegido"]]]}}
+        for h in ph.index
+    ]
+    p = diez["prevision"]
+    ultimo = diez["json"]["historia"][-1]
+    return f"""## Demanda eléctrica nacional a 10 años (P5)
+
+Demanda anual de España (REData, 2007-{ultimo['anio']}). Backtesting plurianual: desde el final de cada año entre 2011 y
+{ultimo['anio'] - 1}, cada modelo prevé los 10 años siguientes (o los que haya). Candidatos: sin cambio, media de 3 años,
+deriva, tendencia lineal, Holt amortiguado y la combinación de los 3 mejores.
+
+![Demanda a 10 años]({"../../" + diez["figura"]})
+
+**Figura 9.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
+
+MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirlo):
+
+{_tabla(pd.DataFrame(filas))}
+
+**Resultado.** Modelo elegido: **{NOMBRES_MODELO.get(r['elegido'], r['elegido'])}**
+({', '.join(NOMBRES_MODELO.get(m, m) for m in r['miembros'])}); acierto en el backtesting **{_n(diez['acierto'], 1)} %**. Previsión:
+{_n(p['prevision_twh'].iloc[0], 0)} TWh en {int(p['anio'].iloc[0])} y **{_n(p['prevision_twh'].iloc[-1], 0)} TWh en {int(p['anio'].iloc[-1])}** (intervalo 10-90 %:
+{_n(p['inferior_twh'].iloc[-1], 0)}-{_n(p['superior_twh'].iloc[-1], 0)} TWh), frente a {_n(ultimo['valor'], 0)} TWh en {ultimo['anio']}.
+
+**Limitación.** Es una previsión **tendencial**: no incluye la electrificación, el hidrógeno ni los nuevos centros de
+datos, que pueden hacer crecer la demanda. Un CPD de 50 MW de TI consume unos 0,46 TWh al año (el 0,2 % de la demanda
+nacional). El intervalo a más de 7 años se extrapola (σ·√h) porque hay pocos orígenes para medirlo.
+"""
+
+
+def _seccion_temperatura(temperatura: dict[str, Any], figura: str, figura_mensual: str) -> str:
+    """Temperatura media por provincia a 1 año: modelos, acierto (y su límite en °C) y efecto en el PUE."""
+    from cpd.simulator import pue_estimado
+
+    r, j = temperatura["resultado"], temperatura["resumen"]
+    acierto = r["metricas"].pivot(index="modelo", columns="particion", values="acierto_pct").sort_values("validacion", ascending=False)
+    mae = r["metricas"].pivot(index="modelo", columns="particion", values="mae")
+    filas = [
+        {
+            "Modelo": NOMBRES_MODELO.get(mo, mo) + (" **(elegido)**" if mo == r["elegido"] else (" (en la combinación)" if mo in r["miembros"] else "")),
+            "Acierto validación": f"{_n(f['validacion'], 1)} %",
+            "Acierto test": f"{_n(f['test'], 1)} %",
+            "MAE validación (°C)": _n(mae.loc[mo, "validacion"], 2),
+            "MAE test (°C)": _n(mae.loc[mo, "test"], 2),
+        }
+        for mo, f in acierto.iterrows()
+    ]
+    pred = r["predicciones"].query("modelo == @r['elegido']")
+    # Error de la media de 12 meses, que es la que entra en el PUE.
+    anual = pred.groupby(["particion", "serie", "origen"]).agg(prevision=("prevision", "mean"), real=("real", "mean"), n=("real", "size"))
+    anual = anual[anual["n"] == 12]
+    mae_anual = (anual["prevision"] - anual["real"]).abs().groupby(level="particion").mean()
+    val = pred.query("particion == 'validacion'")
+    acierto_kelvin = 100 * (1 - (val["real"] - val["prevision"]).abs().sum() / (val["real"] + 273.15).sum())
+    delta_pue = pue_estimado(15 + mae_anual["validacion"], "aire") - pue_estimado(15, "aire")
+    provincias = pd.DataFrame.from_dict(j["provincias"], orient="index").sort_values("media_prevista")
+    fria, calida = provincias.iloc[0], provincias.iloc[-1]
+    pue_entre = pue_estimado(calida["media_prevista"], "aire") - pue_estimado(fria["media_prevista"], "aire")
+    cambio = (provincias["media_prevista"] - provincias["media_12m_actual"]).mean()
+    sentido = f"{_n(abs(cambio), 1)} °C {'menos' if cambio < 0 else 'más'} que el último año"
+    o = r["origenes"]
+    return f"""## Temperatura media por provincia (PUE)
+
+Temperatura media mensual (°C) de las 52 provincias (NASA POWER, desde 2015), 1 año vista. Es la variable con la que
+el simulador estima el PUE (`simulator.pue_estimado`) y, con él, el consumo, el OPEX y el VAN: según el EDA, el VAN
+simulado depende casi solo de ella. Candidatos: los mismos que las reservas (último mes, mismo mes del año anterior,
+climatología, anomalía persistente con un φ común y con un φ propio de cada provincia, y ETS) y la combinación de los 3
+mejores. Como los datos empiezan en 2015, la climatología usa todos los años anteriores al origen (hasta 10) y se exige
+un mínimo de 5 años de historia.
+
+**Cómo leer el acierto.** Es 100 − WAPE con la temperatura en °C. El °C no tiene un cero natural, así que ese porcentaje
+depende de la escala: con el mismo error, en kelvin saldría un {_n(acierto_kelvin, 1)} %, que parece casi perfecto sin decir nada
+nuevo. Por eso la cifra que manda es el **error en °C** (MAE). El intervalo de la previsión también va en °C (aditivo),
+no en porcentaje.
+
+![Temperatura por provincia]({figura})
+
+**Figura 5.** Temperatura media de las 52 provincias: el último año real (azul) y la previsión de los próximos 12 meses
+(naranja) con su intervalo 10-90 % (barra).
+
+{_tabla(pd.DataFrame(filas))}
+
+Validación: orígenes {o['origenes_validacion']}. Test: meses {o['meses_test']}.
+
+**Resultado.** Modelo elegido: **{NOMBRES_MODELO.get(r['elegido'], r['elegido'])}** ({', '.join(NOMBRES_MODELO.get(m, m) for m in r['miembros'])}).
+Error de un mes: {_n(mae.loc[r['elegido'], 'validacion'], 2)} °C en validación y {_n(mae.loc[r['elegido'], 'test'], 2)} °C en test. Error de la media de 12 meses, que es
+la que usa el PUE: **{_n(mae_anual['validacion'], 2)} °C** en validación y {_n(mae_anual.get('test'), 2)} °C en test. Con la fórmula del simulador,
+{_n(mae_anual['validacion'], 2)} °C mueven el PUE {_n(delta_pue, 3)} (un PUE de aire es 1,45), poco frente a los {_n(pue_entre, 3)} que separan la
+provincia más fría de la más cálida. Previsión: de {_n(fria['media_prevista'], 1)} °C en {fria['nombre']} a {_n(calida['media_prevista'], 1)} °C en
+{calida['nombre']}; de media, {sentido}.
+
+![Temperatura mensual]({figura_mensual})
+
+**Figura 6.** Serie mensual de las 4 provincias más frías y las 4 más cálidas según la previsión: últimos 3 años y
+previsión a 1 año con su intervalo.
+"""
+
+
+def _seccion_renovables(renovables: dict[str, Any], figura: str, figura_mensual: str) -> str:
+    """% de generación renovable por comunidad a 1 año: modelos, acierto mes a mes y de la media anual, y por qué
+    el mes a mes no llega al mínimo si es el caso."""
+    from cpd.modelos.metricas import ACIERTO_MINIMO
+
+    r, j = renovables["resultado"], renovables["resumen"]
+    acierto = r["metricas"].pivot(index="modelo", columns="particion", values="acierto_pct").sort_values("validacion", ascending=False)
+    mae = r["metricas"].pivot(index="modelo", columns="particion", values="mae")
+    filas = [
+        {
+            "Modelo": NOMBRES_MODELO.get(mo, mo) + (" **(elegido)**" if mo == r["elegido"] else (" (en la combinación)" if mo in r["miembros"] else "")),
+            "Acierto validación": f"{_n(f['validacion'], 1)} %",
+            "Acierto test": f"{_n(f['test'], 1)} %",
+            "MAE validación (puntos)": _n(mae.loc[mo, "validacion"], 2),
+            "MAE test (puntos)": _n(mae.loc[mo, "test"], 2),
+        }
+        for mo, f in acierto.iterrows()
+    ]
+    elegido = r["elegido"]
+    por_h = r["por_horizonte"].query("particion == 'validacion' and modelo == @elegido").set_index("horizonte_meses")["acierto_pct"]
+    val = r["predicciones"].query("particion == 'validacion' and modelo == @elegido")
+    error_ccaa = (val["real"] - val["prevision"]).abs().groupby(val["serie"]).sum().sort_values(ascending=False)
+    parte = 100 * error_ccaa / error_ccaa.sum()
+    nombre_ccaa = {c: d["nombre"] for c, d in j["ccaa"].items()}
+    tres = ", ".join(f"{nombre_ccaa.get(c, c)} ({_n(v, 0)} %)" for c, v in parte.head(3).items())
+    ccaa = pd.DataFrame.from_dict(j["ccaa"], orient="index").sort_values("media_prevista")
+    cambio = (ccaa["media_prevista"] - ccaa["media_12m_actual"]).mean()
+    mensual_val = acierto.loc[elegido, "validacion"]
+    no_llega = mensual_val < ACIERTO_MINIMO
+    o = r["origenes"]
+    explicacion = (
+        f"""**¿Por qué el mes a mes no llega al {_n(ACIERTO_MINIMO, 0)} %?** El % renovable de un mes depende del viento, la lluvia y el sol de
+ese mes, que no se pueden saber con un año de antelación: el acierto baja de {_n(por_h.iloc[0], 0)} % a 1 mes a {_n(por_h.iloc[-1], 0)} % a 12 meses. Tres
+comunidades suman el {_n(parte.head(3).sum(), 0)} % del error de validación: {tres}. En las comunidades con poca generación, una sola
+central que para o arranca cambia mucho el porcentaje. Los errores de meses sueltos se compensan en la media de 12 meses, que es la cifra que
+interesa para un CPD (un contrato de energía renovable es anual): esa sí cumple. El gráfico mes a mes se enseña como
+orientativo, con aviso.
+"""
+        if no_llega
+        else ""
+    )
+    return f"""## Generación renovable por comunidad autónoma
+
+Porcentaje de la generación eléctrica de cada comunidad que es renovable (REData, mensual desde 2015), 1 año vista. Un
+CPD que quiera energía verde la tendrá más fácil (y más barata) donde la red ya es muy renovable. Ceuta queda fuera: no
+tiene generación renovable en todo el periodo. Candidatos: los de las reservas y la temperatura (último mes, mismo mes
+del año anterior, climatología, anomalía persistente con φ común y por comunidad, ETS), dos ETS con solo los últimos 5
+años (con y sin tendencia) y la combinación de los 3 mejores.
+
+**Transparencia.** Las dos ETS de 5 años se añadieron después de una primera prueba en la que la combinación se
+quedaba en un 83,8 % en validación: con tanta potencia solar nueva, la historia larga frena la tendencia. La elección
+sigue siendo con la validación. La fila de la media de 12 meses del control de acierto se añadió después de ver que el
+mes a mes no llegaba al mínimo; las dos filas se enseñan.
+
+![Renovables por comunidad]({figura})
+
+**Figura 7.** % renovable de cada comunidad: el último año real (azul) y la previsión de los próximos 12 meses (naranja)
+con su intervalo 10-90 % (barra).
+
+{_tabla(pd.DataFrame(filas))}
+
+Validación: orígenes {o['origenes_validacion']}. Test: meses {o['meses_test']}.
+
+**Resultado.** Modelo elegido: **{NOMBRES_MODELO.get(elegido, elegido)}** ({', '.join(NOMBRES_MODELO.get(m, m) for m in r['miembros'])}).
+Mes a mes: {_n(mensual_val, 1)} % de acierto en validación y {_n(acierto.loc[elegido, 'test'], 1)} % en test (error de {_n(mae.loc[elegido, 'validacion'], 1)} y
+{_n(mae.loc[elegido, 'test'], 1)} puntos). **% medio de los 12 meses: {_n(j['acierto_anual_validacion'], 1)} % en validación y {_n(j['acierto_anual_test'], 1)} % en test.**
+Previsión: de {_n(ccaa['media_prevista'].iloc[0], 0)} % en {ccaa['nombre'].iloc[0]} a {_n(ccaa['media_prevista'].iloc[-1], 0)} % en {ccaa['nombre'].iloc[-1]}; de media,
+{_n(abs(cambio), 1)} puntos {'menos' if cambio < 0 else 'más'} que el último año.
+
+{explicacion}
+![Renovables mensual]({figura_mensual})
+
+**Figura 8.** % renovable mensual de cada comunidad (de más a menos renovable según la previsión): últimos 3 años y
+previsión a 1 año con su intervalo.
+"""
+
+
+def _por_que_precio(res: dict[str, Any]) -> str:
+    """Si el precio a 1 año no llega al acierto mínimo (D8), explica por qué con cifras de su propia validación."""
+    from cpd.modelos.metricas import ACIERTO_MINIMO
+
+    elegido = res["elegido"]
+    general = res["metricas"].query("modelo == @elegido and particion == 'validacion'").iloc[0]
+    if general["acierto_pct"] >= ACIERTO_MINIMO:
+        return ""
+    ph = res["por_horizonte"].query("particion == 'validacion'")
+    por_h = ph[ph["modelo"] == elegido].set_index("horizonte_meses")["acierto_pct"]
+    a_1_mes = ph[ph["horizonte_meses"] == 1].set_index("modelo")["acierto_pct"]
+    reales = res["predicciones"].query("particion == 'validacion' and modelo == @elegido").drop_duplicates("mes").set_index("mes")["real"]
+    mes = lambda t: pd.Timestamp(t).strftime("%m/%Y")  # noqa: E731
+    return f"""**¿Por qué no llega al {_n(ACIERTO_MINIMO, 0)} %?** El acierto cae con la antelación: {_n(por_h.iloc[0], 0)} % a 1 mes y
+{_n(por_h.iloc[-1], 0)} % a 12 meses (modelo elegido, validación). Ni el mejor modelo a 1 mes vista
+—{NOMBRES_MODELO.get(a_1_mes.idxmax(), a_1_mes.idxmax())}— pasa del {_n(a_1_mes.max(), 0)} %. En los meses de validación el precio real fue de
+{_n(reales.min(), 0)} €/MWh ({mes(reales.idxmin())}) a {_n(reales.max(), 0)} €/MWh ({mes(reales.idxmax())}): el error medio del modelo elegido,
+{_n(general['mae'], 0)} €/MWh, es pequeño en un mes caro y enorme en uno barato. Llegar al {_n(ACIERTO_MINIMO, 0)} % exigiría escoger un periodo
+de evaluación tranquilo o usar información que no se sabía en el origen, que es lo que el requisito (D8) quiere evitar.
+Por eso esta previsión se enseña como **escenario orientativo**, con aviso, y el simulador sigue usando la media de
+12 meses como supuesto (D7). Los futuros de electricidad (OMIP) podrían mejorar los primeros meses, pero no se han
+integrado y no aseguran el {_n(ACIERTO_MINIMO, 0)} % (mejora posible; recomendación, no viene de clase).
+"""
+
+
+def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None = None, control: pd.DataFrame | None = None) -> str:
+    """Informe de la previsión a 1 año (y a 10 años) con todos los gráficos (`docs/analisis/previsiones_1_anio.md`)."""
     fig = {k: "../../" + v for k, v in anual["figuras"].items()}
     p, d = anual["precio"], anual["demanda"]
     rp, rd = p["resultado"], d["resultado"]
@@ -411,13 +693,26 @@ def informe_anual(anual: dict[str, Any], fecha: str) -> str:
         )
     meses_p = ", ".join(f"{x['mes']}: {_n(x['valor'], 0)}" for x in jp["prevision"])
     o_p, o_d = rp["origenes"], rd["origenes"]
-    return f"""# Previsión a 1 año · demanda eléctrica y precio de la luz
+    seccion_control = _seccion_control(control, fig["control"]) if control is not None and "control" in fig else ""
+    seccion_reservas = _seccion_reservas(anual["reservas"], fig["reservas"]) if "reservas" in anual else ""
+    seccion_temperatura = (
+        _seccion_temperatura(anual["temperatura"], fig["temperatura"], fig["temperatura_mensual"]) if "temperatura" in anual and "temperatura" in fig else ""
+    )
+    seccion_renovables = (
+        _seccion_renovables(anual["renovables"], fig["renovables"], fig["renovables_mensual"]) if "renovables" in anual and "renovables" in fig else ""
+    )
+    seccion_10 = _seccion_10_anios(diez) if diez else ""
+    return f"""# Previsiones · 1 año (demanda, precio de la luz, reservas de agua, temperatura y renovables) y 10 años (demanda nacional)
 
 {AVISO.format(fecha=fecha)}
 
-Previsión mes a mes de los **12 meses siguientes** al último dato, con el modelo que menos se equivoca a 1 año.
-Código: `src/cpd/modelos/anual.py`. Las fichas de modelo de [demanda](../modelos/demanda_ccaa.md) y
-[precio](../modelos/precio_luz.md) describen los modelos a 1 y 12 meses; este informe es el que alimenta el mapa.
+Previsión mes a mes de los **12 meses siguientes** al último dato con el modelo que menos se equivoca a 1 año (demanda
+por comunidad, precio de la luz, reservas de agua por ámbito, temperatura por provincia y % de generación renovable por
+comunidad), y de la demanda nacional a 10 años. Código: `src/cpd/modelos/anual.py` y `src/cpd/modelos/largo_plazo.py`. Las fichas de
+modelo de [demanda](../modelos/demanda_ccaa.md) y [precio](../modelos/precio_luz.md) describen las primeras
+evaluaciones; este informe es el que alimenta el mapa.
+
+{seccion_control}
 
 ## Cómo se ha buscado el menor error
 
@@ -443,8 +738,9 @@ resultados de test son orientativos y no una prueba totalmente independiente.
 
 ![Precio de la luz]({fig['precio']})
 
-**Figura 1.** Precio real desde 2021 (verde), lo que el modelo habría previsto hace un año (punteado), la previsión de
-los próximos 12 meses con su intervalo (10-90 %) y el futuro del gas a 1 año (azul, eje derecho).
+**Figura 1.** Arriba, el precio real desde 2021 (azul), lo que el modelo habría previsto hace un año (punteado), la
+previsión de los próximos 12 meses (naranja) con su intervalo mensual (10-90 %) y la media de 12 meses que usa el
+simulador (gris). Abajo, en su propio eje, el gas de MIBGAS (mercado diario y futuro a 1 año) que usan los modelos con gas.
 
 {tabla_modelos(rp, 'mae', 1, '€/MWh')}
 
@@ -465,6 +761,7 @@ validación y {_n(jp['error_test'], 1)} €/MWh en test, frente a {_n(rp['metric
 **Figura 2.** Las 24 previsiones a 1 año de validación frente al precio real: se ve cuándo acierta y cuándo no
 (la previsión tarda en reaccionar a los cambios bruscos).
 
+{_por_que_precio(rp)}
 ## Demanda eléctrica por comunidad autónoma
 
 ![Demanda por comunidad]({fig['demanda']})
@@ -484,20 +781,30 @@ baseline en test («mismo mes del año anterior»).
 
 Rango: cuantiles 10-90 % del error de la suma anual de cada comunidad en validación.
 
+{seccion_reservas}
+
+{seccion_temperatura}
+
+{seccion_renovables}
+
+{seccion_10}
+
 ## Errores por horizonte y comparación de modelos
 
 ![Error por horizonte]({fig['horizonte']})
 
-**Figura 4.** Error medio de cada modelo según los meses de antelación (validación). El elegido va en trazo grueso.
+**Figura 10.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
+va en naranja y el resto en gris.
 
 ![Comparación]({fig['modelos']})
 
-**Figura 5.** Error a 1 año de cada modelo en validación y en test.
+**Figura 11.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
 
 ## Limitaciones
 
 - El precio del año siguiente depende sobre todo del gas, el CO2 y la hidráulica, que también se pueden equivocar:
-  el intervalo es ancho a propósito. Faltan los futuros de electricidad (OMIP), que serían la referencia directa.
+  el intervalo es ancho a propósito. No se han integrado los futuros de electricidad (OMIP), la referencia directa
+  del mercado: podrían mejorar los primeros meses, pero no aseguran el acierto mínimo (ver «¿Por qué no llega…?»).
 - Un solo año de test por serie: el error de test tiene mucha incertidumbre.
 - La demanda peninsular termina en junio de 2026 porque REData aún no ha publicado bien julio y agosto
   (ver [tablas_api.md](../datos/tablas_api.md)): su «año siguiente» empieza en julio de 2026.
@@ -825,7 +1132,8 @@ lugar de fijarlo en 0,5.
 **Modelo elegido: {NOMBRES_MODELO[elegido]}.** Con 52 provincias, añadir variables no mejora la log-loss: la
 población explica casi todo y el resto añade ruido (sobreajuste). Se documenta en lugar de elegir un modelo más
 complejo y peor.
-{f"{chr(10)}![Curva ROC]({'../../' + figura}){chr(10)}{chr(10)}**Figura.** Curvas ROC fuera de pliegue de los cuatro modelos.{chr(10)}" if figura else ""}
+{f"{chr(10)}![Curva ROC]({'../../' + figura}){chr(10)}{chr(10)}**Figura 1.** Curvas ROC fuera de pliegue de los cuatro modelos.{chr(10)}" if figura else ""}
+{f"{chr(10)}![prob_cpd por provincia]({'../../' + prob['figura_provincias']}){chr(10)}{chr(10)}**Figura 2.** Matriz de confusión con el umbral elegido, métricas con ese umbral y probabilidad fuera de pliegue de cada provincia (azul: tiene CPD; gris: no tiene; línea discontinua: umbral). Las barras grises a la derecha del umbral son las provincias «parecidas» a las que ya tienen CPD.{chr(10)}" if prob.get('figura_provincias') else ""}
 **Umbral elegido** (Youden): {_n(prob['umbral'], 2)}. Matriz de confusión con ese umbral:
 
 | | Predice "con CPD" | Predice "sin CPD" |
