@@ -1,6 +1,6 @@
 {
  "tipo": "simulacion",
- "generado": "2026-11-17T19:20:42+01:00",
+ "generado": "2026-11-17T22:31:28+01:00",
  "actualizado": "2026-11-13T21:15:00",
  "mes_referencia": "2026-10",
  "precio_luz_usado_eur_mwh": 80.46,
@@ -18,7 +18,7 @@
    "modelo": "solo_poblacion",
    "roc_auc": 0.882,
    "provincias_con_cpd": 14,
-   "generado": "2026-11-17T19:20:06+01:00"
+   "generado": "2026-11-17T22:27:40+01:00"
   },
   "precio_luz": {
    "modelo": "combinacion",
@@ -35,18 +35,19 @@
    "mae_test_eur_mwh": 30.29,
    "mae_validacion_eur_mwh": 28.98,
    "futuro_gas_anio_eur_mwh": 68.77,
-   "generado": "2026-11-17T19:20:39+01:00"
+   "generado": "2026-11-17T22:28:12+01:00"
   },
   "demanda": {
    "modelo": "combinacion",
    "mape_test_pct": 4.39,
-   "generado": "2026-11-17T19:20:39+01:00"
+   "generado": "2026-11-17T22:28:12+01:00"
   }
  },
  "provincias": [
   {
    "codigo_provincia": "01",
    "codigo_ccaa": "16",
+   "ambito_hidrografico": "Ebro",
    "provincia": "Araba/Álava",
    "ccaa": "País Vasco",
    "rentabilidad_clase": "alta",
@@ -86,6 +87,7 @@
   {
    "codigo_provincia": "02",
    "codigo_ccaa": "08",
+   "ambito_hidrografico": "Júcar",
    "provincia": "Albacete",
    "ccaa": "Castilla-La Mancha",
    "rentabilidad_clase": "media",
@@ -125,6 +127,7 @@
   {
    "codigo_provincia": "03",
    "codigo_ccaa": "10",
+   "ambito_hidrografico": "Júcar",
    "provincia": "Alicante/Alacant",
    "ccaa": "Comunitat Valenciana",
    "rentabilidad_clase": "baja",
@@ -164,6 +167,7 @@
   {
    "codigo_provincia": "04",
    "codigo_ccaa": "01",
+   "ambito_hidrografico": "Cuenca Mediterránea Andaluza",
    "provincia": "Almería",
    "ccaa": "Andalucía",
    "rentabilidad_clase": "media",
@@ -205,6 +209,7 @@
   {
    "codigo_provincia": "05",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "Ávila",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -248,6 +253,7 @@
   {
    "codigo_provincia": "06",
    "codigo_ccaa": "11",
+   "ambito_hidrografico": "Guadiana",
    "provincia": "Badajoz",
    "ccaa": "Extremadura",
    "rentabilidad_clase": "baja",
@@ -287,6 +293,7 @@
   {
    "codigo_provincia": "07",
    "codigo_ccaa": "04",
+   "ambito_hidrografico": null,
    "provincia": "Illes Balears",
    "ccaa": "Illes Balears",
    "rentabilidad_clase": "baja",
@@ -329,6 +336,7 @@
   {
    "codigo_provincia": "08",
    "codigo_ccaa": "09",
+   "ambito_hidrografico": "Cuencas Internas de Cataluña",
    "provincia": "Barcelona",
    "ccaa": "Cataluña",
    "rentabilidad_clase": "media",
@@ -369,6 +377,7 @@
   {
    "codigo_provincia": "09",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "Burgos",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -408,6 +417,7 @@
   {
    "codigo_provincia": "10",
    "codigo_ccaa": "11",
+   "ambito_hidrografico": "Tajo",
    "provincia": "Cáceres",
    "ccaa": "Extremadura",
    "rentabilidad_clase": "media",
@@ -447,6 +457,7 @@
   {
    "codigo_provincia": "11",
    "codigo_ccaa": "01",
+   "ambito_hidrografico": "Guadalete-Barbate",
    "provincia": "Cádiz",
    "ccaa": "Andalucía",
    "rentabilidad_clase": "baja",
@@ -488,6 +499,7 @@
   {
    "codigo_provincia": "12",
    "codigo_ccaa": "10",
+   "ambito_hidrografico": "Júcar",
    "provincia": "Castellón/Castelló",
    "ccaa": "Comunitat Valenciana",
    "rentabilidad_clase": "baja",
@@ -528,6 +540,7 @@
   {
    "codigo_provincia": "13",
    "codigo_ccaa": "08",
+   "ambito_hidrografico": "Guadiana",
    "provincia": "Ciudad Real",
    "ccaa": "Castilla-La Mancha",
    "rentabilidad_clase": "media",
@@ -567,6 +580,7 @@
   {
    "codigo_provincia": "14",
    "codigo_ccaa": "01",
+   "ambito_hidrografico": "Guadalquivir",
    "provincia": "Córdoba",
    "ccaa": "Andalucía",
    "rentabilidad_clase": "baja",
@@ -607,6 +621,7 @@
   {
    "codigo_provincia": "15",
    "codigo_ccaa": "12",
+   "ambito_hidrografico": "Galicia Costa",
    "provincia": "A Coruña",
    "ccaa": "Galicia",
    "rentabilidad_clase": "alta",
@@ -647,6 +662,7 @@
   {
    "codigo_provincia": "16",
    "codigo_ccaa": "08",
+   "ambito_hidrografico": "Tajo",
    "provincia": "Cuenca",
    "ccaa": "Castilla-La Mancha",
    "rentabilidad_clase": "alta",
@@ -686,6 +702,7 @@
   {
    "codigo_provincia": "17",
    "codigo_ccaa": "09",
+   "ambito_hidrografico": "Cuencas Internas de Cataluña",
    "provincia": "Girona",
    "ccaa": "Cataluña",
    "rentabilidad_clase": "baja",
@@ -726,6 +743,7 @@
   {
    "codigo_provincia": "18",
    "codigo_ccaa": "01",
+   "ambito_hidrografico": "Guadalquivir",
    "provincia": "Granada",
    "ccaa": "Andalucía",
    "rentabilidad_clase": "media",
@@ -766,6 +784,7 @@
   {
    "codigo_provincia": "19",
    "codigo_ccaa": "08",
+   "ambito_hidrografico": "Tajo",
    "provincia": "Guadalajara",
    "ccaa": "Castilla-La Mancha",
    "rentabilidad_clase": "media",
@@ -806,6 +825,7 @@
   {
    "codigo_provincia": "20",
    "codigo_ccaa": "16",
+   "ambito_hidrografico": "Cantábrico Oriental",
    "provincia": "Gipuzkoa",
    "ccaa": "País Vasco",
    "rentabilidad_clase": "media",
@@ -845,6 +865,7 @@
   {
    "codigo_provincia": "21",
    "codigo_ccaa": "01",
+   "ambito_hidrografico": "Tinto, Odiel y Piedras",
    "provincia": "Huelva",
    "ccaa": "Andalucía",
    "rentabilidad_clase": "baja",
@@ -885,6 +906,7 @@
   {
    "codigo_provincia": "22",
    "codigo_ccaa": "02",
+   "ambito_hidrografico": "Ebro",
    "provincia": "Huesca",
    "ccaa": "Aragón",
    "rentabilidad_clase": "media",
@@ -924,6 +946,7 @@
   {
    "codigo_provincia": "23",
    "codigo_ccaa": "01",
+   "ambito_hidrografico": "Guadalquivir",
    "provincia": "Jaén",
    "ccaa": "Andalucía",
    "rentabilidad_clase": "baja",
@@ -965,6 +988,7 @@
   {
    "codigo_provincia": "24",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "León",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -1005,6 +1029,7 @@
   {
    "codigo_provincia": "25",
    "codigo_ccaa": "09",
+   "ambito_hidrografico": "Ebro",
    "provincia": "Lleida",
    "ccaa": "Cataluña",
    "rentabilidad_clase": "media",
@@ -1045,6 +1070,7 @@
   {
    "codigo_provincia": "26",
    "codigo_ccaa": "17",
+   "ambito_hidrografico": "Ebro",
    "provincia": "La Rioja",
    "ccaa": "La Rioja",
    "rentabilidad_clase": "alta",
@@ -1085,6 +1111,7 @@
   {
    "codigo_provincia": "27",
    "codigo_ccaa": "12",
+   "ambito_hidrografico": "Miño-Sil",
    "provincia": "Lugo",
    "ccaa": "Galicia",
    "rentabilidad_clase": "alta",
@@ -1125,6 +1152,7 @@
   {
    "codigo_provincia": "28",
    "codigo_ccaa": "13",
+   "ambito_hidrografico": "Tajo",
    "provincia": "Madrid",
    "ccaa": "Madrid",
    "rentabilidad_clase": "no_rentable",
@@ -1167,6 +1195,7 @@
   {
    "codigo_provincia": "29",
    "codigo_ccaa": "01",
+   "ambito_hidrografico": "Cuenca Mediterránea Andaluza",
    "provincia": "Málaga",
    "ccaa": "Andalucía",
    "rentabilidad_clase": "baja",
@@ -1207,6 +1236,7 @@
   {
    "codigo_provincia": "30",
    "codigo_ccaa": "14",
+   "ambito_hidrografico": "Segura",
    "provincia": "Murcia",
    "ccaa": "Región de Murcia",
    "rentabilidad_clase": "baja",
@@ -1248,6 +1278,7 @@
   {
    "codigo_provincia": "31",
    "codigo_ccaa": "15",
+   "ambito_hidrografico": "Ebro",
    "provincia": "Navarra",
    "ccaa": "Comunidad Foral de Navarra",
    "rentabilidad_clase": "no_rentable",
@@ -1288,6 +1319,7 @@
   {
    "codigo_provincia": "32",
    "codigo_ccaa": "12",
+   "ambito_hidrografico": "Miño-Sil",
    "provincia": "Ourense",
    "ccaa": "Galicia",
    "rentabilidad_clase": "alta",
@@ -1327,6 +1359,7 @@
   {
    "codigo_provincia": "33",
    "codigo_ccaa": "03",
+   "ambito_hidrografico": "Cantábrico Occidental",
    "provincia": "Asturias",
    "ccaa": "Asturias",
    "rentabilidad_clase": "media",
@@ -1367,6 +1400,7 @@
   {
    "codigo_provincia": "34",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "Palencia",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -1406,6 +1440,7 @@
   {
    "codigo_provincia": "35",
    "codigo_ccaa": "05",
+   "ambito_hidrografico": null,
    "provincia": "Las Palmas",
    "ccaa": "Canarias",
    "rentabilidad_clase": "no_rentable",
@@ -1449,6 +1484,7 @@
   {
    "codigo_provincia": "36",
    "codigo_ccaa": "12",
+   "ambito_hidrografico": "Galicia Costa",
    "provincia": "Pontevedra",
    "ccaa": "Galicia",
    "rentabilidad_clase": "media",
@@ -1488,6 +1524,7 @@
   {
    "codigo_provincia": "37",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "Salamanca",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -1527,6 +1564,7 @@
   {
    "codigo_provincia": "38",
    "codigo_ccaa": "05",
+   "ambito_hidrografico": null,
    "provincia": "Santa Cruz de Tenerife",
    "ccaa": "Canarias",
    "rentabilidad_clase": "no_rentable",
@@ -1570,6 +1608,7 @@
   {
    "codigo_provincia": "39",
    "codigo_ccaa": "06",
+   "ambito_hidrografico": "Cantábrico Occidental",
    "provincia": "Cantabria",
    "ccaa": "Cantabria",
    "rentabilidad_clase": "media",
@@ -1609,6 +1648,7 @@
   {
    "codigo_provincia": "40",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "Segovia",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -1648,6 +1688,7 @@
   {
    "codigo_provincia": "41",
    "codigo_ccaa": "01",
+   "ambito_hidrografico": "Guadalquivir",
    "provincia": "Sevilla",
    "ccaa": "Andalucía",
    "rentabilidad_clase": "baja",
@@ -1687,6 +1728,7 @@
   {
    "codigo_provincia": "42",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "Soria",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -1726,6 +1768,7 @@
   {
    "codigo_provincia": "43",
    "codigo_ccaa": "09",
+   "ambito_hidrografico": "Ebro",
    "provincia": "Tarragona",
    "ccaa": "Cataluña",
    "rentabilidad_clase": "baja",
@@ -1766,6 +1809,7 @@
   {
    "codigo_provincia": "44",
    "codigo_ccaa": "02",
+   "ambito_hidrografico": "Ebro",
    "provincia": "Teruel",
    "ccaa": "Aragón",
    "rentabilidad_clase": "alta",
@@ -1806,6 +1850,7 @@
   {
    "codigo_provincia": "45",
    "codigo_ccaa": "08",
+   "ambito_hidrografico": "Tajo",
    "provincia": "Toledo",
    "ccaa": "Castilla-La Mancha",
    "rentabilidad_clase": "media",
@@ -1845,6 +1890,7 @@
   {
    "codigo_provincia": "46",
    "codigo_ccaa": "10",
+   "ambito_hidrografico": "Júcar",
    "provincia": "Valencia/València",
    "ccaa": "Comunitat Valenciana",
    "rentabilidad_clase": "baja",
@@ -1886,6 +1932,7 @@
   {
    "codigo_provincia": "47",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "Valladolid",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -1925,6 +1972,7 @@
   {
    "codigo_provincia": "48",
    "codigo_ccaa": "16",
+   "ambito_hidrografico": "Cuencas Internas del País Vasco",
    "provincia": "Bizkaia",
    "ccaa": "País Vasco",
    "rentabilidad_clase": "media",
@@ -1964,6 +2012,7 @@
   {
    "codigo_provincia": "49",
    "codigo_ccaa": "07",
+   "ambito_hidrografico": "Duero",
    "provincia": "Zamora",
    "ccaa": "Castilla y León",
    "rentabilidad_clase": "alta",
@@ -2003,6 +2052,7 @@
   {
    "codigo_provincia": "50",
    "codigo_ccaa": "02",
+   "ambito_hidrografico": "Ebro",
    "provincia": "Zaragoza",
    "ccaa": "Aragón",
    "rentabilidad_clase": "media",
@@ -2042,6 +2092,7 @@
   {
    "codigo_provincia": "51",
    "codigo_ccaa": "18",
+   "ambito_hidrografico": null,
    "provincia": "Ceuta",
    "ccaa": "Ceuta",
    "rentabilidad_clase": "no_rentable",
@@ -2086,6 +2137,7 @@
   {
    "codigo_provincia": "52",
    "codigo_ccaa": "19",
+   "ambito_hidrografico": null,
    "provincia": "Melilla",
    "ccaa": "Melilla",
    "rentabilidad_clase": "baja",
