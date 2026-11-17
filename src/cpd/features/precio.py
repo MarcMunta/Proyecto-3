@@ -66,10 +66,31 @@ def serie_co2(co2: pd.DataFrame, hoy: dt.date | None = None) -> pd.Series:
     return datos[datos.index < en_curso].rename("co2_tco2eq")
 
 
-def tabla_mensual(precio: pd.Series, reserva: pd.Series, co2: pd.Series) -> pd.DataFrame:
-    """Une las tres series en una tabla mensual continua (los meses sin dato quedan en NaN)."""
+def series_gas(gas_diario: pd.DataFrame, gas_futuros: pd.DataFrame, hoy: dt.date | None = None) -> pd.DataFrame:
+    """Gas mensual (MIBGAS, €/MWh): spot medio del mes y precio medio de los futuros negociados en ese mes.
+
+    Columnas: `gas_spot_eur_mwh`, `gas_m1_eur_mwh` (mes siguiente), `gas_q1_eur_mwh` (trimestre siguiente) y
+    `gas_y1_eur_mwh` (año natural siguiente). Un mes sin negociación de un futuro toma el último valor conocido
+    (hasta 2 meses): es lo que se sabría en ese momento. Sin el mes en curso.
+    """
+    en_curso = pd.Timestamp(hoy or dt.date.today()).to_period("M").to_timestamp()
+    spot = gas_diario.assign(mes=_mes(gas_diario["fecha"])).groupby("mes")["gas_mibgas_es_eur_mwh"].mean()
+    tabla = pd.DataFrame({"gas_spot_eur_mwh": spot})
+    futuros = gas_futuros.assign(mes=_mes(gas_futuros["fecha"]))
+    for producto, columna in (("M+1", "gas_m1_eur_mwh"), ("Q+1", "gas_q1_eur_mwh"), ("Y+1", "gas_y1_eur_mwh")):
+        serie = futuros[futuros["producto"] == producto].groupby("mes")["precio_eur_mwh"].mean()
+        tabla = tabla.join(serie.rename(columna), how="outer")
+    tabla = tabla.sort_index()
+    tabla = tabla.reindex(pd.date_range(tabla.index.min(), tabla.index.max(), freq="MS")).ffill(limit=2)
+    return tabla[tabla.index < en_curso]
+
+
+def tabla_mensual(precio: pd.Series, reserva: pd.Series, co2: pd.Series, gas: pd.DataFrame | None = None) -> pd.DataFrame:
+    """Une las series en una tabla mensual continua (los meses sin dato quedan en NaN). `gas` es opcional
+    (salida de `series_gas`)."""
     meses = pd.date_range(precio.index.min(), precio.index.max(), freq="MS")
-    return pd.DataFrame(index=pd.Index(meses, name="mes")).join([precio, reserva, co2])
+    tabla = pd.DataFrame(index=pd.Index(meses, name="mes")).join([precio, reserva, co2])
+    return tabla.join(gas) if gas is not None else tabla
 
 
 def construir_features_precio(mensual: pd.DataFrame, horizontes: tuple[int, ...] = HORIZONTES, meses_futuros: int = 0) -> pd.DataFrame:
@@ -97,6 +118,15 @@ def construir_features_precio(mensual: pd.DataFrame, horizontes: tuple[int, ...]
     volatilidad = log_p.diff().rolling(12, min_periods=12).std()
     reserva = datos["reserva_nacional_pct"] / 100
     co2_rel = np.log(datos["co2_tco2eq"]) - np.log(datos["co2_tco2eq"].rolling(12, min_periods=12).mean())
+    hay_gas = "gas_spot_eur_mwh" in datos.columns
+    if hay_gas:
+        # Gas relativo a su propio nivel de 12 meses: cuánto espera el mercado que suba o baje el gas.
+        log_gas_nivel = np.log(datos["gas_spot_eur_mwh"].rolling(12, min_periods=12).mean())
+        gas_rel = {
+            "f_gas_spot": np.log(datos["gas_spot_eur_mwh"]) - log_gas_nivel,
+            "f_gas_trimestre": np.log(datos["gas_q1_eur_mwh"]) - log_gas_nivel,
+            "f_gas_anio": np.log(datos["gas_y1_eur_mwh"]) - log_gas_nivel,
+        }
     partes = []
     for h in horizontes:
         log_nivel = np.log(nivel.shift(h))
@@ -117,6 +147,9 @@ def construir_features_precio(mensual: pd.DataFrame, horizontes: tuple[int, ...]
         tabla["f_mes_sin"] = np.sin(2 * np.pi * tabla["mes"].dt.month / 12)
         tabla["f_mes_cos"] = np.cos(2 * np.pi * tabla["mes"].dt.month / 12)
         tabla["f_horizonte"] = h / 12
+        if hay_gas:
+            for nombre, serie in gas_rel.items():
+                tabla[nombre] = serie.shift(h)
         tabla["precio_eur_mwh"] = datos["precio_eur_mwh"]
         tabla["objetivo_log_ratio"] = log_p - log_nivel
         partes.append(tabla)
@@ -144,5 +177,8 @@ def diccionario_features_precio() -> list[DefinicionFeature]:
         DefinicionFeature("f_co2_relativo", "log(CO2(r)) − log(media de 12 meses del CO2 hasta r)", "12 meses", "REData (co2)", "Ninguno"),
         DefinicionFeature("f_mes_sin, f_mes_cos", "seno y coseno de 2π·mes/12 del mes objetivo t", "calendario", "calendario", "Ninguno"),
         DefinicionFeature("f_horizonte", "h / 12", "—", "—", "Ninguno"),
+        DefinicionFeature("f_gas_spot", "log(gas spot medio de r) − log(media de 12 meses del gas hasta r)", "12 meses", "MIBGAS", "Ninguno"),
+        DefinicionFeature("f_gas_trimestre", "log(futuro de gas del trimestre siguiente negociado en r) − log(nivel del gas)", "1 mes", "MIBGAS", "Ninguno: precio publicado en r"),
+        DefinicionFeature("f_gas_anio", "log(futuro de gas del año siguiente negociado en r) − log(nivel del gas)", "1 mes", "MIBGAS", "Ninguno: precio publicado en r"),
         DefinicionFeature("objetivo_log_ratio", "log(precio(t)) − log(nivel(r)) — OBJETIVO, nunca entrada", "1 mes (t)", fuente, "Es el objetivo"),
     ]

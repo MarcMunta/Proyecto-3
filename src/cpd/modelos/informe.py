@@ -35,6 +35,10 @@ NOMBRES_MODELO = {
     "estacional": "Mismo mes del año anterior (estacional)",
     "tendencia_estacionalidad": "Tendencia + estacionalidad (`forecast.py`)",
     "media_12m": "Media de los últimos 12 meses (la del simulador)",
+    "ets": "ETS (Holt-Winters amortiguado)",
+    "ridge_gas": "Ridge con gas (ML)",
+    "estacional_tendencia": "Mismo mes del año anterior × tendencia",
+    "combinacion": "Combinación de los 3 mejores",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
@@ -338,7 +342,8 @@ def informe_metricas(demanda: dict[str, Any], prob: dict[str, Any], fecha: str, 
 
 {AVISO.format(fecha=fecha)}
 
-Fase 8 de [la metodología](../metodologia/03_Flujo_de_trabajo.md). Fichas de modelo:
+Fase 8 de [la metodología](../metodologia/03_Flujo_de_trabajo.md). **La previsión a 1 año que usa el mapa (con todos los
+gráficos) está en [previsiones_1_anio.md](previsiones_1_anio.md).** Fichas de modelo:
 [demanda por comunidad](../modelos/demanda_ccaa.md), [probabilidad de CPD](../modelos/prob_cpd.md) y
 [precio de la luz](../modelos/precio_luz.md).
 
@@ -377,6 +382,133 @@ Modelo elegido (menor log-loss): **{NOMBRES_MODELO.get(prob['elegido'], prob['el
 """
 
 
+def informe_anual(anual: dict[str, Any], fecha: str) -> str:
+    """Informe de la previsión a 1 año con todos los gráficos (`docs/analisis/previsiones_1_anio.md`)."""
+    fig = {k: "../../" + v for k, v in anual["figuras"].items()}
+    p, d = anual["precio"], anual["demanda"]
+    rp, rd = p["resultado"], d["resultado"]
+    jp, jd = p["resumen"], d["resumen"]
+
+    def tabla_modelos(res: dict[str, Any], col: str, fmt: int, unidad: str) -> str:
+        t = res["metricas"].pivot(index="modelo", columns="particion", values=col).sort_values("validacion")
+        filas = []
+        for modelo, fila in t.iterrows():
+            marca = " **(elegido)**" if modelo == res["elegido"] else (" (en la combinación)" if modelo in res["miembros"] else "")
+            filas.append({"Modelo": NOMBRES_MODELO.get(modelo, modelo) + marca, f"Validación ({unidad})": _n(fila["validacion"], fmt), f"Test ({unidad})": _n(fila["test"], fmt)})
+        return _tabla(pd.DataFrame(filas))
+
+    filas_ccaa = []
+    for codigo, c in sorted(jd["ccaa"].items(), key=lambda kv: -kv[1]["prevision_12m"]):
+        filas_ccaa.append(
+            {
+                "Comunidad": c["nombre"],
+                "Último año (GWh)": _n(c["ultimos_12m"] / 1e3, 0),
+                "Previsión 1 año (GWh)": _n(c["prevision_12m"] / 1e3, 0),
+                "Variación": f"{_n((c['prevision_12m'] / c['ultimos_12m'] - 1) * 100, 1)} %",
+                "Rango (GWh)": f"{_n(c['prevision_12m_inferior'] / 1e3, 0)}-{_n(c['prevision_12m_superior'] / 1e3, 0)}",
+                "Datos hasta": c["hasta"],
+            }
+        )
+    meses_p = ", ".join(f"{x['mes']}: {_n(x['valor'], 0)}" for x in jp["prevision"])
+    o_p, o_d = rp["origenes"], rd["origenes"]
+    return f"""# Previsión a 1 año · demanda eléctrica y precio de la luz
+
+{AVISO.format(fecha=fecha)}
+
+Previsión mes a mes de los **12 meses siguientes** al último dato, con el modelo que menos se equivoca a 1 año.
+Código: `src/cpd/modelos/anual.py`. Las fichas de modelo de [demanda](../modelos/demanda_ccaa.md) y
+[precio](../modelos/precio_luz.md) describen los modelos a 1 y 12 meses; este informe es el que alimenta el mapa.
+
+## Cómo se ha buscado el menor error
+
+1. **Backtesting a 1 año con 24 orígenes** (dos años). En cada origen, cada modelo se entrena solo con lo que se sabía
+   entonces y prevé los 12 meses siguientes. Se compara con lo que pasó. Así el error medido es el de una previsión a
+   1 año de verdad, y no el de un único periodo.
+2. **Candidatos:** baselines (mismo mes del año anterior, último mes, media de 12 meses), un modelo estadístico de
+   series temporales (**ETS de Holt-Winters** con tendencia amortiguada, `statsmodels`), modelos de ML (Ridge con
+   lags; para el precio, **Ridge con el gas** y gradient boosting) y la **combinación** (media) de los 3 mejores.
+3. **Fuente nueva para el precio:** el precio del gas de **MIBGAS** (spot y futuros a 1 trimestre y 1 año), porque el
+   gas marca el precio de la luz en muchas horas y sus futuros son lo que el mercado espera para el año siguiente.
+4. **Elección:** la combinación, salvo que un modelo solo la mejore en validación en más de un 5 %. Combinar modelos
+   reduce el error porque cada uno se equivoca en momentos distintos (recomendación, no viene de clase).
+5. **Test:** un año entero que ningún modelo ha visto (origen {o_p['origen_test']} en el precio y {o_d['origen_test']} en la
+   demanda).
+
+**Transparencia.** La primera versión usaba 12 orígenes de validación y elegía el mejor modelo sin margen: en el
+precio eligió el gradient boosting, que luego fue el peor en test (prevía 285 €/MWh extrapolando la crisis de 2022).
+Se amplió la validación a 24 orígenes y se fijó la regla de la combinación **después de ver ese test**, así que los
+resultados de test son orientativos y no una prueba totalmente independiente.
+
+## Precio de la luz
+
+![Precio de la luz]({fig['precio']})
+
+**Figura 1.** Precio real desde 2021 (verde), lo que el modelo habría previsto hace un año (punteado), la previsión de
+los próximos 12 meses con su intervalo (10-90 %) y el futuro del gas a 1 año (azul, eje derecho).
+
+{tabla_modelos(rp, 'mae', 1, '€/MWh')}
+
+Validación: orígenes {o_p['origenes_validacion']}, meses {o_p['meses_validacion']}. Test: meses {o_p['meses_test']}.
+
+**Resultado.** Modelo elegido: **{NOMBRES_MODELO.get(rp['elegido'], rp['elegido'])}**
+({', '.join(NOMBRES_MODELO.get(m, m) for m in rp['miembros'])}). Error medio a 1 año: {_n(jp['error_validacion'], 1)} €/MWh en
+validación y {_n(jp['error_test'], 1)} €/MWh en test, frente a {_n(rp['metricas'].query("modelo == 'media_12m' and particion == 'validacion'")['mae'].iloc[0], 1)} y
+{_n(rp['metricas'].query("modelo == 'media_12m' and particion == 'test'")['mae'].iloc[0], 1)} €/MWh de la media de 12 meses que usa el simulador.
+
+**Previsión** desde {jp['ultimo_mes']}: media de **{_n(jp['media_prevista'], 0)} €/MWh** para los próximos 12 meses (rango
+{_n(jp['media_inferior'], 0)}-{_n(jp['media_superior'], 0)} €/MWh, cuantiles 10-90 % del error de la media anual en validación), frente a
+{_n(jp['media_12m_actual'], 0)} €/MWh de media del último año y {_n(jp['ultimo_mes_valor'], 0)} €/MWh en {jp['ultimo_mes']}. El futuro de gas a
+1 año cotiza a {_n(jp['futuro_gas_anio'], 1) if jp['futuro_gas_anio'] else '—'} €/MWh. Mes a mes (€/MWh): {meses_p}.
+
+![Backtesting del precio]({fig['backtesting_precio']})
+
+**Figura 2.** Las 24 previsiones a 1 año de validación frente al precio real: se ve cuándo acierta y cuándo no
+(la previsión tarda en reaccionar a los cambios bruscos).
+
+## Demanda eléctrica por comunidad autónoma
+
+![Demanda por comunidad]({fig['demanda']})
+
+**Figura 3.** Últimos 3 años y previsión a 1 año de cada comunidad, con su intervalo (10-90 %).
+
+{tabla_modelos(rd, 'mape_pct', 2, '% MAPE')}
+
+Validación: orígenes {o_d['origenes_validacion']}, meses {o_d['meses_validacion']}. Test: meses {o_d['meses_test']}.
+
+**Resultado.** Modelo elegido: **{NOMBRES_MODELO.get(rd['elegido'], rd['elegido'])}**
+({', '.join(NOMBRES_MODELO.get(m, m) for m in rd['miembros'])}). Error medio a 1 año: {_n(jd['error_validacion'], 2)} % en validación y
+{_n(jd['error_test'], 2)} % en test, frente a {_n(rd['metricas'].query("modelo == 'estacional' and particion == 'test'")['mape_pct'].iloc[0], 2)} % del mejor
+baseline en test («mismo mes del año anterior»).
+
+{_tabla(pd.DataFrame(filas_ccaa))}
+
+Rango: cuantiles 10-90 % del error de la suma anual de cada comunidad en validación.
+
+## Errores por horizonte y comparación de modelos
+
+![Error por horizonte]({fig['horizonte']})
+
+**Figura 4.** Error medio de cada modelo según los meses de antelación (validación). El elegido va en trazo grueso.
+
+![Comparación]({fig['modelos']})
+
+**Figura 5.** Error a 1 año de cada modelo en validación y en test.
+
+## Limitaciones
+
+- El precio del año siguiente depende sobre todo del gas, el CO2 y la hidráulica, que también se pueden equivocar:
+  el intervalo es ancho a propósito. Faltan los futuros de electricidad (OMIP), que serían la referencia directa.
+- Un solo año de test por serie: el error de test tiene mucha incertidumbre.
+- La demanda peninsular termina en junio de 2026 porque REData aún no ha publicado bien julio y agosto
+  (ver [tablas_api.md](../datos/tablas_api.md)): su «año siguiente» empieza en julio de 2026.
+
+## Reproducción
+
+`.\\.venv\\Scripts\\python.exe -m cpd.modelos` (necesita las tablas `gas_diario` y `gas_futuros`, que descarga
+`python -m cpd.fuentes.actualizar`). Salidas en `data/curated/modelos/previsiones_1_anio.json` y `anual_*.csv`.
+"""
+
+
 def ficha_precio(precio: dict[str, Any], fecha: str) -> str:
     """Model card del precio de la luz (`docs/modelos/precio_luz.md`)."""
     r = precio["resultado"]
@@ -407,6 +539,10 @@ def ficha_precio(precio: dict[str, Any], fecha: str) -> str:
     return f"""# Model card · Precio medio mensual de la electricidad (`precio_luz`)
 
 {AVISO.format(fecha=fecha)}
+
+> Esta ficha es la primera evaluación del precio (un solo periodo de validación y sin el precio del gas). **La
+> previsión a 1 año que usa el mapa** (combinación con el gas de MIBGAS, elegida con 24 orígenes de backtesting) está
+> en [previsiones_1_anio.md](../analisis/previsiones_1_anio.md).
 
 ## Datos
 
@@ -527,6 +663,10 @@ def ficha_demanda(demanda: dict[str, Any], fecha: str) -> str:
     return f"""# Model card · Demanda eléctrica mensual por comunidad autónoma
 
 {AVISO.format(fecha=fecha)}
+
+> Esta ficha evalúa la demanda a 1 y a 12 meses vista con un único periodo de test. **La previsión a 1 año que usa el
+> mapa** (combinación de modelos elegida con 24 orígenes de backtesting) está en
+> [previsiones_1_anio.md](../analisis/previsiones_1_anio.md).
 
 ## Datos
 

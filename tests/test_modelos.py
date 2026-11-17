@@ -291,3 +291,65 @@ def test_evaluar_precio_y_prevision_final():
     backtest = mp.media_anual_por_origen(mensual, {"ridge": "alpha=100"}, [pd.Timestamp("2021-01-01")])
     resumen = mp.resumen_anual(prevision, backtest, mensual)
     assert resumen["ultimo_mes"] == mensual.index.max().strftime("%Y-%m")
+
+
+# ---------- Previsión a 1 año (cpd.modelos.anual) ----------
+
+
+def test_origenes_de_1_anio_no_se_solapan_con_el_test():
+    from cpd.modelos import anual
+
+    o = anual.definir_origenes(pd.Timestamp("2026-06-01"))
+    assert len(o.validacion) == anual.ORIGENES_VALIDACION
+    ultimo_mes_validacion = o.validacion[-1] + pd.DateOffset(months=anual.HORIZONTE)
+    assert ultimo_mes_validacion <= o.test  # ningún mes objetivo de validación cae en el test
+    assert o.test == pd.Timestamp("2025-06-01")
+
+
+def test_candidatos_de_demanda_solo_usan_datos_hasta_el_origen():
+    from cpd.modelos import anual
+
+    serie = serie_sintetica(meses=96).assign(imputado=False)
+    origen = pd.Timestamp("2022-06-01")
+    alterada = serie.copy()
+    alterada.loc[alterada["mes"] > origen, "demanda_mwh"] *= 4  # el futuro cambia mucho
+    a = {n: f(origen) for n, f in anual.candidatos_demanda(serie).items()}
+    b = {n: f(origen) for n, f in anual.candidatos_demanda(alterada).items()}
+    for nombre in a:
+        np.testing.assert_allclose(a[nombre]["prevision"].to_numpy(), b[nombre]["prevision"].to_numpy(), rtol=1e-6, err_msg=nombre)
+        assert a[nombre]["mes"].min() == origen + pd.DateOffset(months=1)
+        assert a[nombre]["horizonte_meses"].between(1, 12).all()
+
+
+def test_evaluar_1_anio_elige_con_validacion_y_combina():
+    from cpd.modelos import anual
+
+    serie = serie_sintetica(meses=120).assign(imputado=False)
+    candidatos = anual.candidatos_demanda(serie)
+    origenes = anual.definir_origenes(serie["mes"].max(), n_validacion=6)
+    resultado = anual.evaluar(candidatos, anual.reales_demanda(serie), origenes, "mape_pct")
+    assert "combinacion" in set(resultado["metricas"]["modelo"])
+    assert len(resultado["miembros"]) == anual.MIEMBROS_COMBINACION
+    n = resultado["metricas"].query("particion == 'validacion'").set_index("modelo")["n"]
+    assert n.nunique() == 1  # mismas filas para todos los modelos
+    prevision = anual.prevision_final(candidatos, resultado, {"01": serie["mes"].max(), "13": serie["mes"].max()})
+    assert len(prevision) == 24 and (prevision["inferior"] <= prevision["superior"]).all()
+    intervalos = anual.intervalo_media_anual(resultado)
+    assert (intervalos["factor_inferior"] <= intervalos["factor_superior"]).all()
+
+
+def test_series_de_gas_mensuales_y_ultimo_valor_conocido():
+    import datetime as dt
+
+    from cpd.features import precio as fp
+
+    # Datos de PRUEBA: gas diario y futuros sintéticos.
+    diario = pd.DataFrame({"fecha": pd.date_range("2024-01-01", "2024-04-30", freq="D").strftime("%Y-%m-%d"), "gas_mibgas_es_eur_mwh": 30.0})
+    futuros = pd.DataFrame(
+        {"fecha": ["2024-01-10", "2024-01-11", "2024-03-05"], "producto": ["Y+1", "Y+1", "Q+1"], "precio_eur_mwh": [40.0, 42.0, 35.0]}
+    )
+    gas = fp.series_gas(diario, futuros, hoy=dt.date(2024, 4, 15))
+    assert list(gas.index.strftime("%Y-%m")) == ["2024-01", "2024-02", "2024-03"]  # sin el mes en curso
+    assert gas.loc["2024-01-01", "gas_y1_eur_mwh"] == pytest.approx(41.0)
+    assert gas.loc["2024-03-01", "gas_y1_eur_mwh"] == pytest.approx(41.0)  # último valor conocido (hasta 2 meses)
+    assert pd.isna(gas.loc["2024-01-01", "gas_q1_eur_mwh"])

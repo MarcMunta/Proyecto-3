@@ -110,7 +110,9 @@ Los datos del modelo se regeneran con `npm run data` (llama a `cpd.scoring.evalu
 Necesita `data/curated/panel_provincia_mes` (ver [Datos por API](#datos-por-api)). Entrena y evalúa la previsión de la
 demanda eléctrica por comunidad (1 y 12 meses, con baselines y validación temporal) y la probabilidad de que una
 provincia tenga un CPD (`prob_cpd`). Escribe los informes en `docs/analisis/` y las fichas de modelo en `docs/modelos/`;
-las salidas para el mapa van a `data/curated/modelos/` (`npm run data` las incorpora). Código en `src/cpd/features/` y
+las salidas para el mapa van a `data/curated/modelos/` (`npm run data` las incorpora). La **previsión a 1 año** de la
+demanda y del precio de la luz (con el gas de MIBGAS) y todos sus gráficos están en
+[`docs/analisis/previsiones_1_anio.md`](docs/analisis/previsiones_1_anio.md). Código en `src/cpd/features/` y
 `src/cpd/modelos/`.
 
 ## Cómo ejecutar los tests
