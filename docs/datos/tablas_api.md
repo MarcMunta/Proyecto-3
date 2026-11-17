@@ -77,6 +77,8 @@ Derivadas en el panel (ver sección 7): `balance_hidrico_mes_mm` (precipitación
 | `ccaa_generacion` | codigo_ccaa, fecha, generacion_total_mwh, generacion_renovable_mwh, pct_renovable | MWh, % | `generacion/estructura-generacion` | CCAA | mensual | desde 2015 |
 | `co2` | fecha, emisiones_co2_tco2eq | tCO2 eq. | `generacion/no-renovables-detalle-emisiones-CO2` | N | mensual | desde 2015 |
 | `precios_diarios` | fecha, precio_spot_eur_mwh, precio_pvpc_eur_mwh | €/MWh | `mercados/precios-mercados-tiempo-real` (`time_trunc=hour`) | N | diaria | desde 2015 |
+| `gas_diario` | fecha, gas_mibgas_es_eur_mwh | €/MWh | MIBGAS, ficheros anuales `MIBGAS_Data_<año>.xlsx` (hoja de índices) | N | diaria | desde 2016 |
+| `gas_futuros` | fecha, producto (M+1, Q+1, Y+1), inicio_entrega, fin_entrega, precio_eur_mwh | €/MWh | MIBGAS, hoja de negociación del PVB | N | diaria | M+1 desde 2016; Q+1 e Y+1 desde 2018 |
 | `energia_tiempo_real` | momento_consulta, demanda_tiempo_real_mw, precio_spot_actual_eur_mwh, precio_spot_manana_medio_eur_mwh | MW, €/MWh | `demanda-tiempo-real`; spot; OMIE `marginalpdbc` | N | tiempo real | — |
 | `capacidad_ccaa` | codigo_ccaa, ccaa, nudos, capacidad_demanda_rdt_disponible_mw | MW | CSV de REE "capacidad de acceso" | CCAA | mensual (REE) | última publicación |
 
@@ -180,6 +182,7 @@ diccionarios), `dw` (estrella) y `meta`.
   guarda el valor original y el motivo en `data/curated/calidad_demanda_ccaa.csv` (37 meses × comunidad el
   17/11/2026). La demanda de un año se vuelve a pedir hasta 12 meses después de terminar
   (`MESES_CONSOLIDACION_DEMANDA`), así que las correcciones de REData entran solas en la siguiente actualización.
+- **Gas (MIBGAS)**: precio del mercado ibérico del gas (`cpd.fuentes.mibgas`), descargado el 17/11/2026. Licencia: la hoja «Disclaimer» de cada fichero permite usar libremente la información pública «siempre que se respete íntegramente su contenido original». Los nombres de las hojas cambian entre años (2016-2017, 2018-2020 y 2021 en adelante); el lector las busca por nombre de columna.
 - **Precios**: nacionales; no hay precio por zona. `precio_pvpc_medio_mes_eur_mwh` tiene cobertura del 46 % (solo cubre el periodo publicado por REData).
 - **Paro registrado** (SEPE): no es tasa EPA.
 - Si una fuente falla, sus columnas quedan NaN y el resumen de `actualizar` lo indica. Nunca se inventan valores.
