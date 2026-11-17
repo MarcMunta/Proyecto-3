@@ -47,6 +47,7 @@ NOMBRES_MODELO = {
     "ets_5_anios": "ETS de 5 años con tendencia amortiguada",
     "ets_5_anios_sin_tendencia": "ETS de 5 años sin tendencia",
     "ets_5_anios_log": "ETS de 5 años sobre el logaritmo",
+    "persistencia": "Persistencia (como el año anterior)",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
@@ -478,7 +479,7 @@ deriva, tendencia lineal, Holt amortiguado y la combinación de los 3 mejores.
 
 ![Demanda a 10 años]({"../../" + diez["figura"]})
 
-**Figura 10.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
+**Figura 11.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
 
 MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirlo):
 
@@ -687,6 +688,74 @@ así que los dos periodos de 12 meses no coinciden del todo.
 """
 
 
+def _seccion_operacion(operacion_res: dict[str, Any], figura: str) -> str:
+    """Operación del CPD de referencia a 1 año (A3): consumo, emisiones, agua y reserva del ámbito por provincia."""
+    j, bt = operacion_res["resumen"], operacion_res["backtesting"]
+    tabla = operacion_res["tabla"].copy()
+    tabla["nombre"] = tabla["codigo_provincia"].map(lambda c: operacion_res["nombres"].get(c, {}).get("nombre", c))
+    menos, mas = tabla.nsmallest(5, "emisiones_t_previsto"), tabla.nlargest(5, "emisiones_t_previsto")
+    lista = lambda d: ", ".join(f"{f.nombre} ({_n(f.emisiones_t_previsto / 1e3, 1)} mil t)" for f in d.itertuples())  # noqa: E731
+    pue = tabla["pue_previsto"]
+    cpd = j["cpd"]
+    return f"""## Operación del CPD a 1 año (sostenibilidad operativa, objetivo A3)
+
+Encadena los modelos anteriores con las fórmulas del simulador para un CPD de referencia ({_n(cpd['potencia_ti_mw'], 0)} MW de TI,
+carga {_n(100 * cpd['factor_carga'], 0)} %, refrigeración por {cpd['tipo_refrigeracion']}): la **temperatura media prevista** de la provincia da el
+PUE y el consumo, y el **% renovable previsto** de su comunidad da las emisiones si el CPD se abastece con el mix de
+generación de esa comunidad ({_n(j['factor_emision_t_mwh'], 2)} t CO2 por MWh no renovable). El mercado eléctrico es único, así que
+usar el mix de la comunidad es una aproximación (recomendación, no viene de clase). También se da la reserva mínima
+prevista de los embalses del ámbito en los próximos 12 meses.
+
+**Validación de punta a punta** ({j['origenes']} orígenes de validación comunes a los dos modelos, {bt['provincias']} provincias): el consumo
+del año siguiente calculado con lo previsto acierta un **{_n(j['acierto_consumo'], 1)} %** y las emisiones un **{_n(j['acierto_emisiones'], 1)} %**. El
+consumo acierta tanto porque el PUE apenas cambia con la temperatura en la fórmula del simulador (de {_n(pue.min(), 3)} a {_n(pue.max(), 3)}
+entre provincias); no hay fuga de información: el dato real de cada año no se usa para prever ese año.
+
+![Emisiones del CPD]({figura})
+
+**Figura 10.** Emisiones anuales del CPD de referencia en cada provincia: último año (azul) y próximos 12 meses
+(naranja).
+
+Menos emisiones previstas: {lista(menos)}. Más: {lista(mas)}.
+"""
+
+
+def _seccion_sismico(sismico: dict[str, Any]) -> str:
+    """Riesgo sísmico (P8): candidatos, métricas y por qué no se usa si no llega al acierto mínimo."""
+    from cpd.fuentes.provincias import PROVINCIAS
+    from cpd.modelos.metricas import ACIERTO_MINIMO
+
+    nombres = {p.codigo: p.nombre_ine for p in PROVINCIAS}
+    m = sismico["metricas"]
+    filas = [
+        {
+            "Modelo": NOMBRES_MODELO.get(f.modelo, f.modelo) + (" **(elegido)**" if f.modelo == sismico["elegido"] else ""),
+            "Partición": f.particion,
+            "Accuracy": f"{_n(100 * f.accuracy, 1)} %",
+            "ROC-AUC": _n(f.roc_auc, 2),
+            "Recall": f"{_n(100 * f.recall, 0)} %",
+            "Log-loss": _n(f.log_loss, 3),
+        }
+        for f in m.sort_values(["particion", "log_loss"], ascending=[False, True]).itertuples()
+    ]
+    elegida = m.set_index(["modelo", "particion"]).loc[(sismico["elegido"], "validacion")]
+    cumple = 100 * elegida["accuracy"] >= ACIERTO_MINIMO
+    prev = sismico["prevision"].sort_values("prob", ascending=False)
+    return f"""## Riesgo sísmico por provincia (P8)
+
+¿Habrá al menos un terremoto de magnitud ≥ 3 en la provincia el año que viene? Datos de EMSC por provincia y año
+(desde 2015); cada año se entrena solo con los anteriores. Variables: si lo hubo el año anterior, en qué fracción de
+años lo ha habido, actividad media, magnitud máxima y la peligrosidad oficial de la norma NCSE-02 (aceleración
+máxima de la provincia y municipios con ab ≥ 0,08 g). Candidatos: clase mayoritaria, persistencia («como el año
+anterior») y regresión logística; se elige con la log-loss de validación ({sismico['anios_validacion']}; test {sismico['anio_test']}).
+
+{_tabla(pd.DataFrame(filas))}
+
+{"El modelo cumple el acierto mínimo." if cumple else f"**No llega al {_n(ACIERTO_MINIMO, 0)} %** aunque mejora a los baselines (ROC-AUC {_n(elegida['roc_auc'], 2)}): que haya o no un terremoto de magnitud ≥ 3 en un año es muy aleatorio y diez años de catálogo son poca historia. No se usa en el score. Para el riesgo sísmico del score y del filtro se usa directamente la aceleración sísmica básica oficial de la capital (NCSE-02), que es el dato que manda para proyectar un edificio."}
+Probabilidades más altas para {int(prev['anio'].iloc[0])}: {', '.join(f"{nombres.get(c, c)} ({_n(100 * p, 0)} %)" for c, p in zip(prev['codigo_provincia'].head(5), prev['prob'].head(5)))}.
+"""
+
+
 def _por_que_precio(res: dict[str, Any]) -> str:
     """Si el precio a 1 año no llega al acierto mínimo (D8), explica por qué con cifras de su propia validación."""
     from cpd.modelos.metricas import ACIERTO_MINIMO
@@ -750,6 +819,8 @@ def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None
         _seccion_renovables(anual["renovables"], fig["renovables"], fig["renovables_mensual"]) if "renovables" in anual and "renovables" in fig else ""
     )
     seccion_cobertura = _seccion_cobertura(anual["cobertura"], fig["cobertura"]) if "cobertura" in anual and "cobertura" in fig else ""
+    seccion_operacion = _seccion_operacion(anual["operacion"], fig["operacion"]) if "operacion" in anual and "operacion" in fig else ""
+    seccion_sismico = _seccion_sismico(anual["sismico"]) if "sismico" in anual else ""
     seccion_10 = _seccion_10_anios(diez) if diez else ""
     return f"""# Previsiones · 1 año (demanda, precio de la luz, reservas de agua, temperatura y renovables) y 10 años (demanda nacional)
 
@@ -838,18 +909,22 @@ Rango: cuantiles 10-90 % del error de la suma anual de cada comunidad en validac
 
 {seccion_cobertura}
 
+{seccion_operacion}
+
+{seccion_sismico}
+
 {seccion_10}
 
 ## Errores por horizonte y comparación de modelos
 
 ![Error por horizonte]({fig['horizonte']})
 
-**Figura 11.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
+**Figura 12.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
 va en naranja y el resto en gris.
 
 ![Comparación]({fig['modelos']})
 
-**Figura 12.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
+**Figura 13.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
 
 ## Limitaciones
 

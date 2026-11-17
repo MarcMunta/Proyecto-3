@@ -517,3 +517,30 @@ def test_metricas_con_un_real_igual_a_cero_dejan_el_mape_vacio():
     assert np.isnan(m["mape_pct"])
     assert m["mae"] == pytest.approx(1.0)
     assert m["acierto_pct"] == pytest.approx(100 * (1 - 2 / 10))
+
+
+def test_operacion_del_cpd_sube_con_el_calor_y_no_emite_con_mix_100_renovable():
+    from cpd import simulator as sim
+    from cpd.modelos.operacion import operacion_anual
+
+    params = sim.CPDParams()
+    frio, calor = operacion_anual(10.0, 50.0, params, 0.1), operacion_anual(20.0, 50.0, params, 0.1)
+    assert calor["pue"] > frio["pue"] and calor["consumo_mwh"] > frio["consumo_mwh"]
+    assert operacion_anual(15.0, 100.0, params, 0.1)["emisiones_t"] == pytest.approx(0.0)
+    assert frio["emisiones_t"] == pytest.approx(frio["consumo_mwh"] * 0.5 * 0.1)
+
+
+def test_riesgo_sismico_solo_usa_anios_anteriores():
+    from cpd.modelos import sismico
+
+    # Terremotos SINTÉTICOS (solo para el test): dos provincias, 2015-2024.
+    filas = [{"codigo_provincia": "18", "anio": a, "n_terremotos": 20, "magnitud_max": 3.5, "n_terremotos_m3_plus": 2} for a in range(2015, 2025)]
+    filas += [{"codigo_provincia": "42", "anio": 2016, "n_terremotos": 1, "magnitud_max": 2.0, "n_terremotos_m3_plus": 0}]
+    panel = sismico.panel_anual(pd.DataFrame(filas), ["18", "42"], hoy=pd.Timestamp("2025-06-01").date())
+    a = sismico.features(panel, 2020)
+    alterado = panel.copy()
+    alterado.loc[alterado["anio"] >= 2020, ["n_terremotos", "n_m3", "magnitud_max"]] = 0
+    b = sismico.features(alterado, 2020)
+    pd.testing.assert_frame_equal(a[sismico.FEATURES], b[sismico.FEATURES])
+    assert a.loc["18", "f_frecuencia"] == 1.0 and a.loc["42", "f_frecuencia"] == 0.0
+    assert panel["anio"].max() == 2024  # el año en curso (2025) no entra

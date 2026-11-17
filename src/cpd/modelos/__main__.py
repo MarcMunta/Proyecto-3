@@ -721,6 +721,40 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
             "cobertura_prevista_pct": cobertura(renovable_prevista, d["prevision_12m"]),
         }
 
+    # Operación del CPD de referencia a 1 año (objetivo A3): temperatura → PUE → consumo; % renovable → emisiones.
+    from cpd import simulator as simulador
+    from cpd.config import cargar_settings
+    from cpd.fuentes.embalses import AMBITO_POR_PROVINCIA
+    from cpd.modelos import operacion
+
+    ajustes = cargar_settings()
+    validos = {f.name for f in dataclasses.fields(simulador.CPDParams)}
+    params = simulador.CPDParams(**{k: v for k, v in ajustes.get("cpd_por_defecto", {}).items() if k in validos})
+    factor_emision = float(ajustes["precios"]["factor_emision_t_mwh"])
+    ccaa_de = pd.read_csv(CARPETA_TABLAS / "provincias.csv", dtype={"codigo_provincia": str, "codigo_ccaa": str}).set_index("codigo_provincia")["codigo_ccaa"].to_dict()
+    bt_op = operacion.backtesting(res_t, res_v, ccaa_de, params, factor_emision)
+    tabla_op = operacion.prevision(salida["temperatura"]["provincias"], salida["renovables"]["ccaa"], ccaa_de, params, factor_emision)
+    print(f"  operación del CPD: consumo {bt_op['acierto_consumo']:.1f} %, emisiones {bt_op['acierto_emisiones']:.1f} % ({bt_op['origenes']} orígenes comunes)")
+    salida["operacion"] = {
+        "cpd": {"potencia_ti_mw": params.potencia_ti_mw, "factor_carga": params.factor_carga, "tipo_refrigeracion": params.tipo_refrigeracion},
+        "factor_emision_t_mwh": factor_emision,
+        "acierto_consumo": round(bt_op["acierto_consumo"], 1), "acierto_emisiones": round(bt_op["acierto_emisiones"], 1),
+        "origenes": bt_op["origenes"], "provincias": {},
+    }
+    for f in tabla_op.itertuples():
+        ambito = AMBITO_POR_PROVINCIA.get(f.codigo_provincia)
+        p_res = prev_r[prev_r["serie"] == ambito].sort_values("prevision") if ambito else prev_r.iloc[0:0]
+        salida["operacion"]["provincias"][f.codigo_provincia] = {
+            "pue_actual": round(f.pue_actual, 3), "pue_previsto": round(f.pue_previsto, 3),
+            "consumo_actual_mwh": round(f.consumo_mwh_actual, 0), "consumo_previsto_mwh": round(f.consumo_mwh_previsto, 0),
+            "emisiones_actual_t": round(f.emisiones_t_actual, 0), "emisiones_previsto_t": round(f.emisiones_t_previsto, 0),
+            "agua_m3": round(f.agua_m3_previsto, 0),
+            "reserva_minima_prevista_pct": round(float(p_res["prevision"].iloc[0]), 1) if len(p_res) else None,
+            "mes_reserva_minima": mes(p_res["mes"].iloc[0]) if len(p_res) else None,
+        }
+    bt_op["detalle"].to_csv(RUTA_SALIDAS / "operacion_backtesting.csv", index=False)
+    tabla_op.to_csv(RUTA_SALIDAS / "operacion_cpd_provincia.csv", index=False)
+
     # Control de acierto de los modelos de la previsión a 1 año (100 − WAPE, ver cpd.modelos.metricas).
     for clave, res in (("precio", res_p), ("demanda", res_d), ("reservas", res_r), ("temperatura", res_t), ("renovables", res_v), ("cobertura_renovable", res_g)):
         m = res["metricas"].query("modelo == @res['elegido']").set_index("particion")
@@ -748,11 +782,13 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     temperatura = {"resultado": res_t, "prevision": prev_t, "reales": reales_t, "resumen": salida["temperatura"]}
     renovables = {"resultado": res_v, "prevision": prev_v, "reales": reales_v, "resumen": salida["renovables"]}
     cobertura = {"resultado": res_g, "prevision": prev_g, "resumen": salida["cobertura_renovable"]}
+    operacion_res = {"backtesting": bt_op, "tabla": tabla_op, "resumen": salida["operacion"], "nombres": salida["temperatura"]["provincias"]}
     figuras = _figuras_anual(precio, demanda, mensual, serie)
     figuras.update(_figuras_reservas(reservas))
     figuras.update(_figuras_temperatura(temperatura))
     figuras.update(_figuras_renovables(renovables))
     figuras.update(_figura_cobertura(cobertura))
+    figuras.update(_figura_operacion(operacion_res))
     # MAE de la generación renovable en GWh para que el eje sea legible.
     en_gwh = {k: (v.assign(mae=v["mae"] / 1e3) if k in ("metricas", "por_horizonte") else v) for k, v in res_g.items()}
     figuras.update(
@@ -769,7 +805,7 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     )
     return {
         "precio": precio, "demanda": demanda, "reservas": reservas, "temperatura": temperatura, "renovables": renovables,
-        "cobertura": cobertura, "figuras": figuras, "json": salida,
+        "cobertura": cobertura, "operacion": operacion_res, "figuras": figuras, "json": salida,
     }
 
 
@@ -842,6 +878,29 @@ def _figuras_temperatura(temperatura: dict) -> dict[str, str]:
     figura.tight_layout(rect=(0, 0, 1, 0.95))
     figuras["temperatura_mensual"] = _guardar_figura(figura, "10_temperatura_mensual.png")
     return figuras
+
+
+@_con_estilo
+def _figura_operacion(operacion_res: dict) -> dict[str, str]:
+    """Figura 14: emisiones del CPD de referencia por provincia, último año y próximos 12 meses (t CO2/año)."""
+    tabla = operacion_res["tabla"].copy()
+    tabla["nombre"] = tabla["codigo_provincia"].map(lambda c: operacion_res["nombres"].get(c, {}).get("nombre", c))
+    tabla = tabla.sort_values("emisiones_t_previsto")
+    figura, eje = plt.subplots(figsize=(9, 11.5))
+    y = np.arange(len(tabla))
+    eje.hlines(y, 0, tabla["emisiones_t_previsto"] / 1e3, color=COLOR_PREVISTO, alpha=0.35, lw=3)
+    eje.plot(tabla["emisiones_t_actual"] / 1e3, y, "o", ms=5, color=COLOR_REAL, mec=FONDO, mew=1.2, label="último año (real)", zorder=4)
+    eje.plot(tabla["emisiones_t_previsto"] / 1e3, y, "o", ms=5.5, color=COLOR_PREVISTO, mec=FONDO, mew=1.2, label="próximos 12 meses (previsto)", zorder=5)
+    eje.set_yticks(y, tabla["nombre"], fontsize=7.2)
+    eje.set_ylim(-0.8, len(tabla) - 0.2)
+    eje.set_xlim(left=0)
+    eje.grid(False)
+    eje.grid(axis="x")
+    cpd = operacion_res["resumen"]["cpd"]
+    eje.set_xlabel(f"Miles de t CO2 al año (CPD de {cpd['potencia_ti_mw']:.0f} MW de TI con el mix de generación de su comunidad)")
+    eje.set_title("Emisiones del CPD de referencia por provincia: último año y previsión", pad=28)
+    eje.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncols=2, fontsize=7.5)
+    return {"operacion": _guardar_figura(figura, "14_operacion_cpd_emisiones.png")}
 
 
 @_con_estilo
@@ -970,6 +1029,23 @@ def _figura_10_anios(anual_twh: pd.Series, resultado: dict, prevision: pd.DataFr
     return _guardar_figura(figura, "07_demanda_nacional_10_anios.png")
 
 
+def ejecutar_sismico() -> dict:
+    """Probabilidad de algún terremoto M ≥ 3 el año siguiente por provincia (`cpd.modelos.sismico`)."""
+    from cpd.fuentes.curado import CARPETA_TABLAS
+    from cpd.fuentes.provincias import CODIGOS
+    from cpd.modelos import sismico
+
+    panel = sismico.panel_anual(pd.read_csv(CARPETA_TABLAS / "sismos.csv", dtype={"codigo_provincia": str}), sorted(CODIGOS))
+    ruta_norma = CARPETA_TABLAS / "peligrosidad_sismica.csv"
+    norma = pd.read_csv(ruta_norma, dtype={"codigo_provincia": str}) if ruta_norma.exists() else None
+    resultado = sismico.evaluar(panel, norma)
+    m = resultado["metricas"].set_index(["modelo", "particion"])
+    print(f"  elegido {resultado['elegido']} · accuracy {100 * m.loc[(resultado['elegido'], 'validacion'), 'accuracy']:.1f} % (validación)")
+    resultado["metricas"].to_csv(RUTA_SALIDAS / "metricas_sismico.csv", index=False)
+    resultado["prevision"].to_csv(RUTA_SALIDAS / "prevision_sismico.csv", index=False)
+    return resultado
+
+
 def control_de_acierto(anual_res: dict, diez: dict, prob: dict) -> pd.DataFrame:
     """Tabla del requisito de acierto (≥ 85 %, < 99,9 %) de los modelos que usa el proyecto, y su gráfico."""
     from cpd.modelos.metricas import ACIERTO_MINIMO, ACIERTO_OBJETIVO, ACIERTO_SOSPECHOSO, control_acierto
@@ -983,10 +1059,21 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict) -> pd.DataFrame:
         ("Renovables por comunidad: % medio de 12 meses", j["renovables"]["acierto_anual_validacion"], j["renovables"]["acierto_anual_test"], "100 − WAPE de la media anual"),
         ("Generación renovable por comunidad a 1 año (mes a mes)", j["cobertura_renovable"]["acierto_validacion"], j["cobertura_renovable"]["acierto_test"], "100 − WAPE (MWh)"),
         ("Generación renovable por comunidad: total de 12 meses", j["cobertura_renovable"]["acierto_anual_validacion"], j["cobertura_renovable"]["acierto_anual_test"], "100 − WAPE del total anual"),
+        ("Operación del CPD a 1 año: consumo", j["operacion"]["acierto_consumo"], None, f"100 − WAPE del total anual ({j['operacion']['origenes']} orígenes comunes)"),
+        ("Operación del CPD a 1 año: emisiones", j["operacion"]["acierto_emisiones"], None, f"100 − WAPE del total anual ({j['operacion']['origenes']} orígenes comunes)"),
         ("Precio de la luz a 1 año", j["precio"]["acierto_validacion"], j["precio"]["acierto_test"], "100 − WAPE"),
         ("Demanda nacional a 10 años", diez["acierto"], None, "100 − WAPE (backtesting 2012-2025)"),
         ("Probabilidad de CPD (prob_cpd)", 100 * prob["metricas_umbral"]["accuracy"], None, "accuracy fuera de pliegue"),
     ]
+    if "sismico" in anual_res:
+        s = anual_res["sismico"]
+        m = s["metricas"].set_index(["modelo", "particion"])
+        filas.append(
+            (
+                "Riesgo sísmico: algún M ≥ 3 el año siguiente", 100 * m.loc[(s["elegido"], "validacion"), "accuracy"],
+                100 * m.loc[(s["elegido"], "test"), "accuracy"], f"accuracy (validación {s['anios_validacion']}, test {s['anio_test']})",
+            )
+        )
     tabla = pd.DataFrame(filas, columns=["modelo", "acierto_validacion", "acierto_test", "definicion"])
     peor = tabla[["acierto_validacion", "acierto_test"]].min(axis=1)
     mejor = tabla[["acierto_validacion", "acierto_test"]].max(axis=1)
@@ -1064,6 +1151,8 @@ def main() -> None:
     anual_res = ejecutar_anual(panel)
     print("Demanda nacional a 10 años")
     diez = ejecutar_10_anios()
+    print("Riesgo sísmico (P8)")
+    anual_res["sismico"] = ejecutar_sismico()
     print("Control de acierto")
     control = control_de_acierto(anual_res, diez, prob)
 
