@@ -114,3 +114,19 @@ describe("salidas de los modelos en la simulación", () => {
     expect(p.modelos?.demanda).toBeUndefined();
   });
 });
+
+describe("modelo del precio de la luz en la simulación", () => {
+  it("lee el resumen del precio y los VAN con distintos precios", () => {
+    // Datos de PRUEBA (valores inventados solo para el test).
+    const json = {
+      modelos: { precio_luz: { modelo: "media_12m", media_prevista_eur_mwh: 80, inferior_eur_mwh: 45, superior_eur_mwh: "x", ultimo_mes: "2026-10", ultimo_mes_eur_mwh: 167, mae_test_eur_mwh: 36 } },
+      provincias: [{ codigo_provincia: "28", van_eur_precio_ultimo_mes: -7e7, van_eur_precio_inferior: 6e7 }],
+    };
+    const p = normalizarReal(json, META, "simulacion")!;
+    expect(p.modelos?.precio_luz?.superior_eur_mwh).toBeNull();
+    expect(p.modelos?.precio_luz?.ultimo_mes).toBe("2026-10");
+    const mad = p.provincias.get("28")!;
+    expect(mad.van_eur_precio_ultimo_mes).toBe(-7e7);
+    expect(mad.van_eur_precio_superior).toBeNull();
+  });
+});

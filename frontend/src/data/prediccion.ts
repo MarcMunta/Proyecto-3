@@ -39,6 +39,10 @@ export interface ProvinciaPrediccion {
   demanda_ccaa_prevision_superior_mwh?: number | null;
   /** Último mes (AAAA-MM) de los 12 meses de demanda. */
   demanda_ccaa_hasta?: string | null;
+  /** VAN (€) con el precio de la luz en el extremo bajo y alto de su rango probable y con el del último mes. */
+  van_eur_precio_inferior?: number | null;
+  van_eur_precio_superior?: number | null;
+  van_eur_precio_ultimo_mes?: number | null;
   /** Entradas que faltan para esta provincia (se dice en la ficha). */
   faltan?: string[];
   /** Solo en la demostración: municipios analizados de la provincia (el mejor primero). */
@@ -48,6 +52,15 @@ export interface ProvinciaPrediccion {
 export interface ResumenModelos {
   prob_cpd?: { modelo: string; roc_auc: number | null; provincias_con_cpd: number | null };
   demanda?: { modelo: string; mape_test_pct: number | null };
+  precio_luz?: {
+    modelo: string;
+    media_prevista_eur_mwh: number | null;
+    inferior_eur_mwh: number | null;
+    superior_eur_mwh: number | null;
+    ultimo_mes: string | null;
+    ultimo_mes_eur_mwh: number | null;
+    mae_test_eur_mwh: number | null;
+  };
 }
 
 export interface Prediccion {
@@ -130,6 +143,9 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       demanda_ccaa_prevision_inferior_mwh: numero(fila.demanda_ccaa_prevision_inferior_mwh),
       demanda_ccaa_prevision_superior_mwh: numero(fila.demanda_ccaa_prevision_superior_mwh),
       demanda_ccaa_hasta: texto(fila.demanda_ccaa_hasta),
+      van_eur_precio_inferior: numero(fila.van_eur_precio_inferior),
+      van_eur_precio_superior: numero(fila.van_eur_precio_superior),
+      van_eur_precio_ultimo_mes: numero(fila.van_eur_precio_ultimo_mes),
       faltan: Array.isArray(fila.faltan) ? fila.faltan.filter((m): m is string => typeof m === "string") : [],
     });
   }
@@ -157,7 +173,18 @@ function leerModelos(v: unknown): ResumenModelos | undefined {
   if (p && texto(p.modelo)) salida.prob_cpd = { modelo: texto(p.modelo)!, roc_auc: numero(p.roc_auc), provincias_con_cpd: numero(p.provincias_con_cpd) };
   const d = m.demanda;
   if (d && texto(d.modelo)) salida.demanda = { modelo: texto(d.modelo)!, mape_test_pct: numero(d.mape_test_pct) };
-  return salida.prob_cpd || salida.demanda ? salida : undefined;
+  const l = m.precio_luz;
+  if (l && texto(l.modelo))
+    salida.precio_luz = {
+      modelo: texto(l.modelo)!,
+      media_prevista_eur_mwh: numero(l.media_prevista_eur_mwh),
+      inferior_eur_mwh: numero(l.inferior_eur_mwh),
+      superior_eur_mwh: numero(l.superior_eur_mwh),
+      ultimo_mes: texto(l.ultimo_mes),
+      ultimo_mes_eur_mwh: numero(l.ultimo_mes_eur_mwh),
+      mae_test_eur_mwh: numero(l.mae_test_eur_mwh),
+    };
+  return salida.prob_cpd || salida.demanda || salida.precio_luz ? salida : undefined;
 }
 
 /**
