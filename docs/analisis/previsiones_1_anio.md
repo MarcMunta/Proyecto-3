@@ -1,10 +1,35 @@
-# Previsión a 1 año · demanda eléctrica y precio de la luz
+# Previsiones · 1 año (demanda, precio de la luz, reservas de agua, temperatura y renovables) y 10 años (demanda nacional)
 
 > Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
-Previsión mes a mes de los **12 meses siguientes** al último dato, con el modelo que menos se equivoca a 1 año.
-Código: `src/cpd/modelos/anual.py`. Las fichas de modelo de [demanda](../modelos/demanda_ccaa.md) y
-[precio](../modelos/precio_luz.md) describen los modelos a 1 y 12 meses; este informe es el que alimenta el mapa.
+Previsión mes a mes de los **12 meses siguientes** al último dato con el modelo que menos se equivoca a 1 año (demanda
+por comunidad, precio de la luz, reservas de agua por ámbito, temperatura por provincia y % de generación renovable por
+comunidad), y de la demanda nacional a 10 años. Código: `src/cpd/modelos/anual.py` y `src/cpd/modelos/largo_plazo.py`. Las fichas de
+modelo de [demanda](../modelos/demanda_ccaa.md) y [precio](../modelos/precio_luz.md) describen las primeras
+evaluaciones; este informe es el que alimenta el mapa.
+
+## Control de acierto (requisito: 85 % ≤ acierto < 99,9 %)
+
+**Acierto** = 100 × (1 − WAPE), con WAPE = Σ|real − previsto| / Σ|real| (en clasificación, la accuracy). Se usa el
+WAPE y no 100 − MAPE porque el MAPE se dispara en los meses con valores muy bajos: un precio de 16 €/MWh con un error
+de 30 €/MWh cuenta como un 190 % de error. Un acierto de 99,9 % o más se marca como **sospechoso**: casi seguro
+indica una fuga de información. El control se ejecuta en cada `python -m cpd.modelos` y avisa en la consola.
+
+![Control de acierto](../../docs/figuras/previsiones/08_control_acierto.png)
+
+| Modelo | Acierto validación / backtesting | Acierto test | Cómo se mide | Estado |
+|---|---|---|---|---|
+| Demanda por comunidad a 1 año | 96,7 % | 95,6 % | 100 − WAPE | cumple (objetivo 90 %) |
+| Reservas de agua a 1 año | 86,7 % | 85,3 % | 100 − WAPE | cumple |
+| Temperatura por provincia a 1 año | 93,8 % | 92,8 % | 100 − WAPE (en °C) | cumple (objetivo 90 %) |
+| Renovables por comunidad a 1 año (mes a mes) | 84,3 % | 89,5 % | 100 − WAPE | no cumple (< 85 %) |
+| Renovables por comunidad: % medio de 12 meses | 88,7 % | 93,6 % | 100 − WAPE de la media anual | cumple |
+| Precio de la luz a 1 año | 59,0 % | 62,4 % | 100 − WAPE | no cumple (< 85 %) |
+| Demanda nacional a 10 años | 97,3 % | — | 100 − WAPE (backtesting 2012-2025) | cumple (objetivo 90 %) |
+| Probabilidad de CPD (prob_cpd) | 90,4 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
+
+**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
+
 
 ## Cómo se ha buscado el menor error
 
@@ -30,8 +55,9 @@ resultados de test son orientativos y no una prueba totalmente independiente.
 
 ![Precio de la luz](../../docs/figuras/previsiones/01_precio_luz_1_anio.png)
 
-**Figura 1.** Precio real desde 2021 (verde), lo que el modelo habría previsto hace un año (punteado), la previsión de
-los próximos 12 meses con su intervalo (10-90 %) y el futuro del gas a 1 año (azul, eje derecho).
+**Figura 1.** Arriba, el precio real desde 2021 (azul), lo que el modelo habría previsto hace un año (punteado), la
+previsión de los próximos 12 meses (naranja) con su intervalo mensual (10-90 %) y la media de 12 meses que usa el
+simulador (gris). Abajo, en su propio eje, el gas de MIBGAS (mercado diario y futuro a 1 año) que usan los modelos con gas.
 
 | Modelo | Validación (€/MWh) | Test (€/MWh) |
 |---|---|---|
@@ -60,6 +86,16 @@ validación y 30,3 €/MWh en test, frente a 42,4 y
 
 **Figura 2.** Las 24 previsiones a 1 año de validación frente al precio real: se ve cuándo acierta y cuándo no
 (la previsión tarda en reaccionar a los cambios bruscos).
+
+**¿Por qué no llega al 85 %?** El acierto cae con la antelación: 74 % a 1 mes y
+54 % a 12 meses (modelo elegido, validación). Ni el mejor modelo a 1 mes vista
+—ETS (Holt-Winters amortiguado)— pasa del 77 %. En los meses de validación el precio real fue de
+14 €/MWh (04/2024) a 133 €/MWh (02/2023): el error medio del modelo elegido,
+29 €/MWh, es pequeño en un mes caro y enorme en uno barato. Llegar al 85 % exigiría escoger un periodo
+de evaluación tranquilo o usar información que no se sabía en el origen, que es lo que el requisito (D8) quiere evitar.
+Por eso esta previsión se enseña como **escenario orientativo**, con aviso, y el simulador sigue usando la media de
+12 meses como supuesto (D7). Los futuros de electricidad (OMIP) podrían mejorar los primeros meses, pero no se han
+integrado y no aseguran el 85 % (mejora posible; recomendación, no viene de clase).
 
 ## Demanda eléctrica por comunidad autónoma
 
@@ -106,20 +142,181 @@ baseline en test («mismo mes del año anterior»).
 
 Rango: cuantiles 10-90 % del error de la suma anual de cada comunidad en validación.
 
+## Reservas de agua por ámbito hidrográfico (riesgo hídrico, P4)
+
+Reserva de los embalses (% de la capacidad) de los 16 ámbitos del Boletín Hidrológico (MITECO, desde 1987), mes a
+mes, 1 año vista. Candidatos: se mantiene el último mes, mismo mes del año anterior, **climatología** (media del mes en
+los 10 años anteriores), **anomalía persistente** (climatología + la anomalía actual, que se va diluyendo con un factor
+φ por horizonte ajustado con los años anteriores), la misma con un **φ propio de cada cuenca**, y ETS. Se probó también
+la lluvia reciente de la cuenca (NASA POWER): no mejoraba y se descartó.
+
+**Transparencia.** El candidato con φ por cuenca se añadió después de una primera ejecución en la que la combinación
+elegida (con «último mes») no llegaba al 85 % en test. La elección sigue siendo con la validación, pero el test de las
+reservas ya no es del todo independiente, y su acierto (85,3 %) está justo en el mínimo.
+
+![Reservas por ámbito](../../docs/figuras/previsiones/06_reservas_ambitos_1_anio.png)
+
+**Figura 4.** Últimos 3 años y previsión a 1 año de cada ámbito.
+
+| Modelo | Acierto validación | Acierto test | MAE test (puntos) |
+|---|---|---|---|
+| Combinación de los 3 mejores **(elegido)** | 86,7 % | 85,3 % | 10,5 |
+| Anomalía persistente (φ común) (en la combinación) | 86,3 % | 84,6 % | 10,9 |
+| Anomalía persistente (φ de cada cuenca) (en la combinación) | 86,0 % | 84,9 % | 10,8 |
+| ETS (Holt-Winters amortiguado) (en la combinación) | 85,1 % | 84,5 % | 11,0 |
+| Último valor (naive) | 82,0 % | 74,4 % | 18,2 |
+| Mismo mes del año anterior (estacional) | 80,3 % | 81,8 % | 12,9 |
+| Climatología (media del mes en los años anteriores) | 75,7 % | 80,4 % | 13,9 |
+
+Validación: orígenes 2022-11 a 2024-10 (24 orígenes). Test: meses 2025-11 a 2026-10. Error en puntos porcentuales de reserva.
+
+
+## Temperatura media por provincia (PUE)
+
+Temperatura media mensual (°C) de las 52 provincias (NASA POWER, desde 2015), 1 año vista. Es la variable con la que
+el simulador estima el PUE (`simulator.pue_estimado`) y, con él, el consumo, el OPEX y el VAN: según el EDA, el VAN
+simulado depende casi solo de ella. Candidatos: los mismos que las reservas (último mes, mismo mes del año anterior,
+climatología, anomalía persistente con un φ común y con un φ propio de cada provincia, y ETS) y la combinación de los 3
+mejores. Como los datos empiezan en 2015, la climatología usa todos los años anteriores al origen (hasta 10) y se exige
+un mínimo de 5 años de historia.
+
+**Cómo leer el acierto.** Es 100 − WAPE con la temperatura en °C. El °C no tiene un cero natural, así que ese porcentaje
+depende de la escala: con el mismo error, en kelvin saldría un 99,7 %, que parece casi perfecto sin decir nada
+nuevo. Por eso la cifra que manda es el **error en °C** (MAE). El intervalo de la previsión también va en °C (aditivo),
+no en porcentaje.
+
+![Temperatura por provincia](../../docs/figuras/previsiones/09_temperatura_provincias_1_anio.png)
+
+**Figura 5.** Temperatura media de las 52 provincias: el último año real (azul) y la previsión de los próximos 12 meses
+(naranja) con su intervalo 10-90 % (barra).
+
+| Modelo | Acierto validación | Acierto test | MAE validación (°C) | MAE test (°C) |
+|---|---|---|---|---|
+| ETS (Holt-Winters amortiguado) (en la combinación) | 93,8 % | 93,1 % | 0,98 | 1,12 |
+| Combinación de los 3 mejores **(elegido)** | 93,8 % | 92,8 % | 0,98 | 1,17 |
+| Anomalía persistente (φ de cada provincia) (en la combinación) | 93,5 % | 92,5 % | 1,04 | 1,22 |
+| Anomalía persistente (φ común) (en la combinación) | 93,4 % | 92,5 % | 1,05 | 1,21 |
+| Climatología (media del mes en los años anteriores) | 93,2 % | 92,4 % | 1,08 | 1,23 |
+| Mismo mes del año anterior (estacional) | 92,4 % | 92,9 % | 1,22 | 1,16 |
+| Último valor (naive) | 58,1 % | 63,0 % | 6,67 | 6,03 |
+
+Validación: orígenes 2022-11 a 2024-10 (24 orígenes). Test: meses 2025-11 a 2026-10.
+
+**Resultado.** Modelo elegido: **Combinación de los 3 mejores** (ETS (Holt-Winters amortiguado), Anomalía persistente (φ de cada provincia), Anomalía persistente (φ común)).
+Error de un mes: 0,98 °C en validación y 1,17 °C en test. Error de la media de 12 meses, que es
+la que usa el PUE: **0,47 °C** en validación y 0,61 °C en test. Con la fórmula del simulador,
+0,47 °C mueven el PUE 0,005 (un PUE de aire es 1,45), poco frente a los 0,101 que separan la
+provincia más fría de la más cálida. Previsión: de 10,9 °C en Soria a 21,0 °C en
+Palmas, Las; de media, 0,4 °C menos que el último año.
+
+![Temperatura mensual](../../docs/figuras/previsiones/10_temperatura_mensual.png)
+
+**Figura 6.** Serie mensual de las 4 provincias más frías y las 4 más cálidas según la previsión: últimos 3 años y
+previsión a 1 año con su intervalo.
+
+
+## Generación renovable por comunidad autónoma
+
+Porcentaje de la generación eléctrica de cada comunidad que es renovable (REData, mensual desde 2015), 1 año vista. Un
+CPD que quiera energía verde la tendrá más fácil (y más barata) donde la red ya es muy renovable. Ceuta queda fuera: no
+tiene generación renovable en todo el periodo. Candidatos: los de las reservas y la temperatura (último mes, mismo mes
+del año anterior, climatología, anomalía persistente con φ común y por comunidad, ETS), dos ETS con solo los últimos 5
+años (con y sin tendencia) y la combinación de los 3 mejores.
+
+**Transparencia.** Las dos ETS de 5 años se añadieron después de una primera prueba en la que la combinación se
+quedaba en un 83,8 % en validación: con tanta potencia solar nueva, la historia larga frena la tendencia. La elección
+sigue siendo con la validación. La fila de la media de 12 meses del control de acierto se añadió después de ver que el
+mes a mes no llegaba al mínimo; las dos filas se enseñan.
+
+![Renovables por comunidad](../../docs/figuras/previsiones/11_renovables_ccaa_1_anio.png)
+
+**Figura 7.** % renovable de cada comunidad: el último año real (azul) y la previsión de los próximos 12 meses (naranja)
+con su intervalo 10-90 % (barra).
+
+| Modelo | Acierto validación | Acierto test | MAE validación (puntos) | MAE test (puntos) |
+|---|---|---|---|---|
+| Combinación de los 3 mejores **(elegido)** | 84,3 % | 89,5 % | 7,49 | 5,27 |
+| ETS de 5 años sin tendencia (en la combinación) | 84,2 % | 88,7 % | 7,55 | 5,69 |
+| ETS de 5 años con tendencia amortiguada (en la combinación) | 84,0 % | 89,1 % | 7,60 | 5,45 |
+| ETS (Holt-Winters amortiguado) (en la combinación) | 83,5 % | 89,5 % | 7,85 | 5,27 |
+| Anomalía persistente (φ de cada comunidad) | 81,8 % | 88,8 % | 8,66 | 5,63 |
+| Anomalía persistente (φ común) | 81,3 % | 87,1 % | 8,89 | 6,45 |
+| Mismo mes del año anterior (estacional) | 80,5 % | 88,9 % | 9,26 | 5,56 |
+| Último valor (naive) | 79,8 % | 84,8 % | 9,62 | 7,63 |
+| Climatología (media del mes en los años anteriores) | 73,8 % | 76,6 % | 12,48 | 11,71 |
+
+Validación: orígenes 2022-09 a 2024-08 (24 orígenes). Test: meses 2025-09 a 2026-08.
+
+**Resultado.** Modelo elegido: **Combinación de los 3 mejores** (ETS de 5 años sin tendencia, ETS de 5 años con tendencia amortiguada, ETS (Holt-Winters amortiguado)).
+Mes a mes: 84,3 % de acierto en validación y 89,5 % en test (error de 7,5 y
+5,3 puntos). **% medio de los 12 meses: 88,7 % en validación y 93,6 % en test.**
+Previsión: de 0 % en Melilla a 95 % en Castilla y León; de media,
+0,5 puntos más que el último año.
+
+**¿Por qué el mes a mes no llega al 85 %?** El % renovable de un mes depende del viento, la lluvia y el sol de
+ese mes, que no se pueden saber con un año de antelación: el acierto baja de 89 % a 1 mes a 83 % a 12 meses. Tres
+comunidades suman el 36 % del error de validación: Cantabria (15 %), Comunidad Foral de Navarra (11 %), Madrid (10 %). En las comunidades con poca generación, una sola
+central que para o arranca cambia mucho el porcentaje. Los errores de meses sueltos se compensan en la media de 12 meses, que es la cifra que
+interesa para un CPD (un contrato de energía renovable es anual): esa sí cumple. El gráfico mes a mes se enseña como
+orientativo, con aviso.
+
+![Renovables mensual](../../docs/figuras/previsiones/12_renovables_mensual.png)
+
+**Figura 8.** % renovable mensual de cada comunidad (de más a menos renovable según la previsión): últimos 3 años y
+previsión a 1 año con su intervalo.
+
+
+## Demanda eléctrica nacional a 10 años (P5)
+
+Demanda anual de España (REData, 2007-2025). Backtesting plurianual: desde el final de cada año entre 2011 y
+2024, cada modelo prevé los 10 años siguientes (o los que haya). Candidatos: sin cambio, media de 3 años,
+deriva, tendencia lineal, Holt amortiguado y la combinación de los 3 mejores.
+
+![Demanda a 10 años](../../docs/figuras/previsiones/07_demanda_nacional_10_anios.png)
+
+**Figura 9.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
+
+MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirlo):
+
+| Años vista | Orígenes | Combinación de los 3 mejores | holt_amortiguado | tendencia_lineal | sin_cambio |
+|---|---|---|---|---|---|
+| 1 | 14 | 1,9 % | 2,3 % | 2,2 % | 1,9 % |
+| 2 | 13 | 2,8 % | 3,2 % | 2,9 % | 2,7 % |
+| 3 | 12 | 3,3 % | 3,7 % | 3,1 % | 3,2 % |
+| 4 | 11 | 3,3 % | 3,9 % | 3,1 % | 3,3 % |
+| 5 | 10 | 3,2 % | 3,6 % | 3,6 % | 4,1 % |
+| 6 | 9 | 3,1 % | 3,9 % | 3,5 % | 3,8 % |
+| 7 | 8 | 2,4 % | 3,4 % | 3,3 % | 3,8 % |
+| 8 | 7 | 1,8 % | 2,3 % | 3,8 % | 4,4 % |
+| 9 | 6 | 1,9 % | 3,3 % | 4,5 % | 4,9 % |
+| 10 | 5 | 2,2 % | 4,0 % | 5,4 % | 4,7 % |
+
+**Resultado.** Modelo elegido: **Combinación de los 3 mejores**
+(holt_amortiguado, tendencia_lineal, sin_cambio); acierto en el backtesting **97,3 %**. Previsión:
+251 TWh en 2026 y **244 TWh en 2035** (intervalo 10-90 %:
+221-269 TWh), frente a 256 TWh en 2025.
+
+**Limitación.** Es una previsión **tendencial**: no incluye la electrificación, el hidrógeno ni los nuevos centros de
+datos, que pueden hacer crecer la demanda. Un CPD de 50 MW de TI consume unos 0,46 TWh al año (el 0,2 % de la demanda
+nacional). El intervalo a más de 7 años se extrapola (σ·√h) porque hay pocos orígenes para medirlo.
+
+
 ## Errores por horizonte y comparación de modelos
 
 ![Error por horizonte](../../docs/figuras/previsiones/03_error_por_horizonte.png)
 
-**Figura 4.** Error medio de cada modelo según los meses de antelación (validación). El elegido va en trazo grueso.
+**Figura 10.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
+va en naranja y el resto en gris.
 
 ![Comparación](../../docs/figuras/previsiones/04_comparacion_modelos.png)
 
-**Figura 5.** Error a 1 año de cada modelo en validación y en test.
+**Figura 11.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
 
 ## Limitaciones
 
 - El precio del año siguiente depende sobre todo del gas, el CO2 y la hidráulica, que también se pueden equivocar:
-  el intervalo es ancho a propósito. Faltan los futuros de electricidad (OMIP), que serían la referencia directa.
+  el intervalo es ancho a propósito. No se han integrado los futuros de electricidad (OMIP), la referencia directa
+  del mercado: podrían mejorar los primeros meses, pero no aseguran el acierto mínimo (ver «¿Por qué no llega…?»).
 - Un solo año de test por serie: el error de test tiene mucha incertidumbre.
 - La demanda peninsular termina en junio de 2026 porque REData aún no ha publicado bien julio y agosto
   (ver [tablas_api.md](../datos/tablas_api.md)): su «año siguiente» empieza en julio de 2026.

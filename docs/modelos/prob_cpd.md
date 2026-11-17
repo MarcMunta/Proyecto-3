@@ -50,7 +50,12 @@ complejo y peor.
 
 ![Curva ROC](../../docs/figuras/modelos/roc_prob_cpd.png)
 
-**Figura.** Curvas ROC fuera de pliegue de los cuatro modelos.
+**Figura 1.** Curvas ROC fuera de pliegue de los cuatro modelos.
+
+
+![prob_cpd por provincia](../../docs/figuras/modelos/prob_cpd_provincias.png)
+
+**Figura 2.** Matriz de confusión con el umbral elegido, métricas con ese umbral y probabilidad fuera de pliegue de cada provincia (azul: tiene CPD; gris: no tiene; línea discontinua: umbral). Las barras grises a la derecha del umbral son las provincias «parecidas» a las que ya tienen CPD.
 
 **Umbral elegido** (Youden): 0,40. Matriz de confusión con ese umbral:
 
