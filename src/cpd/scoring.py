@@ -36,6 +36,7 @@ INDICADORES_POR_BLOQUE: dict[str, list[tuple[str, int]]] = {
         ("capacidad_acceso_mw", +1),       # más capacidad de acceso a la red
         ("dist_subestacion_km", -1),       # subestación más cercana
         ("tension_subestacion_kv", +1),    # mayor tensión de la subestación
+        ("cobertura_renovable_pct", +1),   # más generación renovable frente a la demanda (energía verde de sobra)
     ],
     "agua_refrigeracion": [
         ("estres_hidrico_idx", -1),        # menor estrés hídrico
@@ -45,6 +46,7 @@ INDICADORES_POR_BLOQUE: dict[str, list[tuple[str, int]]] = {
     "conectividad": [
         ("latencia_rtt_ms", -1),           # menor latencia hasta el punto de red
         ("cobertura_fibra_pct", +1),       # mayor cobertura de fibra
+        ("latencia_hubs_rtt_ms", -1),      # cerca de los dos grandes nodos de internet a la vez (dar servicio a ambos)
     ],
     "riesgos_naturales": [
         ("peligrosidad_sismica_g", -1),    # menor aceleración sísmica
@@ -53,6 +55,9 @@ INDICADORES_POR_BLOQUE: dict[str, list[tuple[str, int]]] = {
     ],
     "suelo_regulatorio": [
         ("precio_suelo_eur_m2", -1),       # suelo más barato
+        # Suelo urbano (Ministerio de Transportes, por provincia): solo para comparar provincias. No entra en el CAPEX
+        # porque no es precio de suelo industrial y lo inflaría.
+        ("precio_suelo_urbano_eur_m2", -1),
         ("suelo_industrial_ha", +1),       # más suelo industrial disponible
         ("dist_autopista_km", -1),         # mejor accesibilidad por carretera
     ],
@@ -65,6 +70,10 @@ INDICADORES_POR_BLOQUE: dict[str, list[tuple[str, int]]] = {
         ("tasa_paro", -1),                 # más paro => más talento disponible
         ("pct_estudios_superiores", +1),   # más formación superior
         ("dist_aeropuerto_km", -1),        # logística y desplazamientos
+        # Ecosistema: los CPD se agrupan donde ya hay red, fibra y proveedores. Datos reales y actualizables: CPD que
+        # ya existen (PeeringDB) y capacidad de red que REE ya ha otorgado a nuevos grandes consumos.
+        ("cpd_existentes", +1),
+        ("capacidad_demanda_otorgada_mw", +1),
     ],
     "impacto": [
         ("impacto_local_pct", -1),         # menor peso sobre el consumo municipal
@@ -80,6 +89,8 @@ COLUMNAS_ENTRADA: tuple[str, ...] = (
     "dias_calor_extremo", "estres_hidrico_idx", "consumo_hidrico_municipal_m3", "cobertura_fibra_pct",
     "dist_ixp_km", "dist_autopista_km", "dist_aeropuerto_km", "precio_suelo_eur_m2",
     "suelo_industrial_ha", "zona_inundable", "red_natura", "peligrosidad_sismica_g",
+    "cobertura_renovable_pct", "cpd_existentes", "capacidad_demanda_otorgada_mw", "latencia_hubs_rtt_ms",
+    "precio_suelo_urbano_eur_m2",
 )
 
 
