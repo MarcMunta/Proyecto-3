@@ -66,7 +66,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 |---|---|---|---|---|---|
 | P1 | ¿Qué municipios son los más adecuados? | 🟡 | `src/cpd/scoring.py` (`evaluar`, ranking) | | Ranking real a nivel de provincia; municipal con datos reales |
 | P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | 🟡 | `simulator.impacto_local_pct` | | Datos de consumo municipal reales o explicación de límite |
-| P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Análisis por nudo o CCAA; decisión de nivel |
+| P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw`, `capacidad_demanda_rdt_otorgada_mw` y `_pendiente_mw` (REE, por comunidad); cobertura renovable prevista (generación renovable / demanda, `docs/analisis/previsiones_1_anio.md`), en el bloque de energía del score | | Análisis por nudo (hoy por comunidad) |
 | P4 | ¿Existe riesgo hídrico? | ✅ | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m`; previsión de reservas a 1 año por ámbito (acierto 85,3 % en test) en `docs/analisis/previsiones_1_anio.md` | | Afinar la asignación provincia → ámbito |
 | P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) | | Escenarios con electrificación y nuevos CPD (fuera del modelo tendencial) |
 | P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md`; temperatura media por provincia a 1 año (la que usa el PUE; acierto 92,8-93,8 %, error de la media anual 0,5 °C) en `docs/analisis/previsiones_1_anio.md` | | Calibrar precios en `config/settings.yaml` y documentar |
@@ -121,7 +121,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E7 | Producción eléctrica disponible | 🟡 | `generacion_total_ccaa_mwh` (CCAA, no provincia) | | Documentar nivel CCAA |
+| E7 | Producción eléctrica disponible | 🟡 | `generacion_total_ccaa_mwh` (CCAA, no provincia); generación renovable prevista a 1 año por comunidad (total de 12 meses: acierto 89-91 %) | | Documentar nivel CCAA |
 | E8 | Consumo eléctrico municipal | 🟡 | `demanda_ccaa_mwh` (CCAA); sin dato municipal abierto (ver `docs/datos/README.md`) | | Documentar la limitación |
 | E9 | Capacidad de la red | 🟡 | `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Revisar cobertura territorial |
 | E10 | Subestaciones cercanas | 🟡 | `subestaciones_220_400kv`, `subestaciones_400kv` (OSM) | | Distancia a la subestación más cercana, no solo conteo |
@@ -157,7 +157,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | E25 | Cobertura de fibra óptica | ❌ | — | | Buscar fuente CNMC |
 | E26 | Troncales de comunicaciones | ❌ | — | | Buscar fuente (OSM, Secretaría de Estado) |
 | E27 | Puntos neutros de Internet | 🟡 | `n_ixp`, `distancia_ixp_km` (PeeringDB) | | Documentar fuente alternativa |
-| E28 | Distancia a nodos principales | 🟡 | `distancia_ixp_km` (solo IXP, no nodos) | | Definir "nodo principal" |
+| E28 | Distancia a nodos principales | 🟡 | `distancia_ixp_km` (IXP más cercano) y `distancia_hubs_ixp_km` (al más lejano de los dos grandes nodos: las provincias con más IXP en PeeringDB, hoy Madrid y Barcelona), en el bloque de conectividad del score | | Rutas reales de fibra (hoy, línea recta × 1,5) |
 | E29 | Cobertura 5G | ❌ | — | | Buscar fuente CNMC |
 
 ### E.6 Transporte y logística (fuentes: OSM u otras)
@@ -173,7 +173,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E34 | Precio del suelo industrial | ❌ | — | | Buscar fuente abierta |
+| E34 | Precio del suelo industrial | 🟡 | `precio_suelo_urbano_eur_m2` (Ministerio de Transportes, «Precios de suelo», tabla 4; mediana de 4 trimestres; `src/cpd/fuentes/suelo.py`), en el bloque de suelo del score | | Es suelo urbano, no industrial: por eso no entra en el CAPEX. Buscar precio industrial abierto |
 | E35 | Disponibilidad de parcelas | ❌ | — | | Buscar fuente |
 | E36 | Calificación urbanística | ❌ | — | | Buscar fuente (planeamiento municipal) |
 | E37 | Riesgos de inundación | 🟡 | Filtro "zona inundable" en `README.md` (fuente por verificar) | | Confirmar fuente y añadir a panel |
