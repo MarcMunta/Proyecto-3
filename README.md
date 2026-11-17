@@ -111,7 +111,9 @@ Necesita `data/curated/panel_provincia_mes` (ver [Datos por API](#datos-por-api)
 demanda eléctrica por comunidad (1 y 12 meses, con baselines y validación temporal) y la probabilidad de que una
 provincia tenga un CPD (`prob_cpd`). Escribe los informes en `docs/analisis/` y las fichas de modelo en `docs/modelos/`;
 las salidas para el mapa van a `data/curated/modelos/` (`npm run data` las incorpora). La **previsión a 1 año** de la
-demanda y del precio de la luz (con el gas de MIBGAS) y todos sus gráficos están en
+demanda, del precio de la luz (con el gas de MIBGAS), de las reservas de agua, de la temperatura por provincia (la del
+PUE) y del % de generación renovable por comunidad, la **demanda nacional a 10 años**, el
+**control de acierto** (85 % ≤ acierto < 99,9 %) y todos sus gráficos están en
 [`docs/analisis/previsiones_1_anio.md`](docs/analisis/previsiones_1_anio.md). Código en `src/cpd/features/` y
 `src/cpd/modelos/`.
 

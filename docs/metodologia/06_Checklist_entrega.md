@@ -24,14 +24,14 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 |---|---|---|---|---|
 | A. Objetivo general | 0 | 3 | 0 | 3 |
 | B. Objetivos específicos (1-10) | 3 | 7 | 0 | 10 |
-| C. Preguntas funcionales (P1-P8) | 2 | 6 | 0 | 8 |
+| C. Preguntas funcionales (P1-P8) | 4 | 4 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
 | E. Variables del entorno territorial (enunciado) | 8 | 22 | 17 | 47 |
 | F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
-| I. Técnicas de clase y de calidad de datos | 40 | 14 | 16 | 70 |
-| **Total** | **66** | **64** | **54** | **184** |
+| I. Técnicas de clase y de calidad de datos | 41 | 13 | 16 | 70 |
+| **Total** | **69** | **61** | **54** | **184** |
 
 Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si se añaden filas, recalcular.
 
@@ -58,7 +58,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` | | Mejorar features de `prob_cpd` si hay más datos (n = 52) |
 | B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Añadir parámetros del CPD que faltan (ver D) |
 | B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Informe de cuadro de mandos (fase 10) |
-| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda y del precio, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md` | | Previsión a 10 años validada para P5 |
+| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda, el precio, las reservas de agua, la temperatura por provincia y el % renovable por comunidad, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md`; control de acierto D8 (`data/curated/modelos/control_acierto.csv`) | | El precio de la luz a 1 año no llega al 85 % (D8): se enseña como escenario orientativo, fuera del VAN, con el motivo en el informe. Mejora posible: futuros de OMIP |
 
 ## C. Preguntas funcionales (enunciado, p. 3; ver [[01_Objetivo_y_alcance]])
 
@@ -67,9 +67,9 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | P1 | ¿Qué municipios son los más adecuados? | 🟡 | `src/cpd/scoring.py` (`evaluar`, ranking) | | Ranking real a nivel de provincia; municipal con datos reales |
 | P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | 🟡 | `simulator.impacto_local_pct` | | Datos de consumo municipal reales o explicación de límite |
 | P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Análisis por nudo o CCAA; decisión de nivel |
-| P4 | ¿Existe riesgo hídrico? | 🟡 | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m` | | Informe con interpretación y limitación |
-| P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (validación temporal e intervalo a 12 meses); `src/cpd/forecast.py` (120 meses) | | Previsión a 10 años con incertidumbre creciente y explicación |
-| P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md` | | Calibrar precios en `config/settings.yaml` y documentar |
+| P4 | ¿Existe riesgo hídrico? | ✅ | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m`; previsión de reservas a 1 año por ámbito (acierto 85,3 % en test) en `docs/analisis/previsiones_1_anio.md` | | Afinar la asignación provincia → ámbito |
+| P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) | | Escenarios con electrificación y nuevos CPD (fuera del modelo tendencial) |
+| P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md`; temperatura media por provincia a 1 año (la que usa el PUE; acierto 92,8-93,8 %, error de la media anual 0,5 °C) en `docs/analisis/previsiones_1_anio.md` | | Calibrar precios en `config/settings.yaml` y documentar |
 | P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests; sensibilidad del VAN al precio de la luz en la ficha del mapa (`frontend/scripts/simular_provincias.py`) | | Documentar tasa de descuento y supuestos |
 | P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico) | | Verificar fuentes de inundación y sísmico y sus unidades |
 
@@ -126,7 +126,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | E9 | Capacidad de la red | 🟡 | `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Revisar cobertura territorial |
 | E10 | Subestaciones cercanas | 🟡 | `subestaciones_220_400kv`, `subestaciones_400kv` (OSM) | | Distancia a la subestación más cercana, no solo conteo |
 | E11 | Capacidad de transporte | 🟡 | `capacidad_demanda_rdt_disponible_mw` | | Aclarar si es transporte o acceso |
-| E12 | Porcentaje de renovables | ✅ | `pct_renovable_ccaa` | | — |
+| E12 | Porcentaje de renovables | ✅ | `pct_renovable_ccaa`; previsión a 1 año por comunidad en `docs/analisis/previsiones_1_anio.md` (% medio de 12 meses: acierto 88,7-93,6 %; mes a mes 84,3 %, orientativo) | | Mejorar el mes a mes (viento, lluvia y sol del mes no se pueden prever a 1 año) |
 
 ### E.3 Agua (fuentes: Confederaciones Hidrográficas, MITECO, AEMET)
 
@@ -143,7 +143,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E19 | Temperatura media anual | 🟡 | `tmedia_mes_c` (mensual; la anual no está calculada) | | Calcular media anual |
+| E19 | Temperatura media anual | 🟡 | `tmedia_mes_c` (mensual); media de los últimos 12 meses y de los 12 previstos por provincia en `data/curated/modelos/previsiones_1_anio.json` (`temperatura`) | | Añadir la media anual al panel provincial |
 | E20 | Temperatura máxima histórica | 🟡 | `tmax_media_c` (media de máximas, no máximo histórico) | | Añadir máximo histórico |
 | E21 | Humedad relativa | ✅ | `humedad_relativa_media_pct` | | — |
 | E22 | Número de días de calor extremo | ✅ | `dias_mas_35c` (umbral 35 °C) | | Justificar el umbral de "extremo" |
@@ -284,7 +284,7 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 |---|---|---|---|---|---|
 | I27 | Causas de fallo de previsión: checklist (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (fuga, estacionalidad, atípicos, horizonte) | | Lista explícita de las causas de C3 p.4 en el informe |
 | I28 | Evitar fuga de información (C3 p.4) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`test_features_no_usan_datos_posteriores_a_t_menos_h`); `n_ixp` excluida en `src/cpd/features/provincia.py` | | — |
-| I29 | Horizonte de previsión justificado (C3 p.4) | 🟡 | `docs/analisis/previsiones_1_anio.md` (1 año: el simulador necesita el precio y la demanda del año siguiente) | | Justificar el horizonte de 10 años de P5 |
+| I29 | Horizonte de previsión justificado (C3 p.4) | ✅ | `docs/analisis/previsiones_1_anio.md` (1 año para el simulador; 10 años para P5, con el intervalo que crece con el plazo) | | — |
 | I30 | Ventana temporal de entrenamiento y validación (C3 p.4) | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `tests/test_modelos.py` (`test_particiones_son_temporales_y_no_se_solapan`) | | — |
 | I31 | Estacionalidad (C3 p.4) | ✅ | Baseline estacional y features de mes en `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/figuras/eda/02_boxplots.png` | | — |
 | I32 | Calidad de la previsión frente a baseline (C3 p.5-6) | ✅ | `docs/analisis/metricas.md`, `docs/analisis/previsiones_1_anio.md` (figuras 4 y 5) | | — |
