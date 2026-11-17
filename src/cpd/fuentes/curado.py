@@ -18,7 +18,7 @@ from pathlib import Path
 import pandas as pd
 
 from cpd.config import RUTA_RAIZ
-from cpd.fuentes import agua
+from cpd.fuentes import agua, calidad
 from cpd.fuentes.embalses import AMBITO_POR_PROVINCIA
 from cpd.fuentes.provincias import CODIGOS
 
@@ -61,7 +61,7 @@ DICCIONARIO: tuple[Campo, ...] = (
     Campo("dias_con_clima", "Días del mes con dato climático (un mes parcial tiene menos)", "días", "NASA POWER diario (MERRA-2)", "provincia", "mensual"),
     Campo("horas_free_cooling", "Horas del mes con temperatura < 18 °C (free-cooling)", "horas", "NASA POWER horario (MERRA-2)", "provincia", "mensual"),
     Campo("pct_horas_free_cooling", "Porcentaje de horas del mes con temperatura < 18 °C", "%", "NASA POWER horario (MERRA-2)", "provincia", "mensual"),
-    Campo("demanda_ccaa_mwh", "Demanda eléctrica mensual de la comunidad autónoma (REData)", "MWh", "Red Eléctrica REData", "ccaa", "mensual"),
+    Campo("demanda_ccaa_mwh", "Demanda eléctrica mensual de la comunidad autónoma (REData); NaN si no pasa el control de calidad (ver calidad_demanda_ccaa.csv)", "MWh", "Red Eléctrica REData", "ccaa", "mensual"),
     Campo("generacion_total_ccaa_mwh", "Generación eléctrica mensual de la comunidad (todas las tecnologías)", "MWh", "Red Eléctrica REData", "ccaa", "mensual"),
     Campo("generacion_renovable_ccaa_mwh", "Generación renovable mensual de la comunidad", "MWh", "Red Eléctrica REData", "ccaa", "mensual"),
     Campo("pct_renovable_ccaa", "Porcentaje renovable de la generación de la comunidad", "%", "Red Eléctrica REData", "ccaa", "mensual"),
@@ -226,7 +226,10 @@ def construir_panel(tablas: dict[str, pd.DataFrame], hasta: pd.Timestamp | None 
                           on="codigo_provincia", how="left")
 
     if "ccaa_demanda" in tablas and not tablas["ccaa_demanda"].empty:
-        demanda = tablas["ccaa_demanda"].assign(mes=lambda d: _mes(d["fecha"]))
+        # Control de calidad (R-10): la demanda imposible de REData queda en NaN; el registro lo da
+        # registro_calidad_demanda() y lo escribe escribir_salidas() (ver cpd.fuentes.calidad).
+        depurada, _ = calidad.depurar_demanda_ccaa(tablas["ccaa_demanda"])
+        demanda = depurada.assign(mes=lambda d: _mes(d["fecha"]))
         demanda = demanda.rename(columns={"demanda_mwh": "demanda_ccaa_mwh"})[["codigo_ccaa", "mes", "demanda_ccaa_mwh"]]
         base = base.merge(demanda, on=["codigo_ccaa", "mes"], how="left")
     if "ccaa_generacion" in tablas and not tablas["ccaa_generacion"].empty:
@@ -276,6 +279,13 @@ def construir_panel(tablas: dict[str, pd.DataFrame], hasta: pd.Timestamp | None 
     return base[orden + resto].sort_values(["codigo_provincia", "mes"]).reset_index(drop=True)
 
 
+def registro_calidad_demanda(tablas: dict[str, pd.DataFrame]) -> pd.DataFrame | None:
+    """Meses de demanda por CCAA que el control de calidad deja en NaN en el panel (valor original y motivo)."""
+    if "ccaa_demanda" not in tablas or tablas["ccaa_demanda"].empty:
+        return None
+    return calidad.depurar_demanda_ccaa(tablas["ccaa_demanda"])[1]
+
+
 def provincias_actual(panel: pd.DataFrame, tablas: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Una fila por provincia con el último valor disponible de cada variable y los campos de tiempo real."""
     provincias = tablas["provincias"][["codigo_provincia", "provincia", "codigo_ccaa", "ccaa", "lat_punto", "lon_punto"]]
@@ -318,8 +328,11 @@ def diccionario_para(columnas: list[str]) -> pd.DataFrame:
     return pd.DataFrame(filas)
 
 
-def escribir_salidas(panel: pd.DataFrame, actual: pd.DataFrame, carpeta: Path = CARPETA_CURADO) -> dict[str, Path]:
-    """Guarda panel y provincias_actual (CSV y Parquet) y sus diccionarios de datos."""
+def escribir_salidas(
+    panel: pd.DataFrame, actual: pd.DataFrame, carpeta: Path = CARPETA_CURADO, calidad_demanda: pd.DataFrame | None = None
+) -> dict[str, Path]:
+    """Guarda panel y provincias_actual (CSV y Parquet), sus diccionarios de datos y, si se pasa, el registro de
+    calidad de la demanda (`calidad_demanda_ccaa.csv`)."""
     carpeta.mkdir(parents=True, exist_ok=True)
     rutas = {
         "panel_csv": carpeta / "panel_provincia_mes.csv",
@@ -335,4 +348,7 @@ def escribir_salidas(panel: pd.DataFrame, actual: pd.DataFrame, carpeta: Path = 
     actual.to_parquet(rutas["actual_parquet"], index=False)
     diccionario_para(list(panel.columns)).to_csv(rutas["dicc_panel"], index=False, encoding="utf-8")
     diccionario_para(list(actual.columns)).to_csv(rutas["dicc_actual"], index=False, encoding="utf-8")
+    if calidad_demanda is not None:
+        rutas["calidad_demanda"] = carpeta / "calidad_demanda_ccaa.csv"
+        calidad_demanda.to_csv(rutas["calidad_demanda"], index=False, encoding="utf-8")
     return rutas

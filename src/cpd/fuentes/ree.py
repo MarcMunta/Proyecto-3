@@ -6,6 +6,9 @@ Notas de comportamiento observadas (13/11/2026):
 - Los precios con ``time_trunc=day`` fallan; con ``time_trunc=hour`` funcionan por meses.
 - Las emisiones de CO2 no admiten desglose por CCAA: se usa el total nacional.
 - Un año es el máximo práctico por petición en la demanda y generación por CCAA.
+- (17/11/2026) La demanda por CCAA de los meses recientes es provisional: en jul-ago de 2026 falta el saldo de
+  intercambios y la "demanda" es solo la generación. El curado la filtra (`cpd.fuentes.calidad`) y la caché de la
+  demanda no se da por buena hasta 12 meses después de acabar el año.
 
 Caché: data/raw/api/ree/... (un JSON por petición). Los periodos cerrados no se repiten.
 """
@@ -27,6 +30,9 @@ CARPETA: Path = RUTA_API / "ree"
 ANIO_INICIO_HISTORIA: int = 2015
 NOMBRE_SERIE_SPOT: str = "Precio mercado spot"
 NOMBRE_SERIE_PVPC: str = "PVPC"
+# REData publica la demanda por CCAA como provisional y la corrige después (p. ej. jul-ago de 2026 sin el saldo de
+# intercambios; ver cpd.fuentes.calidad). Un año se vuelve a pedir hasta 12 meses después de terminar.
+MESES_CONSOLIDACION_DEMANDA: int = 12
 
 
 def _hora_local(texto: str) -> pd.Timestamp:
@@ -70,12 +76,19 @@ def _periodo(anio: int, mes: int | None = None) -> tuple[str, str]:
     return f"{anio}-{mes:02d}-01T00:00", f"{anio}-{mes:02d}-{ultimo:02d}T23:59"
 
 
-def _cerrado(anio: int, mes: int | None = None) -> bool:
-    """True si el periodo ya ha terminado (sus datos no cambian)."""
-    hoy = dt.date.today()
-    if mes is None:
-        return anio < hoy.year
-    return (anio, mes) < (hoy.year, hoy.month)
+def _cerrado(anio: int, mes: int | None = None, margen_meses: int = 0, hoy: dt.date | None = None) -> bool:
+    """True si el periodo terminó hace más de `margen_meses` meses (sus datos ya no cambian y se puede usar la caché).
+
+    Args:
+        anio: año del periodo.
+        mes: mes del periodo (None = el año entero).
+        margen_meses: meses que REData tarda en consolidar los datos provisionales (0 = basta con que haya acabado).
+        hoy: fecha de referencia (por defecto, hoy); sirve para los tests.
+    """
+    hoy = hoy or dt.date.today()
+    ultimo_mes = (anio, mes if mes is not None else 12)
+    meses_desde_fin = (hoy.year - ultimo_mes[0]) * 12 + (hoy.month - ultimo_mes[1])
+    return meses_desde_fin > margen_meses
 
 
 def demanda_ccaa_mensual(anio_inicio: int = ANIO_INICIO_HISTORIA, anio_fin: int | None = None) -> pd.DataFrame:
@@ -97,7 +110,7 @@ def demanda_ccaa_mensual(anio_inicio: int = ANIO_INICIO_HISTORIA, anio_fin: int 
                 "geo_ids": str(geo_id),
             }
             ruta = CARPETA / "demanda_ccaa" / f"{geo_id}_{anio}.json"
-            datos = _pedir("demanda/evolucion", params, ruta, _cerrado(anio))
+            datos = _pedir("demanda/evolucion", params, ruta, _cerrado(anio, margen_meses=MESES_CONSOLIDACION_DEMANDA))
             for punto in _serie(datos, "Demanda en b.c.") or _valores_primer_bloque(datos):
                 filas.append(
                     {
