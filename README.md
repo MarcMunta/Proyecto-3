@@ -100,6 +100,19 @@ npm run dev
 Los datos del modelo se regeneran con `npm run data` (llama a `cpd.scoring.evaluar()`); ver
 [frontend/README.md](frontend/README.md) para fuentes y qué datos son sintéticos.
 
+## Análisis exploratorio y modelos de predicción
+
+```powershell
+.\.venv\Scripts\python.exe -m cpd.modelos            # EDA, modelos, métricas e informes (≈40 s)
+.\.venv\Scripts\python.exe -m cpd.modelos --sin-eda  # solo modelos
+```
+
+Necesita `data/curated/panel_provincia_mes` (ver [Datos por API](#datos-por-api)). Entrena y evalúa la previsión de la
+demanda eléctrica por comunidad (1 y 12 meses, con baselines y validación temporal) y la probabilidad de que una
+provincia tenga un CPD (`prob_cpd`). Escribe los informes en `docs/analisis/` y las fichas de modelo en `docs/modelos/`;
+las salidas para el mapa van a `data/curated/modelos/` (`npm run data` las incorpora). Código en `src/cpd/features/` y
+`src/cpd/modelos/`.
+
 ## Cómo ejecutar los tests
 
 ```powershell
