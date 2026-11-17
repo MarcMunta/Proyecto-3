@@ -43,6 +43,20 @@ export interface RenovablePrevista extends TemperaturaPrevista {
   aciertoAnualTest: number | null;
 }
 
+export interface OperacionPrevista {
+  pue: number | null;
+  consumoMwh: number | null;
+  /** t CO2/año con el mix de generación de su comunidad: previstas y del último año. */
+  emisionesT: number | null;
+  emisionesActualT: number | null;
+  /** Reserva mínima prevista de los embalses del ámbito en los 12 meses siguientes (%) y su mes (AAAA-MM). */
+  reservaMinimaPct: number | null;
+  mesReservaMinima: string | null;
+  /** Acierto de punta a punta (100 − WAPE, %) del consumo y de las emisiones anuales. */
+  aciertoConsumo: number | null;
+  aciertoEmisiones: number | null;
+}
+
 export interface Previsiones {
   generado: string | null;
   precio: (SeriePrevista & { mediaPrevista: number | null; futuroGasAnio: number | null }) | null;
@@ -55,6 +69,8 @@ export interface Previsiones {
   temperatura: Map<string, TemperaturaPrevista>;
   /** % de generación renovable mensual por código INE de comunidad, con el acierto de la media de 12 meses. */
   renovables: Map<string, RenovablePrevista>;
+  /** Operación prevista del CPD de referencia en los 12 meses siguientes, por código INE de provincia (objetivo A3). */
+  operacion: Map<string, OperacionPrevista>;
   /** Demanda nacional anual (TWh): historia y previsión a 10 años (`mes` = «AAAA-01»). */
   demanda10: (SeriePrevista & { acierto: number | null }) | null;
   /** Requisito de acierto por modelo. */
@@ -168,6 +184,19 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
       });
     }
   }
+  const operacion = new Map<string, OperacionPrevista>();
+  const o = raiz.operacion;
+  if (o && o.provincias && typeof o.provincias === "object") {
+    for (const [codigo, f] of Object.entries(o.provincias as Record<string, Record<string, unknown>>)) {
+      if (!/^\d{2}$/.test(codigo) || !f) continue;
+      operacion.set(codigo, {
+        pue: numero(f.pue_previsto), consumoMwh: numero(f.consumo_previsto_mwh), emisionesT: numero(f.emisiones_previsto_t),
+        emisionesActualT: numero(f.emisiones_actual_t), reservaMinimaPct: numero(f.reserva_minima_prevista_pct),
+        mesReservaMinima: esMes(f.mes_reserva_minima) ? f.mes_reserva_minima : null,
+        aciertoConsumo: numero(o.acierto_consumo), aciertoEmisiones: numero(o.acierto_emisiones),
+      });
+    }
+  }
   const diez = raiz.demanda_10_anios;
   const anual = (v: unknown) =>
     Array.isArray(v) ? v.map((x) => ({ ...(x as Record<string, unknown>), mes: `${(x as Record<string, unknown>)?.anio}-01` })) : [];
@@ -184,9 +213,9 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
         texto(c?.modelo) && texto(c?.estado) ? [{ modelo: texto(c.modelo)!, estado: texto(c.estado)! }] : [],
       )
     : [];
-  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !demanda10) return null;
+  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10) return null;
   return {
-    generado: texto((json as Record<string, unknown>).generado), precio, demanda, demandaModelo, reservas, temperatura, renovables,
+    generado: texto((json as Record<string, unknown>).generado), precio, demanda, demandaModelo, reservas, temperatura, renovables, operacion,
     demanda10: demanda10?.prevision.length ? demanda10 : null, control,
   };
 }

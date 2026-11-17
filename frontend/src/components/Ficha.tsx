@@ -11,7 +11,7 @@ import { Flap } from "./Flap";
 import { IconoClase } from "./IconoClase";
 import { Barra, Comparativa, Flecha, GraficoPrecio, Vivo, type ItemComparativa } from "./Piezas";
 import { GraficoPrevision } from "./GraficoPrevision";
-import { ACIERTO_MINIMO, type Previsiones, type RenovablePrevista, type SeriePrevista, type TemperaturaPrevista } from "../data/previsiones";
+import { ACIERTO_MINIMO, type OperacionPrevista, type Previsiones, type RenovablePrevista, type SeriePrevista, type TemperaturaPrevista } from "../data/previsiones";
 
 interface Props {
   meta: ProvinciaMeta;
@@ -178,6 +178,7 @@ export function Ficha(p: Props) {
             reservas={d.ambito_hidrografico ? p.previsiones?.reservas.get(d.ambito_hidrografico) : undefined}
             ambito={d.ambito_hidrografico ?? null}
             temperatura={p.previsiones?.temperatura.get(meta.codigo)}
+            operacion={p.previsiones?.operacion.get(meta.codigo)}
           />
 
           {(d.capex_eur != null || d.opex_eur_anual != null || d.prob_cpd != null || d.cpd_existentes != null) && (
@@ -230,6 +231,12 @@ export function Ficha(p: Props) {
                   <div>
                     <dt>Latencia a Madrid y Barcelona (la peor de las dos)</dt>
                     <dd>{num(d.latencia_hubs_rtt_ms, 1)} ms</dd>
+                  </div>
+                )}
+                {d.aceleracion_sismica_g != null && (
+                  <div>
+                    <dt>Aceleración sísmica básica de la capital (NCSE-02)</dt>
+                    <dd>{d.aceleracion_sismica_g <= 0.04 ? "≤ 0,04" : num(d.aceleracion_sismica_g, 2)} g</dd>
                   </div>
                 )}
                 {d.cobertura_renovable_pct != null && (
@@ -557,7 +564,7 @@ function BloqueDemanda({ d, prediccion, previsiones }: { d: ProvinciaPrediccion;
 }
 
 function BloqueClima({
-  d, tiempo, vivo, capital, reservas, ambito, temperatura,
+  d, tiempo, vivo, capital, reservas, ambito, temperatura, operacion,
 }: {
   d: ProvinciaPrediccion;
   tiempo: TiempoActual | undefined;
@@ -566,8 +573,9 @@ function BloqueClima({
   reservas?: SeriePrevista;
   ambito: string | null;
   temperatura?: TemperaturaPrevista;
+  operacion?: OperacionPrevista;
 }) {
-  const hayModelo = d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null;
+  const hayModelo = d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null || operacion != null;
   const notaTemperatura = temperatura
     ? [textoAcierto(temperatura), temperatura.errorTest != null ? `error medio ${num(temperatura.errorTest, 1)} °C al mes` : null].filter(Boolean).join(" · ")
     : undefined;
@@ -618,6 +626,22 @@ function BloqueClima({
                     : ""}
                 </>
               )}
+            </p>
+          )}
+          {operacion && (
+            <p className="dato-linea">
+              Operación prevista del CPD (12 meses):{" "}
+              {operacion.pue != null && <>PUE <strong>{num(operacion.pue, 2)}</strong></>}
+              {operacion.consumoMwh != null && <> · {num(operacion.consumoMwh / 1e3)} GWh</>}
+              {operacion.emisionesT != null && <> · <strong>{num(operacion.emisionesT)} t CO2</strong> con el mix de su comunidad</>}
+              {operacion.reservaMinimaPct != null && (
+                <>
+                  {" "}
+                  · reserva mínima de los embalses del ámbito {num(operacion.reservaMinimaPct)} %
+                  {operacion.mesReservaMinima ? ` (${mesLegible(operacion.mesReservaMinima)})` : ""}
+                </>
+              )}
+              {operacion.aciertoEmisiones != null && <>. Acierto de las emisiones: {num(operacion.aciertoEmisiones, 1)} %.</>}
             </p>
           )}
         </div>

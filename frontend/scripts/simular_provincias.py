@@ -147,6 +147,7 @@ def entradas(actual: pd.DataFrame, panel: pd.DataFrame) -> tuple[pd.DataFrame, d
             "cpd_existentes": a["n_centros_datos"].values if "n_centros_datos" in a else np.nan,
             "cobertura_renovable_pct": [cobertura.get(c) for c in a["codigo_ccaa"].astype(str).str.zfill(2)],
             "precio_suelo_urbano_eur_m2": a["precio_suelo_urbano_eur_m2"].values if "precio_suelo_urbano_eur_m2" in a else np.nan,
+            "peligrosidad_sismica_g": a["aceleracion_sismica_capital_g"].values if "aceleracion_sismica_capital_g" in a else np.nan,
             "latencia_hubs_rtt_ms": (
                 [latencia_rtt_ms(v) if pd.notna(v) else np.nan for v in a["distancia_hubs_ixp_km"]] if "distancia_hubs_ixp_km" in a else np.nan
             ),
@@ -358,6 +359,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
                 "capacidad_demanda_pendiente_mw": _redondeo(a.loc[codigo].get("capacidad_demanda_rdt_pendiente_mw"), 0),
                 "capacidad_acceso_disponible_mw": _redondeo(fila.get("capacidad_acceso_mw"), 0),
                 "precio_suelo_urbano_eur_m2": _redondeo(fila.get("precio_suelo_urbano_eur_m2"), 0),
+                "aceleracion_sismica_g": _redondeo(fila.get("peligrosidad_sismica_g"), 2),
                 "latencia_hubs_rtt_ms": _redondeo(fila.get("latencia_hubs_rtt_ms"), 1),
                 "pue": _redondeo(fila["pue_aplicado"], 3),
                 "latencia_rtt_ms": _redondeo(fila["latencia_rtt_ms"], 2),

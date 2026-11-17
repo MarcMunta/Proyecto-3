@@ -93,3 +93,17 @@ describe("renovables por comunidad", () => {
     expect(cyl.mediaPrevista).toBe(92);
   });
 });
+
+describe("operación del CPD", () => {
+  it("lee la operación prevista por provincia y sus aciertos", () => {
+    // Datos de PRUEBA (valores inventados solo para el test).
+    const p = normalizarPrevisiones({
+      operacion: {
+        acierto_consumo: 99.6, acierto_emisiones: 88.1,
+        provincias: { "50": { pue_previsto: 1.46, consumo_previsto_mwh: 511000, emisiones_previsto_t: 9000, emisiones_actual_t: 9500, reserva_minima_prevista_pct: 41.2, mes_reserva_minima: "2027-09" }, XX: { pue_previsto: 1 } },
+      },
+    })!;
+    expect(p.operacion.size).toBe(1);
+    expect(p.operacion.get("50")).toMatchObject({ pue: 1.46, emisionesT: 9000, reservaMinimaPct: 41.2, mesReservaMinima: "2027-09", aciertoEmisiones: 88.1 });
+  });
+});

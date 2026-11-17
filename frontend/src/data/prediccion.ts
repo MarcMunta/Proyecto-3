@@ -46,6 +46,8 @@ export interface ProvinciaPrediccion {
    * grandes nodos de internet (ms). */
   precio_suelo_urbano_eur_m2?: number | null;
   latencia_hubs_rtt_ms?: number | null;
+  /** Aceleración sísmica básica de la capital (g, norma NCSE-02; 0,04 = la norma da 0,04 o no la lista: ≤ 0,04). */
+  aceleracion_sismica_g?: number | null;
   /** Demanda eléctrica de la comunidad (MWh): 12 últimos meses válidos y previsión de los 12 siguientes (cpd.modelos). */
   demanda_ccaa_ultimos_12m_mwh?: number | null;
   demanda_ccaa_prevision_12m_mwh?: number | null;
@@ -162,6 +164,7 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       capacidad_acceso_disponible_mw: numero(fila.capacidad_acceso_disponible_mw),
       precio_suelo_urbano_eur_m2: numero(fila.precio_suelo_urbano_eur_m2),
       latencia_hubs_rtt_ms: numero(fila.latencia_hubs_rtt_ms),
+      aceleracion_sismica_g: numero(fila.aceleracion_sismica_g),
       demanda_ccaa_ultimos_12m_mwh: numero(fila.demanda_ccaa_ultimos_12m_mwh),
       demanda_ccaa_prevision_12m_mwh: numero(fila.demanda_ccaa_prevision_12m_mwh),
       demanda_ccaa_prevision_inferior_mwh: numero(fila.demanda_ccaa_prevision_inferior_mwh),
