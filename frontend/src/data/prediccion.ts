@@ -129,6 +129,17 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
 }
 
 /**
+ * Rango del VAN (€) de las provincias con clase alta, media o baja. Sirve para avisar de que la clase es relativa:
+ * si el rango es estrecho, una diferencia pequeña de VAN cambia el color. Devuelve null si no hay ninguna.
+ */
+export function rangoVanClasificadas(p: Prediccion): { min: number; max: number } | null {
+  const van = [...p.provincias.values()]
+    .filter((x) => x.clase && x.clase !== "no_rentable" && x.van_eur != null)
+    .map((x) => x.van_eur!);
+  return van.length ? { min: Math.min(...van), max: Math.max(...van) } : null;
+}
+
+/**
  * Regla de la DEMOSTRACIÓN para dar una clase de rentabilidad a datos sintéticos:
  * "No viable" → no rentable; el resto se reparte en tercios según su VAN
  * (tercio superior = alta, medio = media, inferior = baja). Es relativa a la tabla de demostración,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { ProvinciaMeta } from "../data/types";
-import type { ClaseRentabilidad, Prediccion, ProvinciaPrediccion } from "../data/prediccion";
+import { rangoVanClasificadas, type ClaseRentabilidad, type Prediccion, type ProvinciaPrediccion } from "../data/prediccion";
 import { diaHora, millones, normalizar } from "../format";
 import { COLOR_CLASE, NOMBRE_CLASE, ORDEN_CLASE } from "../model/colores";
 import { IconoClase } from "./IconoClase";
@@ -29,6 +29,7 @@ export function Ranking({ meta, prediccion, onProvincia, onResaltar }: Props) {
   const q = normalizar(busca.trim());
   const coincide = (f: Fila) => !q || normalizar(f.meta.nombre).includes(q) || normalizar(f.meta.capital).includes(q);
 
+  const rango = useMemo(() => rangoVanClasificadas(prediccion), [prediccion]);
   const grupos = ORDEN_CLASE.map((c) => ({ clase: c, filas: filas.filter((f) => f.d?.clase === c).sort(porValor) }));
   const sinDatos = filas.filter((f) => !f.d?.clase).sort((a, b) => a.meta.nombre.localeCompare(b.meta.nombre, "es"));
   const total = filas.length;
@@ -83,7 +84,11 @@ export function Ranking({ meta, prediccion, onProvincia, onResaltar }: Props) {
           )}
         </ul>
         {prediccion.tipo !== "real" && (
-          <p className="nota-clase">Clase relativa entre provincias: tercios del VAN simulado; «no viable» cuenta como no rentable.</p>
+          <p className="nota-clase">
+            Clase relativa entre provincias: tercios del VAN simulado
+            {rango ? `, que entre las viables solo va de ${millones(rango.min)} a ${millones(rango.max)} (una diferencia pequeña cambia el color)` : ""}.
+            En rojo, las que no pasan un filtro eliminatorio o tienen VAN ≤ 0.
+          </p>
         )}
         <label className="buscador">
           <span className="sr-only">Buscar provincia</span>

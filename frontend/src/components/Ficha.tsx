@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { Municipio, PropsProvincia, ProvinciaMeta, Viabilidad } from "../data/types";
-import type { ClaseRentabilidad, Prediccion, ProvinciaPrediccion } from "../data/prediccion";
+import { rangoVanClasificadas, type ClaseRentabilidad, type Prediccion, type ProvinciaPrediccion } from "../data/prediccion";
 import type { EnVivo } from "../live/usePolling";
 import type { Demanda, Mix, Precios } from "../live/redata";
 import type { TiempoActual } from "../live/openmeteo";
 import { diaHora, mesLegible, millones, num, pct } from "../format";
-import { COLOR_CLASE, NOMBRE_CLASE } from "../model/colores";
+import { COLOR_CLASE, nombreClaseDe } from "../model/colores";
 import { UMBRAL_FREE_COOLING_C, recalcularConPrecio } from "../model/finanzas";
 import { Flap } from "./Flap";
 import { IconoClase } from "./IconoClase";
@@ -58,6 +58,8 @@ export function Ficha(p: Props) {
   const elegido = demo ? (sitios.find((m) => m.codigo_ine === p.sitio) ?? sitios[0]) : undefined;
   const d = base && elegido && elegido !== sitios[0] ? deMunicipio(elegido, base, prediccion.clasesMunicipio.get(elegido.codigo_ine) ?? null) : base;
   const tiempo = p.tiempo.datos?.[meta.codigo];
+  const rango = useMemo(() => rangoVanClasificadas(prediccion), [prediccion]);
+  const descartada = d?.clase === "no_rentable" && d.estado === "No viable";
 
   return (
     <article className="ficha" aria-labelledby="ficha-titulo">
@@ -81,10 +83,21 @@ export function Ficha(p: Props) {
           <div>
             <strong>
               <span className="sr-only">Rentabilidad </span>
-              {NOMBRE_CLASE[d.clase]}
+              {nombreClaseDe(d.clase, d.estado)}
             </strong>
-            {demo && <span className="clase-nota">relativa · demostración</span>}
-            {prediccion.tipo === "simulacion" && <span className="clase-nota">relativa entre provincias · simulación con datos reales</span>}
+            {descartada ? (
+              <span className="clase-nota">no pasa un filtro eliminatorio (ver «Por qué»): el VAN supone que se pudiera construir</span>
+            ) : (
+              <>
+                {demo && <span className="clase-nota">relativa · demostración</span>}
+                {prediccion.tipo === "simulacion" && (
+                  <span className="clase-nota">
+                    relativa entre provincias · simulación con datos reales
+                    {rango ? ` · el VAN de las viables solo va de ${millones(rango.min)} a ${millones(rango.max)}` : ""}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -187,7 +200,7 @@ export function Ficha(p: Props) {
                 {d.latencia_rtt_ms != null && (
                   <div>
                     <dt>Latencia al IXP</dt>
-                    <dd>{num(d.latencia_rtt_ms, 1)} ms</dd>
+                    <dd>{d.latencia_rtt_ms < 1 ? "menos de 1 ms" : `${num(d.latencia_rtt_ms, 1)} ms`}</dd>
                   </div>
                 )}
               </dl>
@@ -214,14 +227,15 @@ export function Ficha(p: Props) {
       <p className="fuente">
         {demo ? (
           <>
-            <strong>Demostración:</strong> indicadores sintéticos; clase relativa (tercios del VAN, «no viable» = no rentable).
+            <strong>Demostración:</strong> indicadores sintéticos; clase relativa (tercios del VAN; en rojo, no pasa un filtro
+            eliminatorio o VAN ≤ 0).
           </>
         ) : prediccion.tipo === "simulacion" ? (
           <>
             <strong>Simulación</strong> con el modelo del proyecto y datos reales de la provincia
             {prediccion.actualizado ? `, actualizados el ${diaHora(Date.parse(prediccion.actualizado))}` : ""}
             {prediccion.mesReferencia ? ` (clima, agua y precio medio hasta ${mesLegible(prediccion.mesReferencia)})` : ""}. Clase relativa
-            (tercios del VAN; «no viable» = no rentable).
+            (tercios del VAN; en rojo, no pasa un filtro eliminatorio o VAN ≤ 0).
             {prediccion.noEvaluado?.length ? ` A escala provincial no se evalúan: ${prediccion.noEvaluado.join(", ")}.` : ""}
           </>
         ) : (

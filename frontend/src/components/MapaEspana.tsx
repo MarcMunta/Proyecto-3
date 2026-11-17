@@ -37,9 +37,47 @@ const LIMITES = {
 };
 type Zona = keyof typeof LIMITES;
 
+/** Costa de Huelva y Cádiz (lon, lat): el recuadro de Canarias no debe taparla. */
+const COSTA_SUROESTE: [number, number][] = [
+  [-7.45, 37.17],
+  [-6.95, 37.1],
+  [-6.35, 36.53],
+  [-5.6, 36.0],
+];
+/** La península sin el océano extra del suroeste (se usa cuando el recuadro reserva su propio hueco). */
+const PENINSULA_JUSTA: LngLatBoundsLike = [-9.6, 35.9, 4.45, 43.85];
+
+/**
+ * Encuadre de toda España para el tamaño actual del mapa. Prueba el encuadre con océano al suroeste y, si con
+ * esa cámara la costa de Huelva o Cádiz quedaría bajo el recuadro de Canarias (pantallas estrechas), reserva
+ * abajo el alto del recuadro. Las posiciones se calculan en Mercator (512 px por mundo a zoom 0).
+ */
+function encuadreEspana(mapa: MapaML, margen: number): { limites: LngLatBoundsLike; padding: PaddingOptions } {
+  const padding: PaddingOptions = { top: margen, right: margen, bottom: margen, left: margen };
+  const lienzo = mapa.getContainer();
+  const recuadro = lienzo.parentElement?.querySelector<HTMLElement>(".canarias");
+  const camara = mapa.cameraForBounds(ESPANA, { padding });
+  if (!recuadro || !camara?.center || camara.zoom == null) return { limites: ESPANA, padding };
+  const r = recuadro.getBoundingClientRect();
+  const m = lienzo.getBoundingClientRect();
+  const derecha = r.right - m.left + 6;
+  const arriba = r.top - m.top - 6;
+  const centro = maplibregl.MercatorCoordinate.fromLngLat(camara.center);
+  const escala = 512 * 2 ** camara.zoom;
+  const tapa = COSTA_SUROESTE.some((punto) => {
+    const p = maplibregl.MercatorCoordinate.fromLngLat(punto);
+    const x = (p.x - centro.x) * escala + m.width / 2;
+    const y = (p.y - centro.y) * escala + m.height / 2;
+    return x < derecha && y > arriba;
+  });
+  if (!tapa) return { limites: ESPANA, padding };
+  return { limites: PENINSULA_JUSTA, padding: { ...padding, bottom: Math.max(margen, m.height - arriba) } };
+}
+
 function acotar(mapa: MapaML, zona: Zona) {
   const { encuadre, max } = LIMITES[zona];
-  const camara = mapa.cameraForBounds(encuadre, { padding: 24 });
+  const ajuste = zona === "peninsula" ? encuadreEspana(mapa, 24) : { limites: encuadre, padding: 24 };
+  const camara = mapa.cameraForBounds(ajuste.limites, { padding: ajuste.padding });
   if (camara?.zoom != null) mapa.setMinZoom(Math.max(1, camara.zoom - 0.25));
   mapa.setMaxBounds(max);
 }
@@ -360,7 +398,8 @@ export function MapaEspana(props: Props) {
 
     if (!seleccion) {
       fuente?.setData(VACIO);
-      mapa.fitBounds(ESPANA, { padding: Math.min(32, margen), duration: duracion, essential: true });
+      const { limites, padding: hueco } = encuadreEspana(mapa, Math.min(32, margen));
+      mapa.fitBounds(limites, { padding: hueco, duration: duracion, essential: true });
       return () => {
         mapa.off("moveend", alLlegar);
       };

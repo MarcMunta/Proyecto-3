@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import metaJson from "./provincias.json";
-import { desdeDemo, normalizarReal } from "./prediccion";
+import { desdeDemo, normalizarReal, rangoVanClasificadas } from "./prediccion";
+import { nombreClaseDe } from "../model/colores";
 import type { ProvinciaMeta, Viabilidad } from "./types";
 
 const META = metaJson as ProvinciaMeta[];
@@ -70,5 +71,26 @@ describe("desdeDemo", () => {
     const vanBaja = Math.max(...viables.filter((x) => x.clase === "baja").map((x) => x.van_eur!));
     expect(vanAlta).toBeGreaterThanOrEqual(vanBaja);
     expect(p.clasesMunicipio.size).toBe(demo.municipios.length);
+  });
+});
+
+describe("rangoVanClasificadas y nombreClaseDe", () => {
+  // Filas de PRUEBA (valores inventados solo para el test).
+  const prueba = [
+    { codigo_provincia: "28", rentabilidad_clase: "no_rentable", estado: "No viable", van_eur: 9e7 },
+    { codigo_provincia: "42", rentabilidad_clase: "alta", estado: "Viable", van_eur: 2.5e7 },
+    { codigo_provincia: "41", rentabilidad_clase: "baja", estado: "Viable con condiciones", van_eur: 2e7 },
+    { codigo_provincia: "08", rentabilidad_clase: "no_rentable", estado: "Viable", van_eur: -1e6 },
+  ];
+
+  it("el rango solo cuenta las provincias con clase alta, media o baja", () => {
+    const p = normalizarReal(prueba, META, "simulacion")!;
+    expect(rangoVanClasificadas(p)).toEqual({ min: 2e7, max: 2.5e7 });
+  });
+
+  it("distingue «No viable» (filtro eliminatorio) de «No rentable» (VAN ≤ 0)", () => {
+    expect(nombreClaseDe("no_rentable", "No viable")).toBe("No viable");
+    expect(nombreClaseDe("no_rentable", "Viable")).toBe("No rentable");
+    expect(nombreClaseDe("alta", "Viable")).toBe("Alta");
   });
 });
