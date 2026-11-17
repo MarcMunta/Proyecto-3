@@ -199,6 +199,43 @@ def salidas_modelos(curado: Path, panel: pd.DataFrame) -> tuple[pd.DataFrame | N
             "provincias_con_cpd": int(prob["tiene_cpd"].sum()),
             "generado": str(prob["generado_en"].iloc[0]),
         }
+    mapa_ccaa = panel.drop_duplicates("codigo_provincia").set_index("codigo_provincia")["codigo_ccaa"].astype(str).str.zfill(2)
+    ruta_anual = carpeta / "previsiones_1_anio.json"
+    if ruta_anual.exists():
+        # Previsión a 1 año (cpd.modelos.anual): la que usa el mapa para el precio y la demanda.
+        anual = json.loads(ruta_anual.read_text(encoding="utf-8"))
+        p = anual["precio"]
+        resumen["precio_luz"] = {
+            "modelo": p["modelo"],
+            "miembros": p["miembros"],
+            "media_prevista_eur_mwh": p["media_prevista"],
+            "inferior_eur_mwh": p["media_inferior"],
+            "superior_eur_mwh": p["media_superior"],
+            "ultimo_mes": p["ultimo_mes"],
+            "ultimo_mes_eur_mwh": p["ultimo_mes_valor"],
+            "mae_test_eur_mwh": round(p["error_test"], 2),
+            "mae_validacion_eur_mwh": round(p["error_validacion"], 2),
+            "futuro_gas_anio_eur_mwh": p.get("futuro_gas_anio"),
+            "generado": anual["generado"],
+        }
+        filas = [
+            {
+                "codigo_ccaa": codigo,
+                "ultimos_12m_mwh": c["ultimos_12m"],
+                "prevision_12m_mwh": c["prevision_12m"],
+                "prevision_12m_inferior_mwh": c["prevision_12m_inferior"],
+                "prevision_12m_superior_mwh": c["prevision_12m_superior"],
+                "ultimos_12m_hasta": c["hasta"],
+            }
+            for codigo, c in anual["demanda"]["ccaa"].items()
+        ]
+        demanda = mapa_ccaa.rename("codigo_ccaa").reset_index().merge(pd.DataFrame(filas), on="codigo_ccaa", how="left").set_index("codigo_provincia")
+        resumen["demanda"] = {
+            "modelo": anual["demanda"]["modelo"],
+            "mape_test_pct": round(anual["demanda"]["error_test"], 2),
+            "generado": anual["generado"],
+        }
+        return prob, demanda, resumen
     ruta_precio = carpeta / "resumen_precio_luz.json"
     if ruta_precio.exists():
         p = json.loads(ruta_precio.read_text(encoding="utf-8"))
@@ -215,7 +252,6 @@ def salidas_modelos(curado: Path, panel: pd.DataFrame) -> tuple[pd.DataFrame | N
     ruta_dem = carpeta / "resumen_demanda_ccaa.csv"
     if ruta_dem.exists():
         por_ccaa = pd.read_csv(ruta_dem, dtype={"codigo_ccaa": str})
-        mapa_ccaa = panel.drop_duplicates("codigo_provincia").set_index("codigo_provincia")["codigo_ccaa"].astype(str).str.zfill(2)
         demanda = mapa_ccaa.rename("codigo_ccaa").reset_index().merge(por_ccaa, on="codigo_ccaa", how="left").set_index("codigo_provincia")
         metricas = pd.read_csv(carpeta / "metricas_demanda.csv")
         prevision = pd.read_csv(carpeta / "prevision_demanda_ccaa.csv")
@@ -239,6 +275,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
 
     df, meta = entradas(actual, panel)
     prob, demanda, resumen_modelos = salidas_modelos(curado, panel)
+    ccaa_de = panel.drop_duplicates("codigo_provincia").set_index("codigo_provincia")["codigo_ccaa"].astype(str).str.zfill(2).to_dict()
     ajustes = copy.deepcopy(settings)
     ajustes["precios"]["precio_electricidad_eur_mwh"] = meta["precio_12m"]
     r = evaluar(df, params, ajustes).set_index("codigo_provincia", drop=False)
@@ -247,7 +284,13 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
     van_con_precio: dict[str, pd.Series] = {}
     precio_luz = resumen_modelos.get("precio_luz")
     if precio_luz:
-        for clave, precio in (("inferior", precio_luz["inferior_eur_mwh"]), ("superior", precio_luz["superior_eur_mwh"]), ("ultimo_mes", precio_luz["ultimo_mes_eur_mwh"])):
+        escenarios = (
+            ("previsto", precio_luz["media_prevista_eur_mwh"]),
+            ("inferior", precio_luz["inferior_eur_mwh"]),
+            ("superior", precio_luz["superior_eur_mwh"]),
+            ("ultimo_mes", precio_luz["ultimo_mes_eur_mwh"]),
+        )
+        for clave, precio in escenarios:
             escenario = copy.deepcopy(settings)
             escenario["precios"]["precio_electricidad_eur_mwh"] = precio
             van_con_precio[clave] = evaluar(df, params, escenario).set_index("codigo_provincia")["van_eur"]
@@ -264,6 +307,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
         provincias.append(
             {
                 "codigo_provincia": codigo,
+                "codigo_ccaa": ccaa_de.get(codigo),
                 "provincia": fila["provincia"],
                 "ccaa": fila["ccaa"],
                 "rentabilidad_clase": clase[codigo],
@@ -319,7 +363,19 @@ def escribir(datos: dict[str, Any], salida: Path = SALIDA) -> Path:
     return salida
 
 
+def copiar_previsiones(curado: Path = CURADO, salida: Path = SALIDA.parent / "previsiones.json") -> Path | None:
+    """Copia la previsión a 1 año (`python -m cpd.modelos`) al frontend para los gráficos de la ficha."""
+    origen = curado / "modelos" / "previsiones_1_anio.json"
+    if not origen.exists():
+        return None
+    salida.write_text(json.dumps(json.loads(origen.read_text(encoding="utf-8")), ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    return salida
+
+
 def main() -> None:
+    previsiones = copiar_previsiones()
+    if previsiones:
+        print(f"OK: previsión a 1 año -> {previsiones}")
     datos = escribir(simular())
     provincias = json.loads(datos.read_text(encoding="utf-8"))["provincias"]
     reparto = {c: sum(p["rentabilidad_clase"] == c for p in provincias) for c in CLASES}

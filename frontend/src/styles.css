@@ -1211,3 +1211,86 @@ kbd {
     animation: none;
   }
 }
+
+/* ---------- Gráfico de previsión a 1 año (GraficoPrevision) ---------- */
+.grafico-prevision {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.grafico-prevision .gp-titulo {
+  font-size: 0.86rem;
+  color: var(--texto-2);
+}
+
+.grafico-prevision svg {
+  width: 100%;
+  height: 9rem;
+  overflow: visible;
+}
+
+.gp-rejilla {
+  stroke: var(--linea);
+  stroke-width: 1;
+}
+
+.gp-banda {
+  fill: var(--baja);
+  opacity: 0.16;
+}
+
+.gp-real {
+  fill: none;
+  stroke: var(--texto-2);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.gp-prevision {
+  fill: none;
+  stroke: var(--baja);
+  stroke-width: 2.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.gp-hoy {
+  stroke: var(--texto-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.gp-eje {
+  fill: var(--texto-3);
+  font-family: var(--f-num);
+  font-size: 11px;
+}
+
+.gp-leyenda {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--texto-3);
+}
+
+.gp-leyenda span {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.18rem;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+.gp-l-real {
+  background: var(--texto-2);
+}
+
+.gp-l-prev {
+  background: var(--baja);
+}
+
+.gp-l-banda {
+  background: var(--baja);
+  opacity: 0.35;
+  height: 0.6rem !important;
+}
