@@ -26,11 +26,14 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Renovables por comunidad: % medio de 12 meses | 88,7 % | 93,6 % | 100 − WAPE de la media anual | cumple |
 | Generación renovable por comunidad a 1 año (mes a mes) | 84,9 % | 88,1 % | 100 − WAPE (MWh) | no cumple (< 85 %) |
 | Generación renovable por comunidad: total de 12 meses | 90,9 % | 94,0 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
+| Operación del CPD a 1 año: consumo | 99,7 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
+| Operación del CPD a 1 año: emisiones | 89,4 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple |
 | Precio de la luz a 1 año | 59,0 % | 62,4 % | 100 − WAPE | no cumple (< 85 %) |
 | Demanda nacional a 10 años | 97,3 % | — | 100 − WAPE (backtesting 2012-2025) | cumple (objetivo 90 %) |
 | Probabilidad de CPD (prob_cpd) | 90,4 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
+| Riesgo sísmico: algún M ≥ 3 el año siguiente | 74,2 % | 73,1 % | accuracy (validación 2018-2024, test 2025) | no cumple (< 85 %) |
 
-**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Generación renovable por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
+**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Generación renovable por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
 
 
 ## Cómo se ha buscado el menor error
@@ -321,6 +324,49 @@ así que los dos periodos de 12 meses no coinciden del todo.
 | Ceuta | 0 | 209 | 0 % | 0 % |
 
 
+## Operación del CPD a 1 año (sostenibilidad operativa, objetivo A3)
+
+Encadena los modelos anteriores con las fórmulas del simulador para un CPD de referencia (50 MW de TI,
+carga 80 %, refrigeración por aire): la **temperatura media prevista** de la provincia da el
+PUE y el consumo, y el **% renovable previsto** de su comunidad da las emisiones si el CPD se abastece con el mix de
+generación de esa comunidad (0,10 t CO2 por MWh no renovable). El mercado eléctrico es único, así que
+usar el mix de la comunidad es una aproximación (recomendación, no viene de clase). También se da la reserva mínima
+prevista de los embalses del ámbito en los próximos 12 meses.
+
+**Validación de punta a punta** (22 orígenes de validación comunes a los dos modelos, 51 provincias): el consumo
+del año siguiente calculado con lo previsto acierta un **99,7 %** y las emisiones un **89,4 %**. El
+consumo acierta tanto porque el PUE apenas cambia con la temperatura en la fórmula del simulador (de 1,409 a 1,510
+entre provincias); no hay fuga de información: el dato real de cada año no se usa para prever ese año.
+
+![Emisiones del CPD](../../docs/figuras/previsiones/14_operacion_cpd_emisiones.png)
+
+**Figura 10.** Emisiones anuales del CPD de referencia en cada provincia: último año (azul) y próximos 12 meses
+(naranja).
+
+Menos emisiones previstas: Soria (2,2 mil t), Burgos (2,2 mil t), León (2,2 mil t), Ávila (2,3 mil t), Palencia (2,3 mil t). Más: Melilla (52,3 mil t), Ceuta (52,1 mil t), Balears, Illes (44,9 mil t), Palmas, Las (42,0 mil t), Santa Cruz de Tenerife (41,9 mil t).
+
+
+## Riesgo sísmico por provincia (P8)
+
+¿Habrá al menos un terremoto de magnitud ≥ 3 en la provincia el año que viene? Datos de EMSC por provincia y año
+(desde 2015); cada año se entrena solo con los anteriores. Variables: si lo hubo el año anterior, en qué fracción de
+años lo ha habido, actividad media, magnitud máxima y la peligrosidad oficial de la norma NCSE-02 (aceleración
+máxima de la provincia y municipios con ab ≥ 0,08 g). Candidatos: clase mayoritaria, persistencia («como el año
+anterior») y regresión logística; se elige con la log-loss de validación (2018-2024; test 2025).
+
+| Modelo | Partición | Accuracy | ROC-AUC | Recall | Log-loss |
+|---|---|---|---|---|---|
+| Logística con todas las features (ML) **(elegido)** | validacion | 74,2 % | 0,82 | 75 % | 0,549 |
+| Clase mayoritaria (baseline) | validacion | 62,9 % | 0,55 | 0 % | 0,662 |
+| Persistencia (como el año anterior) | validacion | 71,7 % | 0,70 | 65 % | 1,121 |
+| Logística con todas las features (ML) **(elegido)** | test | 73,1 % | 0,80 | 75 % | 0,524 |
+| Clase mayoritaria (baseline) | test | 76,9 % | 0,50 | 0 % | 0,589 |
+| Persistencia (como el año anterior) | test | 75,0 % | 0,66 | 50 % | 0,993 |
+
+**No llega al 85 %** aunque mejora a los baselines (ROC-AUC 0,82): que haya o no un terremoto de magnitud ≥ 3 en un año es muy aleatorio y diez años de catálogo son poca historia. No se usa en el score. Para el riesgo sísmico del score y del filtro se usa directamente la aceleración sísmica básica oficial de la capital (NCSE-02), que es el dato que manda para proyectar un edificio.
+Probabilidades más altas para 2026: Granada (97 %), Málaga (94 %), Murcia (90 %), Alicante/Alacant (88 %), Santa Cruz de Tenerife (84 %).
+
+
 ## Demanda eléctrica nacional a 10 años (P5)
 
 Demanda anual de España (REData, 2007-2025). Backtesting plurianual: desde el final de cada año entre 2011 y
@@ -329,7 +375,7 @@ deriva, tendencia lineal, Holt amortiguado y la combinación de los 3 mejores.
 
 ![Demanda a 10 años](../../docs/figuras/previsiones/07_demanda_nacional_10_anios.png)
 
-**Figura 10.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
+**Figura 11.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
 
 MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirlo):
 
@@ -360,12 +406,12 @@ nacional). El intervalo a más de 7 años se extrapola (σ·√h) porque hay poc
 
 ![Error por horizonte](../../docs/figuras/previsiones/03_error_por_horizonte.png)
 
-**Figura 11.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
+**Figura 12.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
 va en naranja y el resto en gris.
 
 ![Comparación](../../docs/figuras/previsiones/04_comparacion_modelos.png)
 
-**Figura 12.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
+**Figura 13.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
 
 ## Limitaciones
 
