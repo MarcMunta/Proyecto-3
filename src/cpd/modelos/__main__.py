@@ -655,7 +655,8 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
         }
 
     # Porcentaje de generación renovable por comunidad (1 año).
-    reales_v = anual.series_renovables(pd.read_csv(CARPETA_TABLAS / "ccaa_generacion.csv", dtype={"codigo_ccaa": str}))
+    generacion = pd.read_csv(CARPETA_TABLAS / "ccaa_generacion.csv", dtype={"codigo_ccaa": str})
+    reales_v = anual.series_renovables(generacion)
     candidatos_v = anual.candidatos_renovables(reales_v)
     origenes_v = anual.definir_origenes(reales_v.groupby("serie")["mes"].max().min())
     res_v = anual.evaluar(candidatos_v, reales_v, origenes_v, "mae")
@@ -688,18 +689,54 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
             "media_superior": round(min(max(media + float(deltas_v.loc[codigo, "factor_superior"]), 0), 100), 2),
         }
 
+    # Generación renovable por comunidad (MWh, 1 año) y cobertura renovable = generación renovable / demanda (%).
+    # Más del 100 %: la comunidad genera en renovables más de lo que consume (energía verde de sobra para un CPD).
+    reales_g = anual.series_generacion_renovable(generacion)
+    candidatos_g = anual.candidatos_renovables(reales_g, maximo=np.inf, con_log=True)
+    origenes_g = anual.definir_origenes(reales_g.groupby("serie")["mes"].max().min())
+    res_g = anual.evaluar(candidatos_g, reales_g, origenes_g, "mae")
+    prev_g = anual.prevision_final(candidatos_g, res_g, reales_g.groupby("serie")["mes"].max().to_dict())
+    acierto_anual_g = anual.acierto_media_anual(res_g)
+    print(f"  generación renovable: {res_g['elegido']} ({', '.join(res_g['miembros'])})")
+    salida["cobertura_renovable"] = {
+        "modelo": res_g["elegido"], "miembros": res_g["miembros"], "metrica": "mae", "unidad": "MWh",
+        "error_validacion": error(res_g, "validacion"), "error_test": error(res_g, "test"),
+        "acierto_anual_validacion": round(acierto_anual_g["validacion"], 1), "acierto_anual_test": round(acierto_anual_g["test"], 1),
+        "ccaa": {},
+    }
+    renovable_real = generacion.assign(mes=pd.to_datetime(generacion["fecha"]).dt.to_period("M").dt.to_timestamp())
+    for codigo, d in salida["demanda"]["ccaa"].items():
+        historia = renovable_real[(renovable_real["codigo_ccaa"] == codigo) & (renovable_real["mes"] <= reales_v["mes"].max())]
+        renovable_12m = float(historia.sort_values("mes")["generacion_renovable_mwh"].iloc[-12:].sum()) if len(historia) >= 12 else None
+        prevista = prev_g.loc[prev_g["serie"] == codigo, "prevision"]
+        # Sin serie (Ceuta, siempre 0 MWh renovables): la previsión es 0, no un dato ausente.
+        renovable_prevista = float(prevista.sum()) if len(prevista) else (0.0 if renovable_12m == 0 else None)
+        cobertura = lambda r, dem: round(100 * r / dem, 1) if r is not None and dem else None  # noqa: E731
+        salida["cobertura_renovable"]["ccaa"][codigo] = {
+            "nombre": d["nombre"],
+            "renovable_12m_mwh": None if renovable_12m is None else round(renovable_12m, 0),
+            "renovable_prevista_mwh": None if renovable_prevista is None else round(renovable_prevista, 0),
+            "demanda_12m_mwh": d["ultimos_12m"], "demanda_prevista_mwh": d["prevision_12m"],
+            "cobertura_actual_pct": cobertura(renovable_12m, d["ultimos_12m"]),
+            "cobertura_prevista_pct": cobertura(renovable_prevista, d["prevision_12m"]),
+        }
+
     # Control de acierto de los modelos de la previsión a 1 año (100 − WAPE, ver cpd.modelos.metricas).
-    for clave, res in (("precio", res_p), ("demanda", res_d), ("reservas", res_r), ("temperatura", res_t), ("renovables", res_v)):
+    for clave, res in (("precio", res_p), ("demanda", res_d), ("reservas", res_r), ("temperatura", res_t), ("renovables", res_v), ("cobertura_renovable", res_g)):
         m = res["metricas"].query("modelo == @res['elegido']").set_index("particion")
         salida[clave]["acierto_validacion"] = round(float(m.loc["validacion", "acierto_pct"]), 1)
         salida[clave]["acierto_test"] = round(float(m.loc["test", "acierto_pct"]), 1)
 
     RUTA_SALIDAS.mkdir(parents=True, exist_ok=True)
     (RUTA_SALIDAS / "previsiones_1_anio.json").write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
-    for nombre_res, res in (("precio", res_p), ("demanda", res_d), ("reservas", res_r), ("temperatura", res_t), ("renovables", res_v)):
+    for nombre_res, res in (
+        ("precio", res_p), ("demanda", res_d), ("reservas", res_r), ("temperatura", res_t), ("renovables", res_v), ("generacion_renovable", res_g),
+    ):
         res["metricas"].to_csv(RUTA_SALIDAS / f"anual_metricas_{nombre_res}.csv", index=False)
         res["por_horizonte"].to_csv(RUTA_SALIDAS / f"anual_por_horizonte_{nombre_res}.csv", index=False)
     prev_v.to_csv(RUTA_SALIDAS / "anual_prevision_renovables.csv", index=False)
+    prev_g.to_csv(RUTA_SALIDAS / "anual_prevision_generacion_renovable.csv", index=False)
+    pd.DataFrame.from_dict(salida["cobertura_renovable"]["ccaa"], orient="index").rename_axis("codigo_ccaa").to_csv(RUTA_SALIDAS / "cobertura_renovable_ccaa.csv")
     prev_p.to_csv(RUTA_SALIDAS / "anual_prevision_precio.csv", index=False)
     prev_d.to_csv(RUTA_SALIDAS / "anual_prevision_demanda.csv", index=False)
     prev_r.to_csv(RUTA_SALIDAS / "anual_prevision_reservas.csv", index=False)
@@ -710,10 +747,14 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     reservas = {"resultado": res_r, "prevision": prev_r, "reales": reales_r, "resumen": salida["reservas"]}
     temperatura = {"resultado": res_t, "prevision": prev_t, "reales": reales_t, "resumen": salida["temperatura"]}
     renovables = {"resultado": res_v, "prevision": prev_v, "reales": reales_v, "resumen": salida["renovables"]}
+    cobertura = {"resultado": res_g, "prevision": prev_g, "resumen": salida["cobertura_renovable"]}
     figuras = _figuras_anual(precio, demanda, mensual, serie)
     figuras.update(_figuras_reservas(reservas))
     figuras.update(_figuras_temperatura(temperatura))
     figuras.update(_figuras_renovables(renovables))
+    figuras.update(_figura_cobertura(cobertura))
+    # MAE de la generación renovable en GWh para que el eje sea legible.
+    en_gwh = {k: (v.assign(mae=v["mae"] / 1e3) if k in ("metricas", "por_horizonte") else v) for k, v in res_g.items()}
     figuras.update(
         _figuras_errores(
             [
@@ -722,12 +763,13 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
                 ("Reservas de agua por ámbito", res_r, "mae", "MAE (puntos de reserva, %)"),
                 ("Temperatura por provincia", res_t, "mae", "MAE (°C)"),
                 ("Renovables por comunidad", res_v, "mae", "MAE (puntos de % renovable)"),
+                ("Generación renovable por comunidad", en_gwh, "mae", "MAE (GWh al mes)"),
             ]
         )
     )
     return {
         "precio": precio, "demanda": demanda, "reservas": reservas, "temperatura": temperatura, "renovables": renovables,
-        "figuras": figuras, "json": salida,
+        "cobertura": cobertura, "figuras": figuras, "json": salida,
     }
 
 
@@ -800,6 +842,29 @@ def _figuras_temperatura(temperatura: dict) -> dict[str, str]:
     figura.tight_layout(rect=(0, 0, 1, 0.95))
     figuras["temperatura_mensual"] = _guardar_figura(figura, "10_temperatura_mensual.png")
     return figuras
+
+
+@_con_estilo
+def _figura_cobertura(cobertura: dict) -> dict[str, str]:
+    """Figura 13: cobertura renovable de cada comunidad (generación renovable / demanda, %), último año y previsión."""
+    ccaa = pd.DataFrame.from_dict(cobertura["resumen"]["ccaa"], orient="index").dropna(subset=["cobertura_prevista_pct"])
+    ccaa = ccaa.sort_values("cobertura_prevista_pct")
+    elegido = informe.NOMBRES_MODELO.get(cobertura["resumen"]["modelo"], cobertura["resumen"]["modelo"])
+    figura, eje = plt.subplots(figsize=(9.5, 6.4))
+    y = np.arange(len(ccaa))
+    eje.barh(y - 0.19, ccaa["cobertura_actual_pct"], 0.38, color=COLOR_REAL, edgecolor=FONDO, lw=1, label="últimos 12 meses (real)")
+    eje.barh(y + 0.19, ccaa["cobertura_prevista_pct"], 0.38, color=COLOR_PREVISTO, edgecolor=FONDO, lw=1, label=f"próximos 12 meses ({elegido})")
+    for yi, valor in zip(y + 0.19, ccaa["cobertura_prevista_pct"]):
+        eje.annotate(f"{valor:.0f} %", (valor, yi), xytext=(4, 0), textcoords="offset points", va="center", fontsize=7, color=TINTA_2)
+    eje.axvline(100, color=TINTA_2, lw=1, ls=(0, (4, 3)))
+    eje.annotate("100 %: genera en renovables lo mismo que consume", (100, 1), xycoords=("data", "axes fraction"), xytext=(4, -10), textcoords="offset points", fontsize=7.5, color=TINTA_2)
+    eje.set_yticks(y, ccaa["nombre"], fontsize=8)
+    eje.grid(False)
+    eje.grid(axis="x")
+    eje.set_xlabel("Generación renovable / demanda de la comunidad (%)")
+    eje.set_title("Cobertura renovable por comunidad: cuánta energía renovable genera frente a la que consume", pad=24)
+    eje.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncols=2, fontsize=7.5)
+    return {"cobertura": _guardar_figura(figura, "13_cobertura_renovable_ccaa.png")}
 
 
 @_con_estilo
@@ -916,6 +981,8 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict) -> pd.DataFrame:
         ("Temperatura por provincia a 1 año", j["temperatura"]["acierto_validacion"], j["temperatura"]["acierto_test"], "100 − WAPE (en °C)"),
         ("Renovables por comunidad a 1 año (mes a mes)", j["renovables"]["acierto_validacion"], j["renovables"]["acierto_test"], "100 − WAPE"),
         ("Renovables por comunidad: % medio de 12 meses", j["renovables"]["acierto_anual_validacion"], j["renovables"]["acierto_anual_test"], "100 − WAPE de la media anual"),
+        ("Generación renovable por comunidad a 1 año (mes a mes)", j["cobertura_renovable"]["acierto_validacion"], j["cobertura_renovable"]["acierto_test"], "100 − WAPE (MWh)"),
+        ("Generación renovable por comunidad: total de 12 meses", j["cobertura_renovable"]["acierto_anual_validacion"], j["cobertura_renovable"]["acierto_anual_test"], "100 − WAPE del total anual"),
         ("Precio de la luz a 1 año", j["precio"]["acierto_validacion"], j["precio"]["acierto_test"], "100 − WAPE"),
         ("Demanda nacional a 10 años", diez["acierto"], None, "100 − WAPE (backtesting 2012-2025)"),
         ("Probabilidad de CPD (prob_cpd)", 100 * prob["metricas_umbral"]["accuracy"], None, "accuracy fuera de pliegue"),

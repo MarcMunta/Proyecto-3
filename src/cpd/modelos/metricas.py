@@ -52,8 +52,18 @@ def acierto_pct(real, prevision) -> float:
 
 
 def metricas_regresion(real, prevision) -> dict[str, float]:
-    """MAE, RMSE, MAPE y acierto juntos (claves `mae`, `rmse`, `mape_pct`, `acierto_pct`)."""
-    return {"mae": mae(real, prevision), "rmse": rmse(real, prevision), "mape_pct": mape(real, prevision), "acierto_pct": acierto_pct(real, prevision)}
+    """MAE, RMSE, MAPE y acierto juntos (claves `mae`, `rmse`, `mape_pct`, `acierto_pct`).
+
+    Si algún valor real es 0 (p. ej. un mes sin generación renovable en Melilla), el MAPE no existe y queda en NaN;
+    el acierto (WAPE) sí se puede calcular.
+    """
+    sin_ceros = bool(np.all(np.asarray(real, dtype=float) != 0))
+    return {
+        "mae": mae(real, prevision),
+        "rmse": rmse(real, prevision),
+        "mape_pct": mape(real, prevision) if sin_ceros else float("nan"),
+        "acierto_pct": acierto_pct(real, prevision),
+    }
 
 
 # Requisito del proyecto (17/11/2026): todo modelo debe acertar al menos un 85 % (objetivo: 90 %) y ninguno puede

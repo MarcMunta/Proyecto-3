@@ -387,7 +387,7 @@ def series_temperatura(clima_diario: pd.DataFrame, hoy: dt.date | None = None) -
     return resumen[completos].rename(columns={"mean": "real"})[["serie", "mes", "real"]].sort_values(["serie", "mes"]).reset_index(drop=True)
 
 
-def series_renovables(generacion: pd.DataFrame, hoy: dt.date | None = None) -> pd.DataFrame:
+def series_renovables(generacion: pd.DataFrame, hoy: dt.date | None = None, columna: str = "pct_renovable") -> pd.DataFrame:
     """Porcentaje de generación renovable (%) de cada comunidad autónoma por mes, sin el mes en curso.
 
     Deja fuera las comunidades sin ninguna generación renovable en todo el periodo (Ceuta): su serie es siempre 0 y
@@ -396,30 +396,47 @@ def series_renovables(generacion: pd.DataFrame, hoy: dt.date | None = None) -> p
     Args:
         generacion: tabla `ccaa_generacion` (REData): `codigo_ccaa`, `fecha` (mes), `pct_renovable` (%).
         hoy: fecha de referencia para el mes en curso (por defecto, hoy).
+        columna: columna que se prevé (`pct_renovable` en %, o `generacion_renovable_mwh` en MWh).
 
     Returns:
-        `serie` (código INE de comunidad, 2 cifras), `mes`, `real` (%).
+        `serie` (código INE de comunidad, 2 cifras), `mes`, `real` (unidad de `columna`).
     """
     datos = generacion.assign(
         mes=pd.to_datetime(generacion["fecha"]).dt.to_period("M").dt.to_timestamp(),
         serie=generacion["codigo_ccaa"].astype(str).str.zfill(2),
-    ).dropna(subset=["pct_renovable"])
+    ).dropna(subset=[columna])
     en_curso = pd.Timestamp(hoy or dt.date.today()).to_period("M").to_timestamp()
     datos = datos[datos["mes"] < en_curso]
-    con_renovables = datos.groupby("serie")["pct_renovable"].transform("max") > 0
-    datos = datos[con_renovables].rename(columns={"pct_renovable": "real"})
+    con_renovables = datos.groupby("serie")[columna].transform("max") > 0
+    datos = datos[con_renovables].rename(columns={columna: "real"})
     return datos[["serie", "mes", "real"]].sort_values(["serie", "mes"]).reset_index(drop=True)
 
 
-def candidatos_renovables(reales: pd.DataFrame) -> dict[str, Candidato]:
-    """Candidatos para el % renovable mensual de cada comunidad: los de `candidatos_estacionales` (con un φ propio
-    de cada comunidad) y dos variantes de ETS con los últimos 5 años, con tendencia amortiguada y sin tendencia: con
-    tanta potencia solar nueva en 2022-2025, la historia larga frena la tendencia (se vio en la validación, después
-    de la primera prueba). Las previsiones se recortan a [0, 100] %."""
-    candidatos = candidatos_estacionales(reales, limites=(0.0, 100.0), min_meses=60, nombre_propio="anomalia_por_comunidad")
+def series_generacion_renovable(generacion: pd.DataFrame, hoy: dt.date | None = None) -> pd.DataFrame:
+    """Generación renovable (MWh) de cada comunidad autónoma por mes, sin el mes en curso ni las comunidades sin
+    generación renovable en todo el periodo (Ceuta).
+
+    Args:
+        generacion: tabla `ccaa_generacion` (REData): `codigo_ccaa`, `fecha` (mes), `generacion_renovable_mwh`.
+        hoy: fecha de referencia para el mes en curso (por defecto, hoy).
+
+    Returns:
+        `serie` (código INE de comunidad, 2 cifras), `mes`, `real` (MWh).
+    """
+    return series_renovables(generacion, hoy, columna="generacion_renovable_mwh")
+
+
+def candidatos_renovables(reales: pd.DataFrame, maximo: float = 100.0, con_log: bool = False) -> dict[str, Candidato]:
+    """Candidatos para el % renovable mensual de cada comunidad (o, con `maximo=np.inf`, para la generación renovable
+    en MWh): los de `candidatos_estacionales` (con un φ propio de cada comunidad) y dos variantes de ETS con los
+    últimos 5 años, con tendencia amortiguada y sin tendencia: con tanta potencia solar nueva en 2022-2025, la
+    historia larga frena la tendencia (se vio en la validación, después de la primera prueba). Con `con_log` se añade
+    una ETS de 5 años sobre el logaritmo (crecimiento proporcional, útil en MWh). Las previsiones se recortan a
+    [0, maximo]."""
+    candidatos = candidatos_estacionales(reales, limites=(0.0, maximo), min_meses=60, nombre_propio="anomalia_por_comunidad")
     por_serie = {s: g.set_index("mes")["real"].sort_index() for s, g in reales.groupby("serie")}
 
-    def _ets_5_anios(tendencia: bool) -> Candidato:
+    def _ets_5_anios(tendencia: bool, logaritmo: bool = False) -> Candidato:
         def prever(origen: pd.Timestamp) -> pd.DataFrame:
             from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
@@ -429,13 +446,17 @@ def candidatos_renovables(reales: pd.DataFrame) -> dict[str, Candidato]:
                 if len(s) < 60 or s.index.max() < origen:
                     continue
                 filas = _filas_futuras(serie, origen)
+                valores = s.iloc[-60:].to_numpy(dtype=float)
+                if logaritmo:
+                    valores = np.log(np.maximum(valores, 1.0))
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     ajuste = ExponentialSmoothing(
-                        s.iloc[-60:].to_numpy(dtype=float), trend="add" if tendencia else None, damped_trend=tendencia, seasonal="add",
+                        valores, trend="add" if tendencia else None, damped_trend=tendencia, seasonal="add",
                         seasonal_periods=12, initialization_method="estimated",
                     ).fit()
-                filas["prevision"] = np.clip(ajuste.forecast(len(filas)), 0, 100)
+                prevision = ajuste.forecast(len(filas))
+                filas["prevision"] = np.clip(np.exp(prevision) if logaritmo else prevision, 0, maximo)
                 partes.append(filas)
             return pd.concat(partes, ignore_index=True)
 
@@ -443,6 +464,8 @@ def candidatos_renovables(reales: pd.DataFrame) -> dict[str, Candidato]:
 
     candidatos["ets_5_anios"] = _ets_5_anios(tendencia=True)
     candidatos["ets_5_anios_sin_tendencia"] = _ets_5_anios(tendencia=False)
+    if con_log:
+        candidatos["ets_5_anios_log"] = _ets_5_anios(tendencia=True, logaritmo=True)
     return candidatos
 
 

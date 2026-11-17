@@ -46,6 +46,7 @@ NOMBRES_MODELO = {
     "anomalia_por_comunidad": "Anomalía persistente (φ de cada comunidad)",
     "ets_5_anios": "ETS de 5 años con tendencia amortiguada",
     "ets_5_anios_sin_tendencia": "ETS de 5 años sin tendencia",
+    "ets_5_anios_log": "ETS de 5 años sobre el logaritmo",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
@@ -477,7 +478,7 @@ deriva, tendencia lineal, Holt amortiguado y la combinación de los 3 mejores.
 
 ![Demanda a 10 años]({"../../" + diez["figura"]})
 
-**Figura 9.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
+**Figura 10.** Demanda real, lo que el modelo habría previsto desde varios años del pasado y la previsión a 10 años.
 
 MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirlo):
 
@@ -639,6 +640,53 @@ previsión a 1 año con su intervalo.
 """
 
 
+def _seccion_cobertura(cobertura: dict[str, Any], figura: str) -> str:
+    """Generación renovable (MWh) por comunidad a 1 año y cobertura renovable de la demanda."""
+    r, j = cobertura["resultado"], cobertura["resumen"]
+    acierto = r["metricas"].pivot(index="modelo", columns="particion", values="acierto_pct").sort_values("validacion", ascending=False)
+    filas = [
+        {
+            "Modelo": NOMBRES_MODELO.get(mo, mo) + (" **(elegido)**" if mo == r["elegido"] else (" (en la combinación)" if mo in r["miembros"] else "")),
+            "Acierto validación (mes a mes)": f"{_n(f['validacion'], 1)} %",
+            "Acierto test (mes a mes)": f"{_n(f['test'], 1)} %",
+        }
+        for mo, f in acierto.iterrows()
+    ]
+    ccaa = pd.DataFrame.from_dict(j["ccaa"], orient="index").dropna(subset=["cobertura_prevista_pct"]).sort_values("cobertura_prevista_pct", ascending=False)
+    tabla = pd.DataFrame(
+        {
+            "Comunidad": ccaa["nombre"],
+            "Renovable último año (GWh)": (ccaa["renovable_12m_mwh"] / 1e3).map(lambda v: _n(v, 0)),
+            "Demanda último año (GWh)": (ccaa["demanda_12m_mwh"] / 1e3).map(lambda v: _n(v, 0)),
+            "Cobertura último año": ccaa["cobertura_actual_pct"].map(lambda v: f"{_n(v, 0)} %"),
+            "Cobertura prevista": ccaa["cobertura_prevista_pct"].map(lambda v: f"{_n(v, 0)} %"),
+        }
+    )
+    por_encima = ", ".join(ccaa.loc[ccaa["cobertura_prevista_pct"] > 100, "nombre"])
+    o = r["origenes"]
+    return f"""## Cobertura renovable por comunidad autónoma
+
+Cuánta energía renovable genera cada comunidad frente a la que consume: **cobertura = generación renovable / demanda**.
+Por encima del 100 %, la comunidad genera en renovables más de lo que consume: hay energía verde de sobra para un CPD
+nuevo. La generación renovable (MWh, REData) se prevé con los mismos candidatos que el % renovable más una ETS sobre el
+logaritmo; la demanda, con su propio modelo (arriba). Comunidades por encima del 100 %: {por_encima}.
+
+{_tabla(pd.DataFrame(filas))}
+
+Validación: orígenes {o['origenes_validacion']}. Test: meses {o['meses_test']}. **Total de 12 meses** (la cifra que entra en
+la cobertura): **{_n(j['acierto_anual_validacion'], 1)} %** en validación y **{_n(j['acierto_anual_test'], 1)} %** en test. El mes a mes depende del viento, la
+lluvia y el sol de cada mes y se enseña solo como orientativo.
+
+![Cobertura renovable]({figura})
+
+**Figura 9.** Cobertura renovable de cada comunidad: último año real (azul) y previsión de los próximos 12 meses
+(naranja). La línea discontinua marca el 100 %. La demanda de la península termina en junio de 2026 (ver limitaciones),
+así que los dos periodos de 12 meses no coinciden del todo.
+
+{_tabla(tabla)}
+"""
+
+
 def _por_que_precio(res: dict[str, Any]) -> str:
     """Si el precio a 1 año no llega al acierto mínimo (D8), explica por qué con cifras de su propia validación."""
     from cpd.modelos.metricas import ACIERTO_MINIMO
@@ -701,6 +749,7 @@ def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None
     seccion_renovables = (
         _seccion_renovables(anual["renovables"], fig["renovables"], fig["renovables_mensual"]) if "renovables" in anual and "renovables" in fig else ""
     )
+    seccion_cobertura = _seccion_cobertura(anual["cobertura"], fig["cobertura"]) if "cobertura" in anual and "cobertura" in fig else ""
     seccion_10 = _seccion_10_anios(diez) if diez else ""
     return f"""# Previsiones · 1 año (demanda, precio de la luz, reservas de agua, temperatura y renovables) y 10 años (demanda nacional)
 
@@ -787,18 +836,20 @@ Rango: cuantiles 10-90 % del error de la suma anual de cada comunidad en validac
 
 {seccion_renovables}
 
+{seccion_cobertura}
+
 {seccion_10}
 
 ## Errores por horizonte y comparación de modelos
 
 ![Error por horizonte]({fig['horizonte']})
 
-**Figura 10.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
+**Figura 11.** Error medio de cada modelo según los meses de antelación (validación), un gráfico por serie. El elegido
 va en naranja y el resto en gris.
 
 ![Comparación]({fig['modelos']})
 
-**Figura 11.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
+**Figura 12.** Error a 1 año de cada modelo en validación y en test, un gráfico por serie (el elegido, en negrita).
 
 ## Limitaciones
 

@@ -508,3 +508,12 @@ def test_acierto_de_la_media_anual():
     )
     acierto = anual.acierto_media_anual({"elegido": "ets", "predicciones": pred})
     assert acierto == {"validacion": pytest.approx(100.0)}
+
+
+def test_metricas_con_un_real_igual_a_cero_dejan_el_mape_vacio():
+    from cpd.modelos.metricas import metricas_regresion
+
+    m = metricas_regresion([0.0, 10.0], [1.0, 9.0])
+    assert np.isnan(m["mape_pct"])
+    assert m["mae"] == pytest.approx(1.0)
+    assert m["acierto_pct"] == pytest.approx(100 * (1 - 2 / 10))
