@@ -777,6 +777,35 @@ Red casi llena (≥ 50 % de la capacidad libre): {lista(red, 'pct_capacidad_disp
 """
 
 
+def _seccion_empresas(empresas: dict[str, Any], figura: str) -> str:
+    """Atracción empresarial (E42): sociedades mercantiles creadas por provincia a 1 año."""
+    r, tabla = empresas["resumen"], empresas["tabla"].copy()
+    tabla["nombre"] = tabla["codigo_provincia"].map(lambda c: empresas.get("nombres", {}).get(c, {}).get("nombre", c))
+    mas, menos = tabla.nlargest(4, "por_10000_hab"), tabla.nsmallest(3, "por_10000_hab")
+    lista = lambda d: ", ".join(f"{f.nombre} ({_n(f.por_10000_hab, 1)})" for f in d.itertuples())  # noqa: E731
+    total_ult, total_prev = tabla["ultimos_12m"].sum(), tabla["prevision_12m"].sum()
+    return f"""## Atracción empresarial (E42)
+
+Indicador con datos reales: **sociedades mercantiles constituidas** cada mes en cada provincia (INE, Estadística de
+Sociedades Mercantiles, tabla 6295, desde 2008; dato nuevo, último mes {r['hasta']}). Se prevén los 12 meses siguientes con el
+mismo protocolo que el resto (24 orígenes de validación, test de un año, combinación salvo mejora clara) y los mismos
+candidatos que la generación renovable en MWh. Para comparar provincias se expresa **por cada 10.000 habitantes**. Es un
+indicador de dinamismo empresarial (recomendación, no viene de clase): no mide qué empresas llegan por el CPD. Código:
+`src/cpd/modelos/empresas.py`.
+
+Elegido: **{NOMBRES_MODELO.get(r['modelo'], r['modelo'])}** (mejora a la combinación en más de un 5 % en validación). Mes a mes acierta
+{_n(r['acierto_validacion'], 1)} % en validación y {_n(r['acierto_test'], 1)} % en test (el mes suelto es ruidoso: orientativo si baja del 85 %); el **total de
+12 meses**, que es el indicador, acierta **{_n(r['acierto_anual_validacion'], 1)} %** y **{_n(r['acierto_anual_test'], 1)} %**.
+
+![Atracción empresarial]({figura})
+
+**Figura 20.** Sociedades creadas al año por cada 10.000 habitantes: últimos 12 meses (azul) y próximos 12 (naranja).
+
+España: {_n(total_ult, 0)} sociedades en los últimos 12 meses y {_n(total_prev, 0)} previstas. Más dinamismo por habitante: {lista(mas)};
+menos: {lista(menos)}.
+"""
+
+
 def _seccion_escenarios(esc: dict[str, Any], figura: str) -> str:
     """Escenarios de demanda a 10 años con la red otorgada y en trámite (P5)."""
     j = esc["json"]
@@ -1087,6 +1116,8 @@ def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None
     seccion_operacion = _seccion_operacion(anual["operacion"], fig["operacion"]) if "operacion" in anual and "operacion" in fig else ""
     if anual.get("impacto") and "impacto" in fig:
         seccion_operacion += "\n" + _seccion_impacto(anual["impacto"], fig["impacto"])
+    if anual.get("empresas") and "empresas" in fig:
+        seccion_operacion += "\n" + _seccion_empresas(anual["empresas"], fig["empresas"])
     seccion_sismico = _seccion_sismico(anual["sismico"]) if "sismico" in anual else ""
     seccion_gas_tiempo = (
         _seccion_gas_tiempo(anual["gas_tiempo"], fig["gas_tiempo"], anual["precio"]) if anual.get("gas_tiempo") and "gas_tiempo" in fig else ""

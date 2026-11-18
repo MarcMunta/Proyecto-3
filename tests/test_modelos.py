@@ -839,3 +839,31 @@ def test_escenarios_por_comunidad_peso_sobre_su_demanda():
     capacidad = pd.DataFrame({"codigo_ccaa": ["02"], "ccaa": ["Aragón"], "capacidad_demanda_rdt_otorgada_mw": [1000.0], "capacidad_demanda_rdt_pendiente_mw": [0.0]})
     t = escenarios.por_ccaa(capacidad, pd.Series({"02": 8_760_000.0}), 1.0).iloc[0]
     assert t["otorgada_twh"] == pytest.approx(8.76) and t["pct_otorgada"] == pytest.approx(100.0)
+
+
+# --- Atracción empresarial (E42) -------------------------------------------------------------------------------------
+
+
+def test_sociedades_del_ine_lee_mercantiles_por_provincia_y_mes():
+    from cpd.fuentes import ine
+
+    series = [
+        {"Nombre": "Zaragoza. Sociedades Constituídas. Mercantiles. Número de Sociedades. ", "Data": [{"Anyo": 2025, "FK_Periodo": 12, "Valor": 171.0}, {"Anyo": 2025, "FK_Periodo": 11, "Valor": 170.0}]},
+        {"Nombre": "Zaragoza. Sociedades Constituídas. Mercantiles. Capital. ", "Data": [{"Anyo": 2025, "FK_Periodo": 12, "Valor": 9.0}]},
+        {"Nombre": "Aragón. Sociedades Constituídas. Mercantiles. Número de Sociedades. ", "Data": [{"Anyo": 2025, "FK_Periodo": 12, "Valor": 300.0}]},
+    ]
+    t = ine.sociedades_desde_series(series)
+    assert t["codigo_provincia"].unique().tolist() == ["50"]
+    assert t["mes"].tolist() == [pd.Timestamp(2025, 11, 1), pd.Timestamp(2025, 12, 1)]
+
+
+def test_atraccion_empresarial_por_10000_habitantes():
+    from cpd.modelos import empresas
+
+    # Datos SINTÉTICOS (solo para el test).
+    meses = pd.date_range("2024-01-01", periods=12, freq="MS")
+    reales = pd.DataFrame({"serie": "50", "mes": meses, "real": 10.0})
+    prevision = pd.DataFrame({"serie": "50", "mes": pd.date_range("2025-01-01", periods=12, freq="MS"), "prevision": 11.0})
+    t = empresas.indicador(reales, prevision, pd.Series({"50": 20_000.0})).iloc[0]
+    assert t["ultimos_12m"] == 120 and t["prevision_12m"] == 132
+    assert t["por_10000_hab"] == pytest.approx(66.0) and t["cambio_pct"] == pytest.approx(10.0)

@@ -830,6 +830,33 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     }
     tabla_imp.to_csv(RUTA_SALIDAS / "impacto_local_provincia.csv", index=False)
 
+    # Atracción empresarial (E42): sociedades mercantiles creadas por provincia a 1 año (INE).
+    empresas_res = None
+    if (CARPETA_TABLAS / "sociedades_provincia.csv").exists():
+        from cpd.modelos import empresas
+
+        reales_e = empresas.reales_sociedades(pd.read_csv(CARPETA_TABLAS / "sociedades_provincia.csv", dtype={"codigo_provincia": str}))
+        res_e = empresas.evaluar(reales_e)
+        prev_e = anual.prevision_final(empresas.candidatos(reales_e), res_e, reales_e.groupby("serie")["mes"].max().to_dict())
+        pob_prov = pd.read_csv(CARPETA_TABLAS / "poblacion.csv", dtype={"codigo_provincia": str})
+        pob_prov = pob_prov[pob_prov["anio"] == pob_prov["anio"].max()].set_index("codigo_provincia")["poblacion"]
+        tabla_e = empresas.indicador(reales_e, prev_e, pob_prov)
+        m_e = res_e["metricas"].query("modelo == @res_e['elegido']").set_index("particion")["acierto_pct"]
+        salida["empresas"] = {
+            "modelo": res_e["elegido"], "miembros": res_e["miembros"], "hasta": mes(reales_e["mes"].max()),
+            "acierto_validacion": round(float(m_e["validacion"]), 1), "acierto_test": round(float(m_e["test"]), 1),
+            "acierto_anual_validacion": round(res_e["acierto_anual"]["validacion"], 1), "acierto_anual_test": round(res_e["acierto_anual"]["test"], 1),
+            "provincias": {
+                f.codigo_provincia: {"ultimos_12m": round(f.ultimos_12m, 0), "prevision_12m": round(f.prevision_12m, 0), "por_10000_hab": round(f.por_10000_hab, 1), "cambio_pct": round(f.cambio_pct, 1)}
+                for f in tabla_e.itertuples()
+            },
+        }
+        print(f"  atracción empresarial (E42): {res_e['elegido']} · mes a mes {m_e['validacion']:.1f} % / {m_e['test']:.1f} %; total 12 meses {res_e['acierto_anual']['validacion']:.1f} % / {res_e['acierto_anual']['test']:.1f} %")
+        res_e["metricas"].to_csv(RUTA_SALIDAS / "anual_metricas_empresas.csv", index=False)
+        prev_e.to_csv(RUTA_SALIDAS / "anual_prevision_empresas.csv", index=False)
+        tabla_e.to_csv(RUTA_SALIDAS / "atraccion_empresarial_provincia.csv", index=False)
+        empresas_res = {"resultado": res_e, "tabla": tabla_e, "resumen": salida["empresas"]}
+
     # Control de acierto de los modelos de la previsión a 1 año (100 − WAPE, ver cpd.modelos.metricas).
     for clave, res in (("precio", res_p), ("demanda", res_d), ("reservas", res_r), ("temperatura", res_t), ("renovables", res_v), ("cobertura_renovable", res_g)):
         m = res["metricas"].query("modelo == @res['elegido']").set_index("particion")
@@ -868,6 +895,9 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     figuras.update(_figura_cobertura(cobertura))
     figuras.update(_figura_operacion(operacion_res))
     figuras["impacto"] = _figura_impacto(impacto_res)
+    if empresas_res is not None:
+        empresas_res["nombres"] = salida["temperatura"]["provincias"]
+        figuras["empresas"] = _figura_empresas(empresas_res)
     if gas_tiempo_res is not None:
         figuras.update(_figura_gas_tiempo(gas_tiempo_res))
     # MAE de la generación renovable en GWh para que el eje sea legible.
@@ -886,8 +916,37 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     )
     return {
         "precio": precio, "demanda": demanda, "reservas": reservas, "temperatura": temperatura, "renovables": renovables,
-        "cobertura": cobertura, "operacion": operacion_res, "impacto": impacto_res, "gas_tiempo": gas_tiempo_res, "figuras": figuras, "json": salida,
+        "cobertura": cobertura, "operacion": operacion_res, "impacto": impacto_res, "empresas": empresas_res, "gas_tiempo": gas_tiempo_res,
+        "figuras": figuras, "json": salida,
     }
+
+
+@_con_estilo
+def _figura_empresas(empresas_res: dict) -> str:
+    """Figura 20: sociedades mercantiles creadas por cada 10.000 habitantes en cada provincia: últimos 12 meses (real) y
+    los 12 siguientes (previstos)."""
+    tabla = empresas_res["tabla"].copy()
+    pob = 1e4 * tabla["prevision_12m"] / tabla["por_10000_hab"]
+    tabla["real_10000"] = 1e4 * tabla["ultimos_12m"] / pob
+    tabla["nombre"] = tabla["codigo_provincia"].map(lambda c: empresas_res["nombres"].get(c, {}).get("nombre", c))
+    tabla = tabla.sort_values("por_10000_hab")
+    r = empresas_res["resumen"]
+    figura, eje = plt.subplots(figsize=(8.5, 11.5))
+    y = np.arange(len(tabla))
+    eje.hlines(y, tabla["real_10000"], tabla["por_10000_hab"], color=TINTA_3, lw=1, zorder=1)
+    eje.plot(tabla["real_10000"], y, "o", ms=5, color=COLOR_REAL, mec=FONDO, mew=1.2, label=f"últimos 12 meses (hasta {r['hasta']})", zorder=3)
+    eje.plot(tabla["por_10000_hab"], y, "o", ms=5.5, color=COLOR_PREVISTO, mec=FONDO, mew=1.2, label=f"próximos 12 meses ({informe.NOMBRES_MODELO.get(r['modelo'], r['modelo'])})", zorder=4)
+    eje.set_yticks(y, tabla["nombre"], fontsize=7.2)
+    eje.set_ylim(-0.8, len(tabla) - 0.2)
+    eje.grid(False)
+    eje.grid(axis="x")
+    eje.set_xlabel("Sociedades mercantiles creadas al año por cada 10.000 habitantes")
+    eje.set_title(
+        f"Atracción empresarial (E42) · acierto del total de 12 meses {r['acierto_anual_validacion']:.1f} % / {r['acierto_anual_test']:.1f} %".replace(".", ","),
+        pad=28,
+    )
+    eje.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncols=2, fontsize=7.5)
+    return _guardar_figura(figura, "20_atraccion_empresarial.png")
 
 
 @_con_estilo
@@ -1531,6 +1590,12 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict, medio: dict | No
         ("Operación del CPD a 1 año: consumo", j["operacion"]["acierto_consumo"], None, f"100 − WAPE del total anual ({j['operacion']['origenes']} orígenes comunes)"),
         ("Operación del CPD a 1 año: emisiones", j["operacion"]["acierto_emisiones"], None, f"100 − WAPE del total anual ({j['operacion']['origenes']} orígenes comunes)"),
     ]
+    if "empresas" in j:
+        e = j["empresas"]
+        filas += [
+            ("Atracción empresarial: sociedades creadas a 1 año (mes a mes)", e["acierto_validacion"], e["acierto_test"], "100 − WAPE"),
+            ("Atracción empresarial: total de 12 meses", e["acierto_anual_validacion"], e["acierto_anual_test"], "100 − WAPE del total anual"),
+        ]
     if "impacto_local" in j:
         filas.append(
             ("Impacto eléctrico local a 1 año (P2)", j["impacto_local"]["acierto_validacion"], j["impacto_local"]["acierto_test"], "100 − WAPE del % del CPD sobre la demanda de su comunidad")
