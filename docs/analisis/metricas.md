@@ -62,6 +62,7 @@ Validación cruzada estratificada repetida (5 × 20); cada provincia se evalúa 
 | Modelo | Log-loss | ROC-AUC | Brier | Accuracy (umbral 0,5) | Precision | Recall | F1 |
 |---|---|---|---|---|---|---|---|
 | Clase mayoritaria (baseline) | 0,584 | 0,500 (constante) | 0,197 | 73,1 % | 0,00 | 0,00 | 0,00 |
+| Logística con winsorizing (percentiles 1-99, ML) | 0,393 | 0,859 | 0,119 | 84,6 % | 0,80 | 0,57 | 0,67 |
 | Logística solo con población (baseline) | 0,377 | 0,882 | 0,115 | 86,5 % | 1,00 | 0,50 | 0,67 |
 | Logística con todas las features (ML) | 0,394 | 0,855 | 0,117 | 84,6 % | 0,80 | 0,57 | 0,67 |
 | Random forest (ML) | 0,422 | 0,885 | 0,124 | 84,6 % | 0,88 | 0,50 | 0,64 |

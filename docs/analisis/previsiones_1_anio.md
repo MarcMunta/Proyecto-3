@@ -526,6 +526,41 @@ En 2035: tendencial 244 TWh (-5 %); con el 25 % de lo otorgado 276 TWh (+8 %); c
 demanda actual, la huella de los centros de datos anunciados allí. La capacidad incluye todos los grandes consumos,
 no solo CPD.
 
+## Técnicas de clase: estacionariedad, diferencias y winsorizing (I51, I52, I58)
+
+**Estacionariedad (I51, C4 p.16).** Una serie es estacionaria si su media y su varianza no cambian con el tiempo. Se
+comprueba con el criterio de la clase (media y desviación de cada año) y con el test **ADF** (Dickey-Fuller aumentado;
+recomendación, no viene de clase) en la demanda mensual de las comunidades, 2015-2025, sin meses imputados. Código:
+`src/cpd/modelos/estacionariedad.py`.
+
+| Forma | Estacionarias (ADF, p < 0,05) | p mediano | Deriva de la media anual | Varianza máx./mín. por año |
+|---|---|---|---|---|
+| Nivel (MWh) | 0 de 19 | 0,610 | 1,33 | 1,95 |
+| Logaritmo | 0 de 19 | 0,546 | 1,32 | 1,99 |
+| Diferencia estacional Δ₁₂ log | 3 de 19 | 0,189 | 1,90 | 3,02 |
+| Doble diferencia Δ₁ Δ₁₂ log | 19 de 19 | < 0,001 | 0,38 | 2,11 |
+
+«Deriva de la media anual»: rango de las medias de cada año dividido por la desviación de toda la serie (cerca de 0 =
+media estable). En nivel y en logaritmo **ninguna** comunidad es estacionaria (tendencia y estacionalidad); la diferencia
+estacional quita la estacionalidad pero no del todo la tendencia (choques de 2020 y 2022); la **doble diferencia** es
+estacionaria en **todas**. Por eso los modelos trabajan con el crecimiento frente al mismo mes del año anterior
+(`f_desv_12m` del Ridge, `estacional_tendencia`) y se evalúan con backtesting.
+
+![Estacionariedad](../../docs/figuras/previsiones/21_estacionariedad_demanda.png)
+
+**Figura 21.** Demanda de Madrid en sus cuatro formas, con la media de cada año (naranja) ± una desviación.
+
+**Modelo sobre diferencias (I52, C4 p.7 y 17).** Se probó un AR(1) sobre la diferencia estacional del logaritmo
+(`anual._ar_diferencias`, SARIMA(1,0,0)(0,1,0)₁₂ con constante) como candidato más de la demanda: por sí solo acierta
+96,1 % en validación y 95,0 % en test, como el estacional y el Ridge, pero entra en los 3 mejores por 0,003 puntos de
+MAPE, desplaza al Ridge y la combinación empeora un poco (MAPE de validación 3,93 % frente a 3,90 %). No se usa
+(prueba del 18/11/2026; se repite con `candidatos_demanda(serie, con_diferencias=True)`).
+
+**Winsorizing (I58, C4 p.8).** `prob_cpd` tiene un candidato más, la logística con winsorizing (percentiles 1 y 99
+calculados **solo con el entrenamiento** de cada pliegue). Apenas cambia (log-loss 0,394 → 0,393): con 52 provincias los
+percentiles 1 y 99 casi coinciden con el mínimo y el máximo. El elegido sigue siendo «solo población». Ver
+[métricas](metricas.md).
+
 ## Medio plazo: clima y agua a 10 años (sostenibilidad operativa, objetivo A3)
 
 El objetivo A3 pide previsiones a corto **y medio plazo** de la sostenibilidad operativa del CPD. A 1 año ya están el

@@ -40,6 +40,7 @@ lugar de fijarlo en 0,5.
 | Modelo | Log-loss | ROC-AUC | Brier | Accuracy (0,5) |
 |---|---|---|---|---|
 | Clase mayoritaria (baseline) | 0,584 | 0,500 (constante) | 0,197 | 73,1 % |
+| Logística con winsorizing (percentiles 1-99, ML) | 0,393 | 0,859 | 0,119 | 84,6 % |
 | Logística solo con población (baseline) | 0,377 | 0,882 | 0,115 | 86,5 % |
 | Logística con todas las features (ML) | 0,394 | 0,855 | 0,117 | 84,6 % |
 | Random forest (ML) | 0,422 | 0,885 | 0,124 | 84,6 % |
