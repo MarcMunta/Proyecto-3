@@ -867,3 +867,35 @@ def test_atraccion_empresarial_por_10000_habitantes():
     t = empresas.indicador(reales, prevision, pd.Series({"50": 20_000.0})).iloc[0]
     assert t["ultimos_12m"] == 120 and t["prevision_12m"] == 132
     assert t["por_10000_hab"] == pytest.approx(66.0) and t["cambio_pct"] == pytest.approx(10.0)
+
+
+# --- Días hábiles (afinado) ------------------------------------------------------------------------------------------
+
+
+def test_dias_habiles_descuentan_fines_de_semana_y_festivos_nacionales():
+    from cpd.features.calendario import dias_habiles
+
+    assert dias_habiles(pd.Timestamp("2025-04-01")) == 21  # 22 laborables − Viernes Santo (18/04)
+    assert dias_habiles(pd.Timestamp("2025-08-01")) == 20  # 21 laborables − 15 de agosto (viernes)
+    assert dias_habiles(pd.Timestamp("2025-12-01")) == 21  # 23 laborables − 8 y 25 de diciembre (el 6 es sábado)
+
+
+def test_candidato_por_dia_habil_multiplica_por_los_dias_del_mes_previsto():
+    from cpd.features.calendario import dias_habiles
+    from cpd.modelos import anual
+
+    # Serie SINTÉTICA con 10 sociedades por día hábil exactas (solo para el test).
+    meses = pd.date_range("2020-01-01", "2024-12-01", freq="MS")
+    reales = pd.DataFrame({"serie": "50", "mes": meses, "real": [10.0 * dias_habiles(m) for m in meses]})
+
+    def fabrica(r: pd.DataFrame) -> dict:
+        def ultimo(origen):
+            filas = anual._filas_futuras("50", origen)
+            filas["prevision"] = float(r.set_index("mes")["real"].loc[:origen].iloc[-1])
+            return filas
+
+        return {"naive": ultimo}
+
+    c = anual.candidatos_por_dia_habil(fabrica, reales)["naive_dias_habiles"](pd.Timestamp("2023-12-01"))
+    esperado = [10.0 * dias_habiles(m) for m in c["mes"]]
+    assert c["prevision"].tolist() == pytest.approx(esperado)

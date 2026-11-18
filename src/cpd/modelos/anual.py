@@ -426,6 +426,56 @@ def series_generacion_renovable(generacion: pd.DataFrame, hoy: dt.date | None = 
     return series_renovables(generacion, hoy, columna="generacion_renovable_mwh")
 
 
+def candidatos_por_dia_habil(fabrica: Callable[[pd.DataFrame], dict[str, Candidato]], reales: pd.DataFrame) -> dict[str, Candidato]:
+    """Versión «por día hábil» de unos candidatos (añadido el 18/11/2026): se prevé el valor de cada mes dividido entre
+    sus días hábiles (`cpd.features.calendario`) y la previsión se vuelve a multiplicar por los días hábiles del mes
+    previsto, que se conocen de antemano. Quita el ruido de calendario (Semana Santa, meses con más fines de semana).
+
+    Args:
+        fabrica: función que crea los candidatos a partir de unas series reales (`serie`, `mes`, `real`).
+        reales: series reales en su unidad (no por día).
+
+    Returns:
+        Los mismos candidatos con el sufijo «_dias_habiles».
+    """
+    from cpd.features.calendario import dias_habiles_serie
+
+    por_dia = reales.assign(real=reales["real"] / dias_habiles_serie(reales["mes"]))
+    return escalar_por_dias(fabrica(por_dia), dias_habiles_serie, "_dias_habiles")
+
+
+def escalar_por_dias(base: dict[str, Candidato], dias: Callable[[pd.Series], np.ndarray], sufijo: str) -> dict[str, Candidato]:
+    """Multiplica la previsión de cada candidato (hecha sobre valores por día) por los días del mes previsto."""
+
+    def envolver(prever: Candidato) -> Candidato:
+        def prever_dias(origen: pd.Timestamp) -> pd.DataFrame:
+            filas = prever(origen)
+            if filas is None or filas.empty:
+                return filas
+            return filas.assign(prevision=filas["prevision"].to_numpy(dtype=float) * dias(filas["mes"]))
+
+        return prever_dias
+
+    return {f"{nombre}{sufijo}": envolver(c) for nombre, c in base.items()}
+
+
+def candidatos_demanda_por_dia(serie: pd.DataFrame, habiles: bool) -> dict[str, Candidato]:
+    """Candidatos de la demanda prevista por día (hábil o natural) y vuelta a multiplicar por los días del mes previsto.
+    Los días naturales quitan el efecto de febrero bisiesto; los hábiles, el de Semana Santa y los fines de semana.
+
+    **Probado y descartado (18/11/2026):** en validación, por día hábil empeora (la electricidad se consume todos los
+    días: ETS 3,76 % → 5,31 % de MAPE) y por día natural no mejora (3,78 %). No se usa en el pipeline; se deja para
+    poder repetir la prueba."""
+    from cpd.features.calendario import dias_habiles_serie
+
+    def naturales(meses: pd.Series) -> np.ndarray:
+        return pd.to_datetime(pd.Series(meses)).dt.days_in_month.to_numpy(dtype=float)
+
+    dias = dias_habiles_serie if habiles else naturales
+    por_dia = serie.assign(demanda_mwh=serie["demanda_mwh"] / dias(serie["mes"]))
+    return escalar_por_dias(candidatos_demanda(por_dia), dias, "_dias_habiles" if habiles else "_dias_naturales")
+
+
 def candidatos_renovables(reales: pd.DataFrame, maximo: float = 100.0, con_log: bool = False) -> dict[str, Candidato]:
     """Candidatos para el % renovable mensual de cada comunidad (o, con `maximo=np.inf`, para la generación renovable
     en MWh): los de `candidatos_estacionales` (con un φ propio de cada comunidad) y dos variantes de ETS con los

@@ -26,9 +26,16 @@ def reales_sociedades(tabla: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"serie": tabla["codigo_provincia"].astype(str).str.zfill(2), "mes": pd.to_datetime(tabla["mes"]), "real": tabla["sociedades_creadas"].astype(float)})
 
 
-def candidatos(reales: pd.DataFrame) -> dict[str, anual.Candidato]:
-    """Candidatos de la generación renovable en MWh: conteos positivos, con estacionalidad y crecimiento proporcional."""
+def _base(reales: pd.DataFrame) -> dict[str, anual.Candidato]:
     return anual.candidatos_renovables(reales, maximo=np.inf, con_log=True)
+
+
+def candidatos(reales: pd.DataFrame) -> dict[str, anual.Candidato]:
+    """Candidatos de la generación renovable en MWh (conteos positivos, con estacionalidad y crecimiento proporcional)
+    y su versión **por día hábil** (afinado del 18/11/2026): las sociedades se inscriben en días hábiles, así que se
+    prevé el número por día hábil y se multiplica por los días hábiles del mes previsto (`cpd.features.calendario`).
+    En validación todas las versiones por día hábil mejoraron a su candidato base."""
+    return {**_base(reales), **anual.candidatos_por_dia_habil(_base, reales)}
 
 
 def evaluar(reales: pd.DataFrame) -> dict[str, Any]:

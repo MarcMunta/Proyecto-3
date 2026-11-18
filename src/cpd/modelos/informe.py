@@ -69,6 +69,10 @@ NOMBRES_MODELO = {
     "logistica": "Logística con todas las features (ML)",
     "bosque": "Random forest (ML)",
 }
+# Versiones de los candidatos por día hábil o natural (`cpd.modelos.anual.escalar_por_dias`, afinado del 18/11/2026).
+for _clave, _texto in list(NOMBRES_MODELO.items()):
+    NOMBRES_MODELO[f"{_clave}_dias_habiles"] = f"{_texto}, por día hábil"
+    NOMBRES_MODELO[f"{_clave}_dias_naturales"] = f"{_texto}, por día natural"
 
 
 def _tabla_metricas_demanda(metricas: pd.DataFrame) -> str:
@@ -793,7 +797,12 @@ candidatos que la generación renovable en MWh. Para comparar provincias se expr
 indicador de dinamismo empresarial (recomendación, no viene de clase): no mide qué empresas llegan por el CPD. Código:
 `src/cpd/modelos/empresas.py`.
 
-Elegido: **{NOMBRES_MODELO.get(r['modelo'], r['modelo'])}** (mejora a la combinación en más de un 5 % en validación). Mes a mes acierta
+**Afinado con los días hábiles.** Las sociedades se inscriben en días hábiles: cada candidato tiene también una versión
+que prevé las sociedades **por día hábil** y las multiplica por los días hábiles del mes previsto (lunes a viernes menos
+los festivos nacionales, `src/cpd/features/calendario.py`). En validación todas las versiones por día hábil mejoraron a
+su candidato base.
+
+Elegido: **{NOMBRES_MODELO.get(r['modelo'], r['modelo'])}** ({', '.join(NOMBRES_MODELO.get(m, m) for m in r['miembros'])}). Mes a mes acierta
 {_n(r['acierto_validacion'], 1)} % en validación y {_n(r['acierto_test'], 1)} % en test (el mes suelto es ruidoso: orientativo si baja del 85 %); el **total de
 12 meses**, que es el indicador, acierta **{_n(r['acierto_anual_validacion'], 1)} %** y **{_n(r['acierto_anual_test'], 1)} %**.
 
