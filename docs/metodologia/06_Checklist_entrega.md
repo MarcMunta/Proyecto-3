@@ -1,7 +1,7 @@
 ---
 tags: [metodologia, checklist, entrega, p3]
 estado: borrador
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 ---
 
 # 06 · Checklist de entrega
@@ -22,7 +22,7 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 
 | Sección | ✅ | 🟡 | ❌ | Total |
 |---|---|---|---|---|
-| A. Objetivo general | 0 | 3 | 0 | 3 |
+| A. Objetivo general | 1 | 2 | 0 | 3 |
 | B. Objetivos específicos (1-10) | 3 | 7 | 0 | 10 |
 | C. Preguntas funcionales (P1-P8) | 4 | 4 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
@@ -43,7 +43,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 |---|---|---|---|---|---|
 | A1 | Plataforma Big Data para analizar y predecir la viabilidad de instalar un CPD en cualquier municipio español | 🟡 | `src/cpd/`, `app/streamlit_app.py`, `frontend/` | | Decidir granularidad (D1) y documentarla |
 | A2 | Proporcionar una puntuación global de viabilidad | 🟡 | `src/cpd/scoring.py` (`calcular_score_global`) | | Calibrar pesos y umbrales (`config/settings.yaml`) |
-| A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | 🟡 | `src/cpd/modelos/operacion.py`: PUE, consumo, emisiones, agua y reserva mínima del ámbito a 1 año por provincia, validado de punta a punta (consumo 99,7 %, emisiones 90,6 %); figura 14 y ficha del mapa | | Medio plazo (10 años) del PUE con la tendencia del clima |
+| A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | ✅ | Corto plazo: `src/cpd/modelos/operacion.py` (PUE, consumo, emisiones, agua y reserva mínima del ámbito a 1 año por provincia, de punta a punta: consumo 99,7 %, emisiones 90,6 %; figura 14). Medio plazo: `src/cpd/modelos/medio_plazo.py` (10 años: temperatura por provincia 97,7 % validación / 94,8 % test con NASA POWER desde 1981 → PUE → consumo 99,8 % / 99,5 %; reserva media de la década por ámbito 91,1 % / 86,6 %; año a año 83,3 % / 81,9 %, orientativo); figura 16 en `docs/analisis/previsiones_1_anio.md`, línea «A 10 años» en la ficha del mapa; `tests/test_modelos.py` (sin fuga, validación antes del test) | | Emisiones a 10 años no validables (mix por comunidad solo desde 2015) |
 
 ## B. Objetivos específicos (enunciado, p. 2-3)
 
@@ -67,7 +67,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | P1 | ¿Qué municipios son los más adecuados? | 🟡 | `src/cpd/scoring.py` (`evaluar`, ranking) | | Ranking real a nivel de provincia; municipal con datos reales |
 | P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | 🟡 | `simulator.impacto_local_pct` | | Datos de consumo municipal reales o explicación de límite |
 | P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw`, `capacidad_demanda_rdt_otorgada_mw` y `_pendiente_mw` (REE, por comunidad); cobertura renovable prevista (generación renovable / demanda, `docs/analisis/previsiones_1_anio.md`), en el bloque de energía del score | | Análisis por nudo (hoy por comunidad) |
-| P4 | ¿Existe riesgo hídrico? | ✅ | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m`; previsión de reservas a 1 año por ámbito (acierto 85,3 % en test) en `docs/analisis/previsiones_1_anio.md` | | Afinar la asignación provincia → ámbito |
+| P4 | ¿Existe riesgo hídrico? | ✅ | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m`; previsión de reservas a 1 año por ámbito (acierto 85,3 % en test) en `docs/analisis/previsiones_1_anio.md`; reserva media de la próxima década por ámbito (acierto 86,6 % en test, `src/cpd/modelos/medio_plazo.py`) | | Afinar la asignación provincia → ámbito |
 | P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) | | Escenarios con electrificación y nuevos CPD (fuera del modelo tendencial) |
 | P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md`; temperatura media por provincia a 1 año (la que usa el PUE; acierto 92,8-93,8 %, error de la media anual 0,5 °C) en `docs/analisis/previsiones_1_anio.md` | | Calibrar precios en `config/settings.yaml` y documentar |
 | P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests; sensibilidad del VAN al precio de la luz en la ficha del mapa (`frontend/scripts/simular_provincias.py`) | | Documentar tasa de descuento y supuestos |
