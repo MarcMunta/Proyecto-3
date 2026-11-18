@@ -73,6 +73,20 @@ export interface ImpactoLocal {
   acierto: number | null;
 }
 
+export interface Socioeconomico {
+  /** Construcción (una vez): empleos-año y M€ del CAPEX que se quedan en España. */
+  empleoObra: number | null;
+  inversionEspanaMeur: number | null;
+  /** Operación (cada año): plantilla, empleo en proveedores, VAB total (M€) y multiplicador de empleo. */
+  empleoDirecto: number | null;
+  empleoIndirecto: number | null;
+  vabTotalMeur: number | null;
+  multiplicador: number | null;
+  anioPib: number | null;
+  /** Por provincia: VAB directo / PIB provincial (%) y empleo directo / paro registrado (%). */
+  provincias: Map<string, { pctPib: number | null; pctParoDirecto: number | null }>;
+}
+
 export interface MedioPlazo {
   /** Año de la previsión (el décimo tras el último año completo). */
   anioFinal: number;
@@ -112,6 +126,10 @@ export interface Previsiones {
   medioPlazo: Map<string, MedioPlazo>;
   /** Impacto previsto del CPD sobre la electricidad, la red y el agua de su comunidad, por provincia (P2). */
   impacto: Map<string, ImpactoLocal>;
+  /** Empleo, inversión inducida y PIB (tablas input-output del INE; E39-E41). */
+  socioeconomico: Socioeconomico | null;
+  /** Energía de la red otorgada y en trámite frente a la demanda actual de cada comunidad (%), escenarios P5. */
+  redOtorgada: Map<string, { pctOtorgada: number | null; pctPendiente: number | null; factor: number | null }>;
   /** Requisito de acierto por modelo. */
   control: { modelo: string; estado: string }[];
 }
@@ -276,14 +294,42 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
       });
     }
   }
+  let socioeconomico: Socioeconomico | null = null;
+  const se = raiz.impacto_socioeconomico;
+  if (se && se.operacion && typeof se.operacion === "object") {
+    const op = se.operacion as Record<string, Record<string, unknown> | unknown>;
+    const obra = (se.construccion ?? {}) as Record<string, unknown>;
+    const dir = (op.directo ?? {}) as Record<string, unknown>;
+    const ind = (op.indirecto ?? {}) as Record<string, unknown>;
+    const provincias = new Map<string, { pctPib: number | null; pctParoDirecto: number | null }>();
+    if (se.provincias && typeof se.provincias === "object") {
+      for (const [codigo, f] of Object.entries(se.provincias as Record<string, Record<string, unknown>>)) {
+        if (/^\d{2}$/.test(codigo) && f) provincias.set(codigo, { pctPib: numero(f.pct_pib), pctParoDirecto: numero(f.pct_paro_directo) });
+      }
+    }
+    socioeconomico = {
+      empleoObra: numero(obra.empleo_anio), inversionEspanaMeur: numero(obra.en_espana_meur), empleoDirecto: numero(dir.empleo_etc),
+      empleoIndirecto: numero(ind.empleo_etc), vabTotalMeur: numero(op.vab_total_meur), multiplicador: numero(op.multiplicador_empleo),
+      anioPib: numero(se.anio_pib), provincias,
+    };
+  }
+  const redOtorgada = new Map<string, { pctOtorgada: number | null; pctPendiente: number | null; factor: number | null }>();
+  const es = raiz.escenarios_demanda;
+  if (es && es.ccaa && typeof es.ccaa === "object") {
+    for (const [codigo, f] of Object.entries(es.ccaa as Record<string, Record<string, unknown>>)) {
+      if (/^\d{2}$/.test(codigo) && f) {
+        redOtorgada.set(codigo, { pctOtorgada: numero(f.pct_otorgada), pctPendiente: numero(f.pct_pendiente), factor: numero(es.factor_utilizacion) });
+      }
+    }
+  }
   const control = Array.isArray((json as Record<string, unknown>).control_acierto)
     ? ((json as Record<string, unknown>).control_acierto as Record<string, unknown>[]).flatMap((c) =>
         texto(c?.modelo) && texto(c?.estado) ? [{ modelo: texto(c.modelo)!, estado: texto(c.estado)! }] : [],
       )
     : [];
-  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size && !impacto.size) return null;
+  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size && !impacto.size && !socioeconomico && !redOtorgada.size) return null;
   return {
     generado: texto((json as Record<string, unknown>).generado), precio, demanda, demandaModelo, reservas, temperatura, renovables, operacion,
-    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, impacto, control,
+    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, impacto, socioeconomico, redOtorgada, control,
   };
 }

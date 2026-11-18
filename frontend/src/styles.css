@@ -854,6 +854,13 @@ kbd {
   color: var(--texto-3);
 }
 
+/* Nota bajo un valor de la ficha: con la fuente del texto, no la de las cifras. */
+.pares dd .h-nota {
+  display: block;
+  font-family: var(--f-texto);
+  font-stretch: normal;
+}
+
 .barras {
   display: grid;
   gap: 0.9rem;

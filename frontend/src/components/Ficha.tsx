@@ -61,6 +61,9 @@ export function Ficha(p: Props) {
   const elegido = demo ? (sitios.find((m) => m.codigo_ine === p.sitio) ?? sitios[0]) : undefined;
   const d = base && elegido && elegido !== sitios[0] ? deMunicipio(elegido, base, prediccion.clasesMunicipio.get(elegido.codigo_ine) ?? null) : base;
   const tiempo = p.tiempo.datos?.[meta.codigo];
+  const socio = p.previsiones?.socioeconomico ?? null;
+  const socioProvincia = socio?.provincias.get(meta.codigo);
+  const redCcaa = base?.codigo_ccaa ? p.previsiones?.redOtorgada.get(base.codigo_ccaa) : undefined;
   const rango = useMemo(() => rangoVanClasificadas(prediccion), [prediccion]);
   const descartada = d?.clase === "no_rentable" && d.estado === "No viable";
 
@@ -208,7 +211,15 @@ export function Ficha(p: Props) {
                 {d.capacidad_demanda_otorgada_mw != null && (
                   <div>
                     <dt>Red otorgada a nuevos grandes consumos (comunidad)</dt>
-                    <dd>{num(d.capacidad_demanda_otorgada_mw)} MW</dd>
+                    <dd>
+                      {num(d.capacidad_demanda_otorgada_mw)} MW
+                      {redCcaa?.pctOtorgada != null && (
+                        <span className="h-nota">
+                          ≈ {num(redCcaa.pctOtorgada)} % de su demanda actual si se usara
+                          {redCcaa.factor != null ? ` al ${num(100 * redCcaa.factor)} %` : ""}
+                        </span>
+                      )}
+                    </dd>
                   </div>
                 )}
                 {d.capacidad_demanda_pendiente_mw != null && (
@@ -260,6 +271,33 @@ export function Ficha(p: Props) {
                   </div>
                 )}
               </dl>
+              {socio && (socio.empleoObra != null || socio.empleoDirecto != null) && (
+                <p className="dato-linea">
+                  Empleo y economía (INE, tablas input-output):
+                  {socio.empleoObra != null && (
+                    <>
+                      {" "}
+                      obra <strong>{num(socio.empleoObra)} empleos-año</strong>
+                      {socio.inversionEspanaMeur != null && <> ({num(socio.inversionEspanaMeur)} M€ del CAPEX se quedan en España)</>}
+                    </>
+                  )}
+                  {socio.empleoDirecto != null && (
+                    <>
+                      {" "}
+                      · operación <strong>{num(socio.empleoDirecto)} directos</strong>
+                      {socio.empleoIndirecto != null && <> + {num(socio.empleoIndirecto)} en proveedores al año</>}
+                    </>
+                  )}
+                  {socioProvincia?.pctPib != null && (
+                    <>
+                      {" "}
+                      · VAB del CPD = <strong>{num(socioProvincia.pctPib, 2)} %</strong> del PIB de la provincia
+                      {socio.anioPib != null && <> ({socio.anioPib})</>}
+                    </>
+                  )}
+                  .
+                </p>
+              )}
               {d.prob_cpd != null && (
                 <Barra
                   etiqueta="Probabilidad de tener un CPD (modelo)"

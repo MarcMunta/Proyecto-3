@@ -403,6 +403,12 @@ def copiar_previsiones(curado: Path = CURADO, salida: Path = SALIDA.parent / "pr
     medio = curado / "modelos" / "prevision_medio_plazo.json"
     if medio.exists():
         datos["medio_plazo"] = json.loads(medio.read_text(encoding="utf-8"))
+    escenarios = curado / "modelos" / "escenarios_demanda.json"
+    if escenarios.exists():
+        datos["escenarios_demanda"] = json.loads(escenarios.read_text(encoding="utf-8"))
+    socio = curado / "modelos" / "impacto_socioeconomico.json"
+    if socio.exists():
+        datos["impacto_socioeconomico"] = json.loads(socio.read_text(encoding="utf-8"))
     control = curado / "modelos" / "control_acierto.csv"
     if control.exists():
         datos["control_acierto"] = pd.read_csv(control).round(1).astype(object).where(lambda d: d.notna(), None).to_dict("records")

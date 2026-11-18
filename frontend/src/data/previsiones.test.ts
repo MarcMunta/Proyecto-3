@@ -145,3 +145,29 @@ describe("impacto local (P2)", () => {
     expect(p.impacto.get("28")).toMatchObject({ sinCapacidadLibre: true, pctCapacidad: null, capacidadLibreMw: 0 });
   });
 });
+
+describe("impacto socioeconómico (E39-E41)", () => {
+  it("lee el empleo de la obra y de la operación y el peso en el PIB por provincia", () => {
+    // Datos de PRUEBA (valores inventados solo para el test).
+    const p = normalizarPrevisiones({
+      impacto_socioeconomico: {
+        anio_pib: 2024,
+        construccion: { empleo_anio: 3400, en_espana_meur: 295 },
+        operacion: { directo: { empleo_etc: 60 }, indirecto: { empleo_etc: 217 }, vab_total_meur: 78.2, multiplicador_empleo: 4.6 },
+        provincias: { "42": { pct_pib: 1.54, pct_paro_directo: 2.2 }, XX: { pct_pib: 9 } },
+      },
+    })!;
+    expect(p.socioeconomico).toMatchObject({ empleoObra: 3400, inversionEspanaMeur: 295, empleoDirecto: 60, empleoIndirecto: 217, multiplicador: 4.6, anioPib: 2024 });
+    expect(p.socioeconomico!.provincias.size).toBe(1);
+    expect(p.socioeconomico!.provincias.get("42")).toEqual({ pctPib: 1.54, pctParoDirecto: 2.2 });
+  });
+});
+
+describe("escenarios de demanda (P5)", () => {
+  it("lee el peso de la red otorgada sobre la demanda de cada comunidad", () => {
+    // Datos de PRUEBA (valores inventados solo para el test).
+    const p = normalizarPrevisiones({ escenarios_demanda: { factor_utilizacion: 0.8, ccaa: { "02": { pct_otorgada: 242.7, pct_pendiente: 200 }, X: {} } } })!;
+    expect(p.redOtorgada.size).toBe(1);
+    expect(p.redOtorgada.get("02")).toEqual({ pctOtorgada: 242.7, pctPendiente: 200, factor: 0.8 });
+  });
+});
