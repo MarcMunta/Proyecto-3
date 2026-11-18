@@ -28,6 +28,8 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Generación renovable por comunidad: total de 12 meses | 92,3 % | 93,5 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: consumo | 99,7 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: emisiones | 90,6 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
+| Atracción empresarial: sociedades creadas a 1 año (mes a mes) | 87,9 % | 84,6 % | 100 − WAPE | no cumple (< 85 %) |
+| Atracción empresarial: total de 12 meses | 93,4 % | 92,6 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
 | Impacto eléctrico local a 1 año (P2) | 96,1 % | — | 100 − WAPE del % del CPD sobre la demanda de su comunidad | cumple (objetivo 90 %) |
 | Gas natural (MIBGAS) a 1 año · entrada del precio, inestable | 70,4 % | 52,3 % | 100 − WAPE | no cumple (< 85 %) |
 | Eólica de España (tiempo) a 1 año · entrada del precio, inestable | 86,6 % | 83,7 % | 100 − WAPE | no cumple (< 85 %) |
@@ -42,7 +44,7 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Probabilidad de CPD (prob_cpd) | 90,4 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
 | Riesgo sísmico: algún M ≥ 3 el año siguiente | 74,2 % | 73,1 % | accuracy (validación 2018-2024, test 2025) | no cumple (< 85 %) |
 
-**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Gas natural (MIBGAS) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Eólica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Hidráulica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Reservas de agua a 10 años: año a año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
+**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Atracción empresarial: sociedades creadas a 1 año (mes a mes) (no cumple (< 85 %)); Gas natural (MIBGAS) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Eólica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Hidráulica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Reservas de agua a 10 años: año a año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
 
 
 ## Cómo se ha buscado el menor error
@@ -419,6 +421,26 @@ En la provincia mediana el CPD supondría el **3,7 %** de la electricidad de su 
 pesa es la electricidad, no el agua. Mayor peso eléctrico: Ceuta (244,9 %), Melilla (216,3 %), Rioja, La (32,4 %), Cantabria (13,3 %) (sistemas pequeños o aislados).
 Red casi llena (≥ 50 % de la capacidad libre): Zaragoza (82 %), Huesca (82 %), Teruel (80 %). Sin capacidad libre (0 MW):
 Madrid, Navarra, Ceuta; ahí el CPD no cabe hoy en la red de acceso de su comunidad.
+
+## Atracción empresarial (E42)
+
+Indicador con datos reales: **sociedades mercantiles constituidas** cada mes en cada provincia (INE, Estadística de
+Sociedades Mercantiles, tabla 6295, desde 2008; dato nuevo, último mes 2025-12). Se prevén los 12 meses siguientes con el
+mismo protocolo que el resto (24 orígenes de validación, test de un año, combinación salvo mejora clara) y los mismos
+candidatos que la generación renovable en MWh. Para comparar provincias se expresa **por cada 10.000 habitantes**. Es un
+indicador de dinamismo empresarial (recomendación, no viene de clase): no mide qué empresas llegan por el CPD. Código:
+`src/cpd/modelos/empresas.py`.
+
+Elegido: **ETS (Holt-Winters amortiguado)** (mejora a la combinación en más de un 5 % en validación). Mes a mes acierta
+87,9 % en validación y 84,6 % en test (el mes suelto es ruidoso: orientativo si baja del 85 %); el **total de
+12 meses**, que es el indicador, acierta **93,4 %** y **92,6 %**.
+
+![Atracción empresarial](../../docs/figuras/previsiones/20_atraccion_empresarial.png)
+
+**Figura 20.** Sociedades creadas al año por cada 10.000 habitantes: últimos 12 meses (azul) y próximos 12 (naranja).
+
+España: 127.560 sociedades en los últimos 12 meses y 134.656 previstas. Más dinamismo por habitante: Málaga (47,0), Madrid (41,9), Balears, Illes (41,7), Alicante/Alacant (36,7);
+menos: Ceuta (8,4), Ávila (9,7), Palencia (10,5).
 
 
 ## Riesgo sísmico por provincia (P8)
