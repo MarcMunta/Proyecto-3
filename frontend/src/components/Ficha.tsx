@@ -420,7 +420,8 @@ function textoAcierto(s: SeriePrevista): string | undefined {
 function avisoAcierto(s: SeriePrevista): string | undefined {
   const valores = [s.aciertoValidacion, s.aciertoTest].filter((v): v is number => v != null);
   if (!valores.length || Math.min(...valores) >= ACIERTO_MINIMO) return undefined;
-  return `Previsión orientativa: el modelo acierta un ${num(Math.min(...valores), 0)} %, por debajo del mínimo del ${ACIERTO_MINIMO} % exigido. No se usa en el cálculo del VAN.`;
+  // Con un decimal: 84,8 % redondeado a «85 %» parecería que llega al mínimo.
+  return `Previsión orientativa: el modelo acierta un ${num(Math.min(...valores), 1)} %, por debajo del mínimo del ${ACIERTO_MINIMO} % exigido. No se usa en el cálculo del VAN.`;
 }
 
 const NOMBRE_MODELO: Record<string, string> = {
