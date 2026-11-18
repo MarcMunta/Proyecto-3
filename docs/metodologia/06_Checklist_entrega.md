@@ -121,7 +121,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E7 | Producción eléctrica disponible | 🟡 | `generacion_total_ccaa_mwh` (CCAA, no provincia); generación renovable prevista a 1 año por comunidad (mes a mes 85,6 % y total de 12 meses 91,5-93,6 %, con la suma de tecnologías) | | Documentar nivel CCAA |
+| E7 | Producción eléctrica disponible | 🟡 | `generacion_total_ccaa_mwh` (CCAA, no provincia); generación renovable prevista a 1 año por comunidad (mes a mes 86,2 % y total de 12 meses 92,3-93,5 %, con la suma de tecnologías y la hidráulica desde los embalses) | | Documentar nivel CCAA |
 | E8 | Consumo eléctrico municipal | 🟡 | `demanda_ccaa_mwh` (CCAA); sin dato municipal abierto (ver `docs/datos/README.md`) | | Documentar la limitación |
 | E9 | Capacidad de la red | 🟡 | `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Revisar cobertura territorial |
 | E10 | Subestaciones cercanas | 🟡 | `subestaciones_220_400kv`, `subestaciones_400kv` (OSM) | | Distancia a la subestación más cercana, no solo conteo |
