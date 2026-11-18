@@ -11,7 +11,7 @@ import { Flap } from "./Flap";
 import { IconoClase } from "./IconoClase";
 import { Barra, Comparativa, Flecha, GraficoPrecio, Vivo, type ItemComparativa } from "./Piezas";
 import { GraficoPrevision } from "./GraficoPrevision";
-import { ACIERTO_MINIMO, type OperacionPrevista, type Previsiones, type RenovablePrevista, type SeriePrevista, type TemperaturaPrevista } from "../data/previsiones";
+import { ACIERTO_MINIMO, type MedioPlazo, type OperacionPrevista, type Previsiones, type RenovablePrevista, type SeriePrevista, type TemperaturaPrevista } from "../data/previsiones";
 
 interface Props {
   meta: ProvinciaMeta;
@@ -179,6 +179,7 @@ export function Ficha(p: Props) {
             ambito={d.ambito_hidrografico ?? null}
             temperatura={p.previsiones?.temperatura.get(meta.codigo)}
             operacion={p.previsiones?.operacion.get(meta.codigo)}
+            medio={p.previsiones?.medioPlazo.get(meta.codigo)}
           />
 
           {(d.capex_eur != null || d.opex_eur_anual != null || d.prob_cpd != null || d.cpd_existentes != null) && (
@@ -565,7 +566,7 @@ function BloqueDemanda({ d, prediccion, previsiones }: { d: ProvinciaPrediccion;
 }
 
 function BloqueClima({
-  d, tiempo, vivo, capital, reservas, ambito, temperatura, operacion,
+  d, tiempo, vivo, capital, reservas, ambito, temperatura, operacion, medio,
 }: {
   d: ProvinciaPrediccion;
   tiempo: TiempoActual | undefined;
@@ -575,8 +576,10 @@ function BloqueClima({
   ambito: string | null;
   temperatura?: TemperaturaPrevista;
   operacion?: OperacionPrevista;
+  medio?: MedioPlazo;
 }) {
-  const hayModelo = d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null || operacion != null;
+  const hayModelo =
+    d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null || operacion != null || medio != null;
   const notaTemperatura = temperatura
     ? [textoAcierto(temperatura), temperatura.errorTest != null ? `error medio ${num(temperatura.errorTest, 1)} °C al mes` : null].filter(Boolean).join(" · ")
     : undefined;
@@ -643,6 +646,20 @@ function BloqueClima({
                 </>
               )}
               {operacion.aciertoEmisiones != null && <>. Acierto de las emisiones: {num(operacion.aciertoEmisiones, 1)} %.</>}
+            </p>
+          )}
+          {medio && medio.tempFinal != null && (
+            <p className="dato-linea">
+              A 10 años ({medio.anioFinal}): temperatura media <strong>{num(medio.tempFinal, 1)} °C</strong>
+              {medio.tempInferior != null && medio.tempSuperior != null ? ` (${num(medio.tempInferior, 1)}-${num(medio.tempSuperior, 1)} °C)` : ""}
+              {medio.temp10a != null && <> frente a {num(medio.temp10a, 1)} °C de media en los últimos 10 años</>}
+              {medio.pueFinal != null && <> · PUE <strong>{num(medio.pueFinal, 2)}</strong></>}
+              {medio.reservaDecadaPct != null && (
+                <> · reserva media de los embalses del ámbito en la década <strong>{num(medio.reservaDecadaPct)} %</strong></>
+              )}
+              {medio.aciertoTemperaturaTest != null && <>. Acierto en test: temperatura {num(medio.aciertoTemperaturaTest, 1)} %</>}
+              {medio.aciertoReservaDecadaTest != null && <>, agua media de la década {num(medio.aciertoReservaDecadaTest, 1)} %</>}
+              {medio.aciertoTemperaturaTest != null || medio.aciertoReservaDecadaTest != null ? "." : ""}
             </p>
           )}
         </div>

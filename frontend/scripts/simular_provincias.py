@@ -400,6 +400,9 @@ def copiar_previsiones(curado: Path = CURADO, salida: Path = SALIDA.parent / "pr
     diez = curado / "modelos" / "prevision_10_anios.json"
     if diez.exists():
         datos["demanda_10_anios"] = json.loads(diez.read_text(encoding="utf-8"))
+    medio = curado / "modelos" / "prevision_medio_plazo.json"
+    if medio.exists():
+        datos["medio_plazo"] = json.loads(medio.read_text(encoding="utf-8"))
     control = curado / "modelos" / "control_acierto.csv"
     if control.exists():
         datos["control_acierto"] = pd.read_csv(control).round(1).astype(object).where(lambda d: d.notna(), None).to_dict("records")

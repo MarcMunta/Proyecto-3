@@ -107,3 +107,22 @@ describe("operación del CPD", () => {
     expect(p.operacion.get("50")).toMatchObject({ pue: 1.46, emisionesT: 9000, reservaMinimaPct: 41.2, mesReservaMinima: "2027-09", aciertoEmisiones: 88.1 });
   });
 });
+
+describe("medio plazo (10 años)", () => {
+  it("lee el clima y el agua a 10 años por provincia y descarta códigos no válidos", () => {
+    // Datos de PRUEBA (valores inventados solo para el test).
+    const p = normalizarPrevisiones({
+      medio_plazo: {
+        anio_final: 2035,
+        temperatura: { acierto_test: 94.8 },
+        reservas: { acierto_decada_test: 86.6 },
+        provincias: {
+          "50": { temp_10a_c: 15.4, temp_final_c: 15.7, temp_final_inferior_c: 15.1, temp_final_superior_c: 16.5, pue_10a: 1.3, pue_final: 1.31, cambio_consumo_pct: 0.4, ambito: "Ebro", reserva_decada_prevista_pct: 61.2 },
+          XX: { temp_final_c: 1 },
+        },
+      },
+    })!;
+    expect(p.medioPlazo.size).toBe(1);
+    expect(p.medioPlazo.get("50")).toMatchObject({ anioFinal: 2035, tempFinal: 15.7, pueFinal: 1.31, reservaDecadaPct: 61.2, ambito: "Ebro", aciertoTemperaturaTest: 94.8, aciertoReservaDecadaTest: 86.6 });
+  });
+});

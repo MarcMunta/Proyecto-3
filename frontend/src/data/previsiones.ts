@@ -57,6 +57,25 @@ export interface OperacionPrevista {
   aciertoEmisiones: number | null;
 }
 
+export interface MedioPlazo {
+  /** Año de la previsión (el décimo tras el último año completo). */
+  anioFinal: number;
+  /** Temperatura media anual (°C): media de los últimos 10 años y prevista para el año final, con intervalo 10-90 %. */
+  temp10a: number | null;
+  tempFinal: number | null;
+  tempInferior: number | null;
+  tempSuperior: number | null;
+  pue10a: number | null;
+  pueFinal: number | null;
+  cambioConsumoPct: number | null;
+  /** Reserva media prevista de los embalses del ámbito en la próxima década (%). */
+  reservaDecadaPct: number | null;
+  ambito: string | null;
+  /** Acierto (100 − WAPE, %) en test de la temperatura y de la reserva media de la década. */
+  aciertoTemperaturaTest: number | null;
+  aciertoReservaDecadaTest: number | null;
+}
+
 export interface Previsiones {
   generado: string | null;
   precio: (SeriePrevista & { mediaPrevista: number | null; futuroGasAnio: number | null }) | null;
@@ -73,6 +92,8 @@ export interface Previsiones {
   operacion: Map<string, OperacionPrevista>;
   /** Demanda nacional anual (TWh): historia y previsión a 10 años (`mes` = «AAAA-01»). */
   demanda10: (SeriePrevista & { acierto: number | null }) | null;
+  /** Clima y agua a 10 años para la operación del CPD, por código INE de provincia (objetivo A3, medio plazo). */
+  medioPlazo: Map<string, MedioPlazo>;
   /** Requisito de acierto por modelo. */
   control: { modelo: string; estado: string }[];
 }
@@ -208,14 +229,30 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
           historia: puntos(anual(diez.historia)), prevision: puntosPrevision(anual(diez.prevision)),
         }
       : null;
+  const medioPlazo = new Map<string, MedioPlazo>();
+  const mp = raiz.medio_plazo;
+  const anioFinal = numero(mp?.anio_final);
+  if (mp && anioFinal != null && mp.provincias && typeof mp.provincias === "object") {
+    const t10 = (mp.temperatura ?? {}) as Record<string, unknown>;
+    const r10 = (mp.reservas ?? {}) as Record<string, unknown>;
+    for (const [codigo, f] of Object.entries(mp.provincias as Record<string, Record<string, unknown>>)) {
+      if (!/^\d{2}$/.test(codigo) || !f) continue;
+      medioPlazo.set(codigo, {
+        anioFinal, temp10a: numero(f.temp_10a_c), tempFinal: numero(f.temp_final_c), tempInferior: numero(f.temp_final_inferior_c),
+        tempSuperior: numero(f.temp_final_superior_c), pue10a: numero(f.pue_10a), pueFinal: numero(f.pue_final),
+        cambioConsumoPct: numero(f.cambio_consumo_pct), reservaDecadaPct: numero(f.reserva_decada_prevista_pct), ambito: texto(f.ambito),
+        aciertoTemperaturaTest: numero(t10.acierto_test), aciertoReservaDecadaTest: numero(r10.acierto_decada_test),
+      });
+    }
+  }
   const control = Array.isArray((json as Record<string, unknown>).control_acierto)
     ? ((json as Record<string, unknown>).control_acierto as Record<string, unknown>[]).flatMap((c) =>
         texto(c?.modelo) && texto(c?.estado) ? [{ modelo: texto(c.modelo)!, estado: texto(c.estado)! }] : [],
       )
     : [];
-  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10) return null;
+  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size) return null;
   return {
     generado: texto((json as Record<string, unknown>).generado), precio, demanda, demandaModelo, reservas, temperatura, renovables, operacion,
-    demanda10: demanda10?.prevision.length ? demanda10 : null, control,
+    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, control,
   };
 }
