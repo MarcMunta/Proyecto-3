@@ -478,6 +478,8 @@ function avisoAcierto(s: SeriePrevista): string | undefined {
 
 const NOMBRE_MODELO: Record<string, string> = {
   solo_poblacion: "regresión logística con la población",
+  poblacion_target_ccaa: "regresión logística con la población y la comunidad (target encoding)",
+  poblacion_polinomica: "regresión logística con la población (polinómica)",
   logistica: "regresión logística",
   bosque: "random forest",
   estacional: "mismo mes del año anterior",
