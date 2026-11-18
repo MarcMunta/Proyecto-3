@@ -41,7 +41,7 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Operación del CPD a 10 años: consumo | 99,8 % | 99,5 % | 100 − WAPE (temperatura prevista → PUE → consumo) | cumple (objetivo 90 %) |
 | Reservas de agua a 10 años: media de la década | 91,1 % | 86,6 % | 100 − WAPE de la media de los 10 años | cumple |
 | Reservas de agua a 10 años: año a año | 83,3 % | 81,9 % | 100 − WAPE de cada año | no cumple (< 85 %) |
-| Probabilidad de CPD (prob_cpd) | 90,4 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
+| Probabilidad de CPD (prob_cpd) | 92,3 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
 | Riesgo sísmico: algún M ≥ 3 el año siguiente | 74,2 % | 73,1 % | accuracy (validación 2018-2024, test 2025) | no cumple (< 85 %) |
 
 **No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Gas natural (MIBGAS) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Eólica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Hidráulica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Reservas de agua a 10 años: año a año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
