@@ -43,7 +43,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 |---|---|---|---|---|---|
 | A1 | Plataforma Big Data para analizar y predecir la viabilidad de instalar un CPD en cualquier municipio español | 🟡 | `src/cpd/`, `app/streamlit_app.py`, `frontend/` | | Decidir granularidad (D1) y documentarla |
 | A2 | Proporcionar una puntuación global de viabilidad | 🟡 | `src/cpd/scoring.py` (`calcular_score_global`) | | Calibrar pesos y umbrales (`config/settings.yaml`) |
-| A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | 🟡 | `src/cpd/modelos/operacion.py`: PUE, consumo, emisiones, agua y reserva mínima del ámbito a 1 año por provincia, validado de punta a punta (consumo 99,7 %, emisiones 89,4 %); figura 14 y ficha del mapa | | Medio plazo (10 años) del PUE con la tendencia del clima |
+| A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | 🟡 | `src/cpd/modelos/operacion.py`: PUE, consumo, emisiones, agua y reserva mínima del ámbito a 1 año por provincia, validado de punta a punta (consumo 99,7 %, emisiones 90,6 %); figura 14 y ficha del mapa | | Medio plazo (10 años) del PUE con la tendencia del clima |
 
 ## B. Objetivos específicos (enunciado, p. 2-3)
 
@@ -121,12 +121,12 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E7 | Producción eléctrica disponible | 🟡 | `generacion_total_ccaa_mwh` (CCAA, no provincia); generación renovable prevista a 1 año por comunidad (total de 12 meses: acierto 89-91 %) | | Documentar nivel CCAA |
+| E7 | Producción eléctrica disponible | 🟡 | `generacion_total_ccaa_mwh` (CCAA, no provincia); generación renovable prevista a 1 año por comunidad (mes a mes 85,6 % y total de 12 meses 91,5-93,6 %, con la suma de tecnologías) | | Documentar nivel CCAA |
 | E8 | Consumo eléctrico municipal | 🟡 | `demanda_ccaa_mwh` (CCAA); sin dato municipal abierto (ver `docs/datos/README.md`) | | Documentar la limitación |
 | E9 | Capacidad de la red | 🟡 | `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Revisar cobertura territorial |
 | E10 | Subestaciones cercanas | 🟡 | `subestaciones_220_400kv`, `subestaciones_400kv` (OSM) | | Distancia a la subestación más cercana, no solo conteo |
 | E11 | Capacidad de transporte | 🟡 | `capacidad_demanda_rdt_disponible_mw` | | Aclarar si es transporte o acceso |
-| E12 | Porcentaje de renovables | ✅ | `pct_renovable_ccaa`; previsión a 1 año por comunidad en `docs/analisis/previsiones_1_anio.md` (% medio de 12 meses: acierto 88,7-93,6 %; mes a mes 84,3 %, orientativo) | | Mejorar el mes a mes (viento, lluvia y sol del mes no se pueden prever a 1 año) |
+| E12 | Porcentaje de renovables | ✅ | `pct_renovable_ccaa`; previsión a 1 año por comunidad en `docs/analisis/previsiones_1_anio.md` (% medio de 12 meses: acierto 89,4-92,2 %; mes a mes 84,8 %, orientativo) | | Mejorar el mes a mes (viento, lluvia y sol del mes no se pueden prever a 1 año) |
 
 ### E.3 Agua (fuentes: Confederaciones Hidrográficas, MITECO, AEMET)
 
