@@ -24,8 +24,8 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Temperatura por provincia a 1 año | 93,8 % | 92,8 % | 100 − WAPE (en °C) | cumple (objetivo 90 %) |
 | Renovables por comunidad a 1 año (mes a mes) | 84,8 % | 88,6 % | 100 − WAPE | no cumple (< 85 %) |
 | Renovables por comunidad: % medio de 12 meses | 89,4 % | 92,2 % | 100 − WAPE de la media anual | cumple |
-| Generación renovable por comunidad a 1 año (mes a mes) | 85,6 % | 88,1 % | 100 − WAPE (MWh) | cumple |
-| Generación renovable por comunidad: total de 12 meses | 91,5 % | 93,6 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
+| Generación renovable por comunidad a 1 año (mes a mes) | 86,2 % | 88,2 % | 100 − WAPE (MWh) | cumple |
+| Generación renovable por comunidad: total de 12 meses | 92,3 % | 93,5 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: consumo | 99,7 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: emisiones | 90,6 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
 | Precio de la luz a 1 año | 59,0 % | 62,4 % | 100 − WAPE | no cumple (< 85 %) |
@@ -279,14 +279,15 @@ Cuánta energía renovable genera cada comunidad frente a la que consume: **cobe
 Por encima del 100 %, la comunidad genera en renovables más de lo que consume: hay energía verde de sobra para un CPD
 nuevo. La generación renovable (MWh, REData) se prevé con los mismos candidatos que el % renovable, una ETS sobre el
 logaritmo y, desde el 18/11/2026, la **suma de tecnologías**: solar, eólica, hidráulica y resto se prevén por separado
-(cada una con su estacionalidad y su tendencia) y se suman. La demanda, con su propio modelo (arriba). Comunidades por encima del 100 %: Extremadura, Castilla y León, Castilla-La Mancha, Aragón, La Rioja, Galicia.
+(cada una con su estacionalidad y su tendencia) y se suman. La demanda, con su propio modelo (arriba). Comunidades por encima del 100 %: Extremadura, Castilla y León, Castilla-La Mancha, Aragón, La Rioja.
 
 | Modelo | Acierto validación (mes a mes) | Acierto test (mes a mes) |
 |---|---|---|
-| Combinación de los 3 mejores **(elegido)** | 85,6 % | 88,1 % |
+| Combinación de los 3 mejores **(elegido)** | 86,2 % | 88,2 % |
+| Suma de tecnologías con la hidráulica desde los embalses (en la combinación) | 85,0 % | 87,3 % |
 | Suma de tecnologías (ETS de solar, eólica, hidráulica y resto) (en la combinación) | 84,9 % | 87,7 % |
 | ETS de 5 años con tendencia amortiguada (en la combinación) | 84,9 % | 86,6 % |
-| ETS de 5 años sin tendencia (en la combinación) | 84,2 % | 87,3 % |
+| ETS de 5 años sin tendencia | 84,2 % | 87,3 % |
 | ETS de 5 años sobre el logaritmo | 84,1 % | 87,5 % |
 | ETS (Holt-Winters amortiguado) | 82,7 % | 86,4 % |
 | Anomalía persistente (φ de cada comunidad) | 82,0 % | 84,2 % |
@@ -296,7 +297,7 @@ logaritmo y, desde el 18/11/2026, la **suma de tecnologías**: solar, eólica, h
 | Climatología (media del mes en los años anteriores) | 70,0 % | 69,4 % |
 
 Validación: orígenes 2022-09 a 2024-08 (24 orígenes). Test: meses 2025-09 a 2026-08. **Total de 12 meses** (la cifra que entra en
-la cobertura): **91,5 %** en validación y **93,6 %** en test. El mes a mes depende del viento, la
+la cobertura): **92,3 %** en validación y **93,5 %** en test. El mes a mes depende del viento, la
 lluvia y el sol de cada mes y se enseña solo como orientativo.
 
 ![Cobertura renovable](../../docs/figuras/previsiones/13_cobertura_renovable_ccaa.png)
@@ -307,25 +308,25 @@ así que los dos periodos de 12 meses no coinciden del todo.
 
 | Comunidad | Renovable último año (GWh) | Demanda último año (GWh) | Cobertura último año | Cobertura prevista |
 |---|---|---|---|---|
-| Extremadura | 15.615 | 5.081 | 307 % | 317 % |
-| Castilla y León | 30.956 | 13.336 | 232 % | 247 % |
-| Castilla-La Mancha | 23.002 | 12.243 | 188 % | 201 % |
-| Aragón | 19.320 | 11.369 | 170 % | 168 % |
-| La Rioja | 1.084 | 1.539 | 70 % | 113 % |
-| Galicia | 16.562 | 15.599 | 106 % | 101 % |
-| Comunidad Foral de Navarra | 4.249 | 4.838 | 88 % | 87 % |
+| Extremadura | 15.615 | 5.081 | 307 % | 298 % |
+| Castilla y León | 30.956 | 13.336 | 232 % | 227 % |
+| Castilla-La Mancha | 23.002 | 12.243 | 188 % | 195 % |
+| Aragón | 19.320 | 11.369 | 170 % | 160 % |
+| La Rioja | 1.084 | 1.539 | 70 % | 143 % |
+| Comunidad Foral de Navarra | 4.249 | 4.838 | 88 % | 86 % |
+| Galicia | 16.562 | 15.599 | 106 % | 85 % |
 | Andalucía | 24.116 | 41.573 | 58 % | 61 % |
-| Región de Murcia | 3.689 | 9.359 | 39 % | 48 % |
-| Asturias | 3.118 | 8.259 | 38 % | 39 % |
+| Región de Murcia | 3.689 | 9.359 | 39 % | 44 % |
+| Asturias | 3.118 | 8.259 | 38 % | 31 % |
 | Canarias | 1.922 | 9.137 | 21 % | 20 % |
-| Cataluña | 7.808 | 45.353 | 17 % | 17 % |
-| Comunitat Valenciana | 3.270 | 27.718 | 12 % | 12 % |
-| Illes Balears | 739 | 6.659 | 11 % | 12 % |
-| Cantabria | 403 | 3.741 | 11 % | 11 % |
-| País Vasco | 1.105 | 14.876 | 7 % | 6 % |
+| Cataluña | 7.808 | 45.353 | 17 % | 14 % |
+| Illes Balears | 739 | 6.659 | 11 % | 11 % |
+| Comunitat Valenciana | 3.270 | 27.718 | 12 % | 11 % |
+| Cantabria | 403 | 3.741 | 11 % | 9 % |
+| País Vasco | 1.105 | 14.876 | 7 % | 5 % |
 | Madrid | 763 | 28.956 | 3 % | 3 % |
-| Melilla | 4 | 238 | 2 % | 0 % |
 | Ceuta | 0 | 209 | 0 % | 0 % |
+| Melilla | 4 | 238 | 2 % | 0 % |
 
 
 ## Operación del CPD a 1 año (sostenibilidad operativa, objetivo A3)
