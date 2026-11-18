@@ -26,7 +26,7 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 | B. Objetivos específicos (1-10) | 3 | 7 | 0 | 10 |
 | C. Preguntas funcionales (P1-P8) | 5 | 3 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
-| E. Variables del entorno territorial (enunciado) | 13 | 22 | 12 | 47 |
+| E. Variables del entorno territorial (enunciado) | 14 | 22 | 11 | 47 |
 | F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
@@ -186,7 +186,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | E39 | Empleo generado | ✅ | `src/cpd/modelos/socioeconomico.py`: modelo input-output de Leontief (tipo I) con las Tablas Input-Output 2022 del INE (`src/cpd/fuentes/ine_tio.py`, inversa interior y empleo ETC por rama): obra 3.402 empleos-año; operación 60 directos + 217 indirectos al año (×4,6); figura 18, ficha del mapa; tests con una economía sintética | | Calibrar el reparto del CAPEX (`config/settings.yaml`, supuesto) |
 | E40 | Inversión inducida | ✅ | Mismo modelo: de 400 M€ de CAPEX se quedan en España 295 M€ (cuota de importación real por producto) y generan 562 M€ de producción y 217 M€ de VAB; operación 78 M€ de VAB al año | | Tipo II (gasto de los salarios), si se pide |
 | E41 | PIB municipal | 🟡 | No hay PIB municipal abierto; PIB por provincia del INE (Contabilidad Regional, tabla 82284, `ine.pib_provincias`, `pib_provincia.csv`): VAB directo del CPD sobre el PIB provincial (de 0,01 % en Madrid a 2,5 % en Melilla) | | Documentado: el dato municipal no existe en abierto |
-| E42 | Atracción empresarial | ❌ | — | | Definir indicador (recomendación) |
+| E42 | Atracción empresarial | ✅ | Sociedades mercantiles constituidas por provincia y mes (INE, tabla 6295, 2008-2025; `ine.sociedades_provincias`) y su previsión a 1 año (`src/cpd/modelos/empresas.py`, ETS): total de 12 meses 93,4 % / 92,6 % (mes a mes 87,9 % / 84,6 %, orientativo); indicador por 10.000 habitantes, figura 20 y ficha del mapa | | Indicador de dinamismo (recomendación, no viene de clase), fuera del score |
 
 ### E.9 Impacto ambiental (enunciado, p. 7)
 
