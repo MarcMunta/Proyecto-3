@@ -81,19 +81,31 @@ def _figura_prevision(predicciones: pd.DataFrame, modelo: str) -> str:
     return ruta.relative_to(RUTA_RAIZ).as_posix()
 
 
-def _figura_roc(tabla: pd.DataFrame, probabilidades: pd.DataFrame) -> str:
-    """Curvas ROC fuera de pliegue de los modelos de `prob_cpd`."""
+def _figura_roc(tabla: pd.DataFrame, probabilidades: pd.DataFrame, elegido: str | None = None) -> str:
+    """Curvas ROC fuera de pliegue de los modelos de `prob_cpd`: el elegido destacado (naranja), el baseline de solo
+    población en azul y el resto en gris fino, para que no se pierda entre tantas curvas."""
     figura, eje = plt.subplots(figsize=(5.5, 5))
-    for nombre in probabilidades.columns:
-        if nombre == "mayoritaria":
+    orden = [n for n in probabilidades.columns if n not in ("mayoritaria", elegido, "solo_poblacion")]
+    orden += [n for n in ("solo_poblacion", elegido) if n in probabilidades.columns and n != "mayoritaria"]
+    vistos = set()
+    for nombre in orden:
+        if nombre in vistos:
             continue
+        vistos.add(nombre)
         fpr, tpr, _ = roc_curve(tabla["tiene_cpd"], probabilidades[nombre])
-        eje.plot(fpr, tpr, label=informe.NOMBRES_MODELO.get(nombre, nombre))
+        auc = float(np.trapezoid(tpr, fpr))
+        etiqueta = f"{informe.NOMBRES_MODELO.get(nombre, nombre)} (AUC {auc:.2f})".replace(".", ",")
+        if nombre == elegido:
+            eje.plot(fpr, tpr, color="#eb6834", lw=2.6, label=f"elegido: {etiqueta}", zorder=4)
+        elif nombre == "solo_poblacion":
+            eje.plot(fpr, tpr, color="#2a78d6", lw=1.6, label=etiqueta, zorder=3)
+        else:
+            eje.plot(fpr, tpr, color="#b9b9b9", lw=0.9, label=etiqueta, zorder=2)
     eje.plot([0, 1], [0, 1], color="#999999", ls=":", label="azar")
     eje.set_xlabel("Tasa de falsos positivos (FPR)")
     eje.set_ylabel("Tasa de verdaderos positivos (TPR, recall)")
     eje.set_title("Curva ROC fuera de pliegue (52 provincias)")
-    eje.legend(fontsize=7)
+    eje.legend(fontsize=7, loc="upper left", bbox_to_anchor=(0, -0.13), frameon=False)  # debajo: no tapa las curvas
     RUTA_FIG_MODELOS.mkdir(parents=True, exist_ok=True)
     ruta = RUTA_FIG_MODELOS / "roc_prob_cpd.png"
     figura.savefig(ruta, dpi=110, bbox_inches="tight")
@@ -156,7 +168,7 @@ def ejecutar_demanda(panel: pd.DataFrame) -> dict:
 
 def ejecutar_prob_cpd(panel: pd.DataFrame) -> tuple[dict, pd.DataFrame, str]:
     """Evalúa los modelos de `prob_cpd` y guarda la probabilidad por provincia."""
-    tabla = features_estaticas_provincia(panel)
+    tabla = mp.anadir_codificaciones(features_estaticas_provincia(panel))  # columnas del target y frequency encoding
     resultado = mp.evaluar(tabla)
     print(f"  elegido {resultado['elegido']} · umbral {resultado['umbral']:.2f}")
     salida = mp.tabla_salida(tabla, resultado)
@@ -172,7 +184,7 @@ def ejecutar_prob_cpd(panel: pd.DataFrame) -> tuple[dict, pd.DataFrame, str]:
     RUTA_MODELOS.mkdir(exist_ok=True)
     joblib.dump({"modelo": final, "columnas": columnas, "umbral": resultado["umbral"], "entrenado": dt.date.today().isoformat()}, RUTA_MODELOS / "prob_cpd.joblib")
     resultado["figura_provincias"] = _figura_prob_cpd_provincias(tabla, resultado)
-    return resultado, tabla, _figura_roc(tabla, resultado["probabilidades"])
+    return resultado, tabla, _figura_roc(tabla, resultado["probabilidades"], resultado["elegido"])
 
 
 def _figura_prob_cpd_provincias(tabla: pd.DataFrame, resultado: dict) -> str:

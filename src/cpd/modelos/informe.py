@@ -69,6 +69,9 @@ NOMBRES_MODELO = {
     "logistica": "Logística con todas las features (ML)",
     "bosque": "Random forest (ML)",
     "logistica_winsor": "Logística con winsorizing (percentiles 1-99, ML)",
+    "poblacion_polinomica": "Logística con población y población² (polinómica)",
+    "poblacion_frecuencia_ccaa": "Logística con población y frequency encoding de la comunidad",
+    "poblacion_target_ccaa": "Logística con población y target encoding de la comunidad",
     "ar_diferencias": "AR(1) sobre la diferencia estacional (modelo sobre diferencias)",
 }
 # Versiones de los candidatos por día hábil o natural (`cpd.modelos.anual.escalar_por_dias`, afinado del 18/11/2026).
@@ -1620,10 +1623,14 @@ lugar de fijarlo en 0,5.
 |---|---|---|---|---|
 {chr(10).join(f"| {NOMBRES_MODELO[n]} | {_n(m.loc[n, 'log_loss'], 3)} | {'0,500 (constante)' if n == 'mayoritaria' else _n(m.loc[n, 'roc_auc'], 3)} | {_n(m.loc[n, 'brier'], 3)} | {_n(100 * m.loc[n, 'accuracy'], 1)} % |" for n in m.index)}
 
-**Modelo elegido: {NOMBRES_MODELO[elegido]}.** Con 52 provincias, añadir variables no mejora la log-loss: la
-población explica casi todo y el resto añade ruido (sobreajuste). Se documenta en lugar de elegir un modelo más
-complejo y peor.
-{f"{chr(10)}![Curva ROC]({'../../' + figura}){chr(10)}{chr(10)}**Figura 1.** Curvas ROC fuera de pliegue de los cuatro modelos.{chr(10)}" if figura else ""}
+**Modelo elegido: {NOMBRES_MODELO[elegido]}.** Con 52 provincias, añadir **todas** las variables no mejora la log-loss
+(la logística completa y el random forest sobreajustan). Lo que sí ayuda (18/11/2026) es una sola variable más con
+sentido: la **comunidad autónoma con target encoding** (técnica de clase I62), es decir, la proporción de provincias con
+CPD en la comunidad, aprendida **solo con el entrenamiento** de cada pliegue y con validación cruzada interna (sin
+fuga). Recoge el efecto regional (por ejemplo, las tres provincias del País Vasco tienen CPD). También se probaron la
+población al cuadrado (polinómica, I59), la frecuencia de la comunidad (frequency encoding, I61) y el winsorizing (I58):
+quedan en la tabla, sin ganar. Al elegir entre más candidatos con los mismos pliegues el resultado es algo optimista.
+{f"{chr(10)}![Curva ROC]({'../../' + figura}){chr(10)}{chr(10)}**Figura 1.** Curvas ROC fuera de pliegue de los modelos candidatos.{chr(10)}" if figura else ""}
 {f"{chr(10)}![prob_cpd por provincia]({'../../' + prob['figura_provincias']}){chr(10)}{chr(10)}**Figura 2.** Matriz de confusión con el umbral elegido, métricas con ese umbral y probabilidad fuera de pliegue de cada provincia (azul: tiene CPD; gris: no tiene; línea discontinua: umbral). Las barras grises a la derecha del umbral son las provincias «parecidas» a las que ya tienen CPD.{chr(10)}" if prob.get('figura_provincias') else ""}
 **Umbral elegido** (Youden): {_n(prob['umbral'], 2)}. Matriz de confusión con ese umbral:
 

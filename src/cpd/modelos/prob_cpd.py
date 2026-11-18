@@ -15,7 +15,11 @@ Modelos comparados (mismos pliegues):
   cruzada interna (anidada) para no elegirla con los mismos datos con que se evalúa;
 - `bosque`: random forest poco profundo (recomendación, no viene de clase);
 - `logistica_winsor`: la logística con todas las features y **winsorizing** de los percentiles 1 y 99 dentro de cada
-  pliegue (técnica de clase I58; añadido el 18/11/2026).
+  pliegue (técnica de clase I58; añadido el 18/11/2026);
+- `poblacion_polinomica`: población y población² (**transformación polinómica**, I59);
+- `poblacion_frecuencia_ccaa`: población y **frequency encoding** de la comunidad (I61);
+- `poblacion_target_ccaa`: población y **target encoding** de la comunidad (I62), dentro de cada pliegue y con validación
+  cruzada interna para no usar la propia etiqueta (añadidos el 18/11/2026).
 
 Interpretación: es una **propensión** ("las provincias con estas características suelen tener CPD"), no la
 probabilidad de que se construya uno nuevo. No implica causalidad.
@@ -34,7 +38,8 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold, StratifiedKFold
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler, TargetEncoder
 
 from cpd.features.provincia import FEATURES_PROVINCIA
 from cpd.modelos.metricas import metricas_clasificacion, umbral_youden
@@ -63,6 +68,20 @@ class Winsorizador(BaseEstimator, TransformerMixin):
         return np.clip(np.asarray(X, dtype=float), self.limite_inferior_, self.limite_superior_)
 
 
+def anadir_codificaciones(tabla: pd.DataFrame) -> pd.DataFrame:
+    """Columnas de la comunidad autónoma para las técnicas de codificación de clase (añadido el 18/11/2026):
+
+    - `ccaa_codigo`: número de la comunidad (orden alfabético), entrada del **target encoding** (I62), que se calcula
+      dentro de cada pliegue;
+    - `ccaa_frecuencia`: **frequency encoding** (I61), fracción de provincias que tiene la comunidad. No usa la
+      etiqueta, así que se puede calcular con todas las filas sin fuga.
+    """
+    datos = tabla.copy()
+    datos["ccaa_codigo"] = datos["ccaa"].map({c: i for i, c in enumerate(sorted(datos["ccaa"].dropna().unique()))}).astype(float)
+    datos["ccaa_frecuencia"] = datos.groupby("ccaa")["ccaa"].transform("size") / len(datos)
+    return datos
+
+
 def modelos_candidatos() -> dict[str, tuple[Any, list[str]]]:
     """Cada modelo con las columnas que usa. Los pipelines imputan (mediana) y escalan dentro del pliegue."""
     logistica = GridSearchCV(
@@ -77,9 +96,30 @@ def modelos_candidatos() -> dict[str, tuple[Any, list[str]]]:
         scoring="neg_log_loss",
         cv=StratifiedKFold(n_splits=4, shuffle=True, random_state=SEMILLA),
     )
+    # Target encoding (I62): la propensión media de la comunidad, aprendida SOLO con el entrenamiento del pliegue y con
+    # validación cruzada interna (TargetEncoder de scikit-learn), para que una provincia no vea su propia etiqueta.
+    poblacion_target = make_pipeline(
+        ColumnTransformer(
+            [
+                ("poblacion", SimpleImputer(strategy="median"), [0]),
+                ("ccaa", TargetEncoder(target_type="binary", smooth="auto", cv=StratifiedKFold(n_splits=4, shuffle=True, random_state=SEMILLA)), [1]),
+            ]
+        ),
+        StandardScaler(),
+        LogisticRegression(max_iter=2000),
+    )
     return {
         "mayoritaria": (DummyClassifier(strategy="prior"), ["log_poblacion"]),
         "logistica_winsor": (logistica_winsor, list(FEATURES_PROVINCIA)),
+        "poblacion_polinomica": (
+            make_pipeline(SimpleImputer(strategy="median"), PolynomialFeatures(2, include_bias=False), StandardScaler(), LogisticRegression(max_iter=2000)),
+            ["log_poblacion"],
+        ),
+        "poblacion_frecuencia_ccaa": (
+            make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(max_iter=2000)),
+            ["log_poblacion", "ccaa_frecuencia"],
+        ),
+        "poblacion_target_ccaa": (poblacion_target, ["log_poblacion", "ccaa_codigo"]),
         "solo_poblacion": (
             make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(max_iter=2000)),
             ["log_poblacion"],
@@ -152,6 +192,7 @@ def evaluar(tabla: pd.DataFrame) -> dict[str, Any]:
         `umbral` (Youden del elegido), `metricas_umbral` (elegido con ese umbral), `sesgos`, `coeficientes`
         (logística final, features estandarizadas) y `C` elegido en el ajuste final.
     """
+    tabla = anadir_codificaciones(tabla)
     candidatos = modelos_candidatos()
     probabilidades = pd.DataFrame(index=tabla.index)
     filas = []

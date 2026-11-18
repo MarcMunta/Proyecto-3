@@ -936,3 +936,31 @@ def test_modelo_sobre_diferencias_prevee_12_meses_positivos():
     prevision = _ar_diferencias(serie, 12)
     assert prevision.shape == (12,) and (prevision > 0).all()
     assert prevision[0] == pytest.approx(np.exp(serie.iloc[-12]) * 1.01 ** 12, rel=0.05)  # mismo mes del año anterior × crecimiento
+
+
+# --- Técnicas de clase: polinómicas (I59), frequency (I61) y target encoding (I62) ----------------------------------
+
+
+def test_codificaciones_de_la_comunidad():
+    from cpd.modelos.prob_cpd import anadir_codificaciones
+
+    # Tabla SINTÉTICA (solo para el test).
+    t = pd.DataFrame({"ccaa": ["A", "A", "A", "B"], "tiene_cpd": [1, 0, 1, 0]})
+    c = anadir_codificaciones(t)
+    assert c["ccaa_frecuencia"].tolist() == [0.75, 0.75, 0.75, 0.25]  # frequency encoding: no usa la etiqueta
+    assert c["ccaa_codigo"].tolist() == [0.0, 0.0, 0.0, 1.0]
+    assert "ccaa_codigo" not in t.columns  # no modifica la tabla original
+
+
+def test_target_encoding_se_ajusta_solo_con_el_entrenamiento():
+    from cpd.modelos.prob_cpd import modelos_candidatos
+
+    modelo, columnas = modelos_candidatos()["poblacion_target_ccaa"]
+    assert columnas == ["log_poblacion", "ccaa_codigo"]
+    rng = np.random.default_rng(0)
+    x = np.column_stack([rng.normal(12, 1, 40), np.tile([0.0, 1.0, 2.0, 3.0], 10)])
+    y = (x[:, 1] >= 2).astype(int)  # la comunidad decide la etiqueta
+    entrenar = np.arange(40) < 32  # todas las comunidades aparecen en el entrenamiento
+    ajustado = modelo.fit(x[entrenar], y[entrenar])
+    prob = ajustado.predict_proba(x[~entrenar])[:, 1]  # filas no vistas
+    assert (prob[x[~entrenar, 1] >= 2] > 0.5).all() and (prob[x[~entrenar, 1] < 2] < 0.5).all()
