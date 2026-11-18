@@ -26,7 +26,7 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 | B. Objetivos específicos (1-10) | 3 | 7 | 0 | 10 |
 | C. Preguntas funcionales (P1-P8) | 5 | 3 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
-| E. Variables del entorno territorial (enunciado) | 11 | 21 | 15 | 47 |
+| E. Variables del entorno territorial (enunciado) | 13 | 22 | 12 | 47 |
 | F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
@@ -55,7 +55,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | B4 | Diseñar un Data Lake y un Data Warehouse | 🟡 | `data/raw/`, `data/almacen/p3_cpd.duckdb`, `src/cpd/almacen.py` | | Completar estrella y escribir documento de almacenamiento (fase 5) |
 | B5 | Realizar análisis exploratorio de datos | 🟡 | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` (histogramas, box plots, series, barras, dispersión, correlaciones, pair plot; `python -m cpd.modelos`) | | Notebook `notebooks/01_eda_panel.ipynb` que llame a `cpd.modelos.eda` (la fase 4 lo pide) |
 | B6 | Detectar correlaciones entre variables territoriales y la viabilidad | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5: Pearson y Spearman frente a nº de CPD, score y VAN simulados | | — |
-| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` | | Mejorar features de `prob_cpd` si hay más datos (n = 52) |
+| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` ; 18/11/2026: probados PIB provincial (INE) y población + renta: mejoran el log-loss (0,377 → 0,342) pero bajan el acierto con umbral (90,4 % → 84,6 %); con 52 provincias no es una mejora clara y se mantiene el modelo | | Más datos de CPD (fechas de apertura) para validar en el tiempo |
 | B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Añadir parámetros del CPD que faltan (ver D) |
 | B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Informe de cuadro de mandos (fase 10) |
 | B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda, el precio, las reservas de agua, la temperatura por provincia y el % renovable por comunidad, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md`; control de acierto D8 (`data/curated/modelos/control_acierto.csv`) | | El precio de la luz a 1 año no llega al 85 % (D8): se enseña como escenario orientativo, fuera del VAN, con el motivo en el informe. Mejora posible: futuros de OMIP |
@@ -68,7 +68,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | ✅ | `src/cpd/modelos/impacto_local.py`: consumo previsto del CPD sobre la demanda prevista de su comunidad (validación de punta a punta 96,1 %, 20 orígenes), potencia máxima sobre la capacidad de acceso libre (REE; 0 MW en Madrid, Navarra y Ceuta: no cabe) y agua sobre la distribuida por la red pública de su comunidad (INE tabla 53447, 2024), con habitantes equivalentes; figura 17, ficha del mapa; `tests/test_modelos.py` | | Escala de comunidad: no hay consumo eléctrico ni de agua abierto por municipio (E8, E14) |
 | P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw`, `capacidad_demanda_rdt_otorgada_mw` y `_pendiente_mw` (REE, por comunidad); cobertura renovable prevista (generación renovable / demanda, `docs/analisis/previsiones_1_anio.md`), en el bloque de energía del score | | Análisis por nudo (hoy por comunidad) |
 | P4 | ¿Existe riesgo hídrico? | ✅ | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m`; previsión de reservas a 1 año por ámbito (acierto 85,3 % en test) en `docs/analisis/previsiones_1_anio.md`; reserva media de la próxima década por ámbito (acierto 86,6 % en test, `src/cpd/modelos/medio_plazo.py`) | | Afinar la asignación provincia → ámbito |
-| P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) | | Escenarios con electrificación y nuevos CPD (fuera del modelo tendencial) |
+| P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) ; escenarios con la red otorgada (18.535 MW) y en trámite (23.500 MW) de REE sobre la tendencial (`src/cpd/modelos/escenarios.py`, figura 19): 2035 entre 244 TWh (tendencial) y 374 TWh (100 % de lo otorgado); Aragón tiene otorgado el 243 % de su demanda | | Calibrar la realización de lo otorgado (sin dato abierto) |
 | P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md`; temperatura media por provincia a 1 año (la que usa el PUE; acierto 92,8-93,8 %, error de la media anual 0,5 °C) en `docs/analisis/previsiones_1_anio.md` | | Calibrar precios en `config/settings.yaml` y documentar |
 | P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests; sensibilidad del VAN al precio de la luz en la ficha del mapa (`frontend/scripts/simular_provincias.py`) | | Documentar tasa de descuento y supuestos |
 | P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico); peligrosidad sísmica oficial (NCSE-02) por provincia en el filtro y el score; modelo de riesgo sísmico anual (`src/cpd/modelos/sismico.py`, no cumple, no se usa) | | Verificar la fuente de zonas inundables |
@@ -183,9 +183,9 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E39 | Empleo generado | ❌ | — | | Definir modelo de cálculo (hipótesis documentada) |
-| E40 | Inversión inducida | ❌ | — | | Igual |
-| E41 | PIB municipal | ❌ | — | | Buscar fuente (INE, Eurostat) |
+| E39 | Empleo generado | ✅ | `src/cpd/modelos/socioeconomico.py`: modelo input-output de Leontief (tipo I) con las Tablas Input-Output 2022 del INE (`src/cpd/fuentes/ine_tio.py`, inversa interior y empleo ETC por rama): obra 3.402 empleos-año; operación 60 directos + 217 indirectos al año (×4,6); figura 18, ficha del mapa; tests con una economía sintética | | Calibrar el reparto del CAPEX (`config/settings.yaml`, supuesto) |
+| E40 | Inversión inducida | ✅ | Mismo modelo: de 400 M€ de CAPEX se quedan en España 295 M€ (cuota de importación real por producto) y generan 562 M€ de producción y 217 M€ de VAB; operación 78 M€ de VAB al año | | Tipo II (gasto de los salarios), si se pide |
+| E41 | PIB municipal | 🟡 | No hay PIB municipal abierto; PIB por provincia del INE (Contabilidad Regional, tabla 82284, `ine.pib_provincias`, `pib_provincia.csv`): VAB directo del CPD sobre el PIB provincial (de 0,01 % en Madrid a 2,5 % en Melilla) | | Documentado: el dato municipal no existe en abierto |
 | E42 | Atracción empresarial | ❌ | — | | Definir indicador (recomendación) |
 
 ### E.9 Impacto ambiental (enunciado, p. 7)
