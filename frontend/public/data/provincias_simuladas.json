@@ -1,6 +1,6 @@
 {
  "tipo": "simulacion",
- "generado": "2026-11-18T15:16:44+01:00",
+ "generado": "2026-11-18T17:16:00+01:00",
  "actualizado": "2026-11-13T21:15:00",
  "mes_referencia": "2026-10",
  "precio_luz_usado_eur_mwh": 80.46,
@@ -18,7 +18,7 @@
    "modelo": "solo_poblacion",
    "roc_auc": 0.882,
    "provincias_con_cpd": 14,
-   "generado": "2026-11-18T15:05:34+01:00"
+   "generado": "2026-11-18T17:07:32+01:00"
   },
   "precio_luz": {
    "modelo": "combinacion",
@@ -35,12 +35,12 @@
    "mae_test_eur_mwh": 31.07,
    "mae_validacion_eur_mwh": 28.49,
    "futuro_gas_anio_eur_mwh": 68.77,
-   "generado": "2026-11-18T15:06:24+01:00"
+   "generado": "2026-11-18T17:08:12+01:00"
   },
   "demanda": {
    "modelo": "combinacion",
    "mape_test_pct": 4.39,
-   "generado": "2026-11-18T15:06:24+01:00"
+   "generado": "2026-11-18T17:08:12+01:00"
   }
  },
  "provincias": [
