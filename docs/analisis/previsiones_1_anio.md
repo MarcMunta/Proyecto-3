@@ -28,12 +28,16 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Generación renovable por comunidad: total de 12 meses | 92,3 % | 93,5 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: consumo | 99,7 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: emisiones | 90,6 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
-| Precio de la luz a 1 año | 59,0 % | 62,4 % | 100 − WAPE | no cumple (< 85 %) |
+| Gas natural (MIBGAS) a 1 año · entrada del precio, inestable | 70,4 % | 52,3 % | 100 − WAPE | no cumple (< 85 %) |
+| Eólica de España (tiempo) a 1 año · entrada del precio, inestable | 86,6 % | 83,7 % | 100 − WAPE | no cumple (< 85 %) |
+| Solar de España (tiempo) a 1 año · entrada del precio, inestable | 90,9 % | 90,9 % | 100 − WAPE | cumple (objetivo 90 %) |
+| Hidráulica de España (tiempo) a 1 año · entrada del precio, inestable | 72,9 % | 85,5 % | 100 − WAPE | no cumple (< 85 %) |
+| Precio de la luz a 1 año | 59,7 % | 61,4 % | 100 − WAPE | no cumple (< 85 %) |
 | Demanda nacional a 10 años | 97,3 % | — | 100 − WAPE (backtesting 2012-2025) | cumple (objetivo 90 %) |
 | Probabilidad de CPD (prob_cpd) | 90,4 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
 | Riesgo sísmico: algún M ≥ 3 el año siguiente | 74,2 % | 73,1 % | accuracy (validación 2018-2024, test 2025) | no cumple (< 85 %) |
 
-**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
+**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Gas natural (MIBGAS) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Eólica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Hidráulica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
 
 
 ## Cómo se ha buscado el menor error
@@ -66,10 +70,11 @@ simulador (gris). Abajo, en su propio eje, el gas de MIBGAS (mercado diario y fu
 
 | Modelo | Validación (€/MWh) | Test (€/MWh) |
 |---|---|---|
-| Combinación de los 3 mejores **(elegido)** | 29,0 | 30,3 |
+| Precio estructural con el gas y el tiempo previstos (en la combinación) | 27,6 | 38,8 |
+| Combinación de los 3 mejores **(elegido)** | 28,5 | 31,1 |
 | ETS (Holt-Winters amortiguado) (en la combinación) | 31,2 | 27,8 |
 | Último valor (naive) (en la combinación) | 32,0 | 34,0 |
-| Ridge con gas (ML) (en la combinación) | 32,5 | 36,2 |
+| Ridge con gas (ML) | 32,5 | 36,2 |
 | Gradient boosting (ML) | 39,6 | 40,5 |
 | Media de los últimos 12 meses (la del simulador) | 42,4 | 33,4 |
 | Mismo mes del año anterior (estacional) | 44,5 | 43,4 |
@@ -78,29 +83,60 @@ simulador (gris). Abajo, en su propio eje, el gas de MIBGAS (mercado diario y fu
 Validación: orígenes 2022-11 a 2024-10 (24 orígenes), meses 2022-12 a 2025-10. Test: meses 2025-11 a 2026-10.
 
 **Resultado.** Modelo elegido: **Combinación de los 3 mejores**
-(ETS (Holt-Winters amortiguado), Último valor (naive), Ridge con gas (ML)). Error medio a 1 año: 29,0 €/MWh en
-validación y 30,3 €/MWh en test, frente a 42,4 y
+(Precio estructural con el gas y el tiempo previstos, ETS (Holt-Winters amortiguado), Último valor (naive)). Error medio a 1 año: 28,5 €/MWh en
+validación y 31,1 €/MWh en test, frente a 42,4 y
 33,4 €/MWh de la media de 12 meses que usa el simulador.
 
-**Previsión** desde 2026-10: media de **153 €/MWh** para los próximos 12 meses (rango
-110-342 €/MWh, cuantiles 10-90 % del error de la media anual en validación), frente a
+**Previsión** desde 2026-10: media de **152 €/MWh** para los próximos 12 meses (rango
+102-270 €/MWh, cuantiles 10-90 % del error de la media anual en validación), frente a
 80 €/MWh de media del último año y 167 €/MWh en 2026-10. El futuro de gas a
-1 año cotiza a 68,8 €/MWh. Mes a mes (€/MWh): 2026-11: 171, 2026-12: 165, 2027-01: 155, 2027-02: 137, 2027-03: 130, 2027-04: 124, 2027-05: 129, 2027-06: 147, 2027-07: 158, 2027-08: 168, 2027-09: 176, 2027-10: 180.
+1 año cotiza a 68,8 €/MWh. Mes a mes (€/MWh): 2026-11: 162, 2026-12: 164, 2027-01: 160, 2027-02: 142, 2027-03: 137, 2027-04: 130, 2027-05: 134, 2027-06: 152, 2027-07: 157, 2027-08: 159, 2027-09: 161, 2027-10: 164.
 
 ![Backtesting del precio](../../docs/figuras/previsiones/05_backtesting_precio.png)
 
 **Figura 2.** Las 24 previsiones a 1 año de validación frente al precio real: se ve cuándo acierta y cuándo no
 (la previsión tarda en reaccionar a los cambios bruscos).
 
-**¿Por qué no llega al 85 %?** El acierto cae con la antelación: 74 % a 1 mes y
-54 % a 12 meses (modelo elegido, validación). Ni el mejor modelo a 1 mes vista
+**¿Por qué no llega al 85 %?** El acierto cae con la antelación: 75 % a 1 mes y
+52 % a 12 meses (modelo elegido, validación). Ni el mejor modelo a 1 mes vista
 —ETS (Holt-Winters amortiguado)— pasa del 77 %. En los meses de validación el precio real fue de
 14 €/MWh (04/2024) a 133 €/MWh (02/2023): el error medio del modelo elegido,
-29 €/MWh, es pequeño en un mes caro y enorme en uno barato. Llegar al 85 % exigiría escoger un periodo
+28 €/MWh, es pequeño en un mes caro y enorme en uno barato. Llegar al 85 % exigiría escoger un periodo
 de evaluación tranquilo o usar información que no se sabía en el origen, que es lo que el requisito (D8) quiere evitar.
 Por eso esta previsión se enseña como **escenario orientativo**, con aviso, y el simulador sigue usando la media de
 12 meses como supuesto (D7). Los futuros de electricidad (OMIP) podrían mejorar los primeros meses, pero no se han
 integrado y no aseguran el 85 % (mejora posible; recomendación, no viene de clase).
+
+
+## Gas y tiempo: modelos añadidos para el precio de la luz (inestables)
+
+El precio de la luz era el modelo más difícil: se quedaba en un 59-62 % de acierto. Como el precio lo marca casi
+siempre la central de gas de ciclo combinado y baja cuando hay mucho viento, sol o agua, se añadieron (18/11/2026)
+los **modelos del gas** (MIBGAS: último valor, ETS y los futuros del gas) y **del tiempo**, a través de la generación
+eólica, solar e hidráulica de España (REData; la hidráulica, también con la reserva de los embalses). Con ellos se
+construye un **precio estructural**: log(precio) = f(log(gas), cuotas de eólica, solar, hidráulica, nuclear, ciclo
+combinado y carbón, ciclo combinado × gas, mes), ajustado con los meses reales y alimentado con las previsiones.
+
+**Son inestables:** el gas y el tiempo de dentro de un año no se pueden saber, y sus aciertos cambian mucho entre
+validación y test. Se usan solo como entradas del precio, no como dato del simulador.
+
+![Gas y tiempo](../../docs/figuras/previsiones/15_gas_y_tiempo.png)
+
+**Figura 2b.** Gas y generación eólica, solar e hidráulica de España: últimos 3 años y previsión a 1 año, con su
+acierto (validación / test).
+
+| Modelo | Elegido | Acierto validación | Acierto test |
+|---|---|---|---|
+| Gas natural (MIBGAS) | ETS (Holt-Winters amortiguado) | 70,4 % | 52,3 % |
+| Eólica de España | Combinación de los 3 mejores | 86,6 % | 83,7 % |
+| Solar de España | ETS de 5 años sobre el logaritmo | 90,9 % | 90,9 % |
+| Hidráulica de España | Combinación de los 3 mejores | 72,9 % | 85,5 % |
+
+**Resultado para la luz.** Como candidato del precio, el **precio estructural** acierta un 60,9 % en validación y un 51,8 % en test y entra en la combinación. El acierto del precio queda en 59,7 % en validación y
+61,4 % en test. **Diagnóstico:** aun con el gas y la generación **reales** de cada mes (sin previsión), el
+precio solo se explica en un 78,9 %: faltan datos que no son abiertos o no son mensuales, como el precio del CO2 (la
+fuente de la bolsa EEX es de pago), la demanda hora a hora y las interconexiones. Por eso el precio sigue como
+orientativo.
 
 ## Demanda eléctrica por comunidad autónoma
 
