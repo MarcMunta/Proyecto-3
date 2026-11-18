@@ -53,6 +53,15 @@ NOMBRES_MODELO = {
     "tecnologias_hidro_embalses": "Suma de tecnologías con la hidráulica desde los embalses",
     "estructural_gas_tiempo": "Precio estructural con el gas y el tiempo previstos",
     "futuros_gas": "Futuros del gas (MIBGAS)",
+    "sin_cambio": "Sin cambio (último año)",
+    "media_3_anios": "Media de 3 años",
+    "deriva": "Deriva (cambio medio anual)",
+    "tendencia_lineal": "Tendencia lineal",
+    "holt_amortiguado": "Holt con tendencia amortiguada",
+    "media_10_anios": "Media de 10 años",
+    "media_larga": "Media larga (30 años)",
+    "tendencia_30_anios": "Tendencia lineal de 30 años",
+    "media_10_con_tendencia": "Media de 10 años + tendencia de 30",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
@@ -727,6 +736,91 @@ Menos emisiones previstas: {lista(menos)}. Más: {lista(mas)}.
 """
 
 
+def _seccion_medio_plazo(medio: dict[str, Any], figura: str) -> str:
+    """Medio plazo (10 años, A3): temperatura → PUE → consumo del CPD y reserva de agua del ámbito."""
+    j = medio["json"]
+    t, r = j["temperatura"], j["reservas"]
+    base, final = j["anio_base"], j["anio_final"]
+
+    def tabla(res: dict[str, Any], unidad: str) -> str:
+        m = res["metricas"].pivot(index="modelo", columns="particion", values=["mae", "acierto"]).sort_values(("mae", "validacion"))
+        filas = []
+        for modelo, fila in m.iterrows():
+            marca = " **(elegido)**" if modelo == res["elegido"] else (" (en la combinación)" if modelo in res["miembros"] else "")
+            filas.append({
+                "Modelo": NOMBRES_MODELO.get(modelo, modelo) + marca,
+                f"MAE validación ({unidad})": _n(fila[("mae", "validacion")], 2), f"MAE test ({unidad})": _n(fila[("mae", "test")], 2),
+                "Acierto validación": f"{_n(fila[('acierto', 'validacion')], 1)} %", "Acierto test": f"{_n(fila[('acierto', 'test')], 1)} %",
+            })
+        return _tabla(pd.DataFrame(filas))
+
+    op = pd.DataFrame.from_dict(j["provincias"], orient="index")
+    calidas = op.nlargest(5, "temp_final_c")
+    frias = op.nsmallest(5, "temp_final_c")
+    lista = lambda d: ", ".join(f"{f.nombre} ({_n(f.temp_final_c, 1)} °C, PUE {_n(f.pue_final, 2)})" for f in d.itertuples())  # noqa: E731
+    amb = pd.DataFrame.from_dict(j["ambitos"], orient="index").sort_values("media_decada_prevista_pct")
+    bajos = ", ".join(f"{a} ({_n(f.media_decada_prevista_pct, 0)} %)" for a, f in amb.head(4).iterrows())
+    nombre_t = NOMBRES_MODELO.get(t["modelo"], t["modelo"])
+    nombre_r = NOMBRES_MODELO.get(r["modelo"], r["modelo"])
+    return f"""## Medio plazo: clima y agua a 10 años (sostenibilidad operativa, objetivo A3)
+
+El objetivo A3 pide previsiones a corto **y medio plazo** de la sostenibilidad operativa del CPD. A 1 año ya están el
+PUE, el consumo y las emisiones; a 10 años ({base + 1}-{final}) lo que cambia la operación es el **clima** (temperatura →
+PUE → consumo) y el **agua** de los embalses del ámbito. Código: `src/cpd/modelos/medio_plazo.py`.
+
+**Datos nuevos.** La tabla diaria de clima empieza en 2015 y no basta para validar 10 años. Se añade la temperatura
+**mensual de NASA POWER desde {t['historia_desde']}** (la misma fuente y el mismo punto que la diaria: en los meses comunes difieren
+0,003 °C de media). Las reservas de MITECO ya venían desde {r['historia_desde']}.
+
+**Protocolo.** Test: lo que se habría previsto desde {t['origen_test']} para {t['origen_test'] + 1}-{t['origen_test'] + 10} (ningún modelo lo ve).
+Validación: orígenes {t['origenes_validacion'][0]}-{t['origenes_validacion'][1]} en la temperatura y {r['origenes_validacion'][0]}-{r['origenes_validacion'][1]} en las reservas, cuyos 10 años
+previstos terminan antes del test, para que la elección no mire ningún año del test. Candidatos: sin cambio, media de 10
+años, media larga (30 años), tendencia lineal de 30 años, media de 10 años más la tendencia, Holt amortiguado y la
+combinación de los 3 mejores por MAE de validación.
+
+![Medio plazo]({figura})
+
+**Figura 11b.** (a) Temperatura media anual de España (media de las 52 capitales): real, lo que se habría previsto
+desde {t['origen_test']} (test) y previsión a 10 años con su intervalo 10-90 %. (b) Reserva media de los embalses de cada
+ámbito: últimos 10 años (azul) y próxima década (naranja).
+
+### Temperatura por provincia a 10 años
+
+{tabla(medio['res_t'], '°C')}
+
+Elegido: **{nombre_t}** ({', '.join(NOMBRES_MODELO.get(m, m) for m in t['miembros'])}). Acierto **{_n(t['acierto_validacion'], 1)} %** en validación y
+**{_n(t['acierto_test'], 1)} %** en test (error medio {_n(t['mae_validacion'], 2)} y {_n(t['mae_test'], 2)} °C). El test es peor porque 2016-2025 se calentó más
+de lo que decía la historia: los modelos con tendencia habrían acertado algo más en el test, pero en la validación (que
+es con lo que se elige) no ganaban. Se dice tal cual, sin cambiar la elección: la validación cae en 1996-2015, años
+en que la temperatura subió más despacio.
+
+**Sensibilidad (no es la previsión elegida).** Si sigue la tendencia de los últimos 30 años
+({_n(t['escenario_tendencia']['pendiente_c_decada'], 2)} °C por década), la media de España en {final} sería {_n(t['escenario_tendencia']['temp_final_c'], 1)} °C en lugar de {_n(t['media_espana_final_c'], 1)} °C (últimos 10
+años: {_n(t['media_espana_10a_c'], 1)} °C). El PUE medio pasaría de {_n(t['pue_medio_final'], 3)} a {_n(t['escenario_tendencia']['pue_final'], 3)} y el consumo del CPD subiría un
+{_n(t['escenario_tendencia']['cambio_consumo_pct'], 1)} % respecto a la última década: el calentamiento afecta poco a la operación con la fórmula del simulador.
+
+**Consumo del CPD a 10 años, de punta a punta** (temperatura prevista → PUE → consumo, frente a lo mismo con la
+temperatura real): **{_n(t['consumo_acierto_validacion'], 1)} %** en validación y **{_n(t['consumo_acierto_test'], 1)} %** en test. Es tan alto porque el PUE del simulador
+cambia poco con la temperatura; no hay fuga (la temperatura real de cada año no se usa para prever ese año).
+
+Más calor previsto en {final}: {lista(calidas)}. Menos: {lista(frias)}.
+
+### Reserva de agua por ámbito a 10 años
+
+{tabla(medio['res_r'], 'puntos')}
+
+Elegido: **{nombre_r}** ({', '.join(NOMBRES_MODELO.get(m, m) for m in r['miembros'])}). **Año a año** acierta {_n(r['acierto_validacion'], 1)} % en validación y
+{_n(r['acierto_test'], 1)} % en test: **no llega al 85 %**, porque el año concreto de una sequía no se puede saber con 10 años de
+antelación. Para un CPD lo que cuenta en una inversión a 10 años es el **agua media de la década**, y esa sí cumple:
+**{_n(r['acierto_decada_validacion'], 1)} %** en validación y **{_n(r['acierto_decada_test'], 1)} %** en test. El año a año se enseña como orientativo.
+
+Ámbitos con menos reserva media prevista: {bajos}.
+
+**Emisiones a 10 años: no se prevén.** El mix por comunidad solo existe desde 2015 (11 años), con lo que no se puede
+validar un horizonte de 10 años; además depende sobre todo de decisiones políticas (PNIEC), no de la historia.
+"""
+
+
 def _seccion_sismico(sismico: dict[str, Any]) -> str:
     """Riesgo sísmico (P8): candidatos, métricas y por qué no se usa si no llega al acierto mínimo."""
     from cpd.fuentes.provincias import PROVINCIAS
@@ -880,6 +974,8 @@ def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None
         _seccion_gas_tiempo(anual["gas_tiempo"], fig["gas_tiempo"], anual["precio"]) if anual.get("gas_tiempo") and "gas_tiempo" in fig else ""
     )
     seccion_10 = _seccion_10_anios(diez) if diez else ""
+    if anual.get("medio_plazo"):
+        seccion_10 += "\n" + _seccion_medio_plazo(anual["medio_plazo"], "../../" + anual["medio_plazo"]["figura"])
     return f"""# Previsiones · 1 año (demanda, precio de la luz, reservas de agua, temperatura y renovables) y 10 años (demanda nacional)
 
 {AVISO.format(fecha=fecha)}

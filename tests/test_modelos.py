@@ -658,3 +658,58 @@ def test_gas_y_precio_estructural_sin_fuga():
     assert len(a) == 12 and (a["prevision"] > 0).all()
     futuros = gas_tiempo.candidatos_gas(gas)["futuros_gas"](origen).set_index("horizonte_meses")["prevision"]
     assert futuros[1] == 21.0 and futuros[3] == 22.0 and futuros[12] == 23.0
+
+
+# --- Medio plazo (10 años, A3) -------------------------------------------------------------------------------------
+
+
+def _anual_sintetico(series: int = 3, desde: int = 1981, hasta: int = 2025, semilla: int = 0) -> pd.DataFrame:
+    """Medias anuales SINTÉTICAS (solo para el test): nivel + tendencia suave + ruido, una columna por serie."""
+    rng = np.random.default_rng(semilla)
+    anios = np.arange(desde, hasta + 1)
+    return pd.DataFrame(
+        {f"S{i}": 12 + i + 0.03 * (anios - desde) + rng.normal(0, 0.4, len(anios)) for i in range(series)}, index=anios
+    )
+
+
+def test_medio_plazo_no_usa_anios_posteriores_al_origen():
+    from cpd.modelos import medio_plazo
+
+    anual = _anual_sintetico()
+    base = medio_plazo.backtesting(anual, [2000])
+    alterado = anual.copy()
+    alterado.loc[2001:] = 999.0  # el futuro del origen 2000 cambia por completo
+    cambiado = medio_plazo.backtesting(alterado, [2000])
+    pd.testing.assert_series_equal(base["prevision"], cambiado["prevision"])
+    assert set(base["horizonte_anios"]) == set(range(1, 11))
+
+
+def test_medio_plazo_validacion_termina_antes_del_test():
+    from cpd.modelos import medio_plazo
+
+    res = medio_plazo.evaluar(_anual_sintetico(), 1995)
+    pred = res["predicciones"]
+    assert res["origen_test"] == 2015
+    assert pred.loc[pred["particion"] == "validacion", "anio"].max() <= res["origen_test"]
+    assert pred.loc[pred["particion"] == "test", "origen"].unique().tolist() == [2015]
+    assert res["elegido"] in set(pred["modelo"])
+
+
+def test_medio_plazo_prevision_e_intervalo_no_se_estrecha():
+    from cpd.modelos import medio_plazo
+
+    anual = _anual_sintetico()
+    res = medio_plazo.evaluar(anual, 1995)
+    prev = medio_plazo.prevision(anual, res, limites=(0.0, 100.0))
+    assert prev["anio"].min() == 2026 and prev["anio"].max() == 2035
+    ancho = (prev["superior"] - prev["inferior"]).groupby(prev["horizonte_anios"]).mean()
+    assert (ancho.diff().dropna() >= -1e-9).all()
+    assert ((prev["inferior"] <= prev["prevision"]) & (prev["prevision"] <= prev["superior"])).all()
+
+
+def test_acierto_media_decada_es_100_con_prevision_perfecta():
+    from cpd.modelos import medio_plazo
+
+    filas = [{"modelo": "m", "serie": "S", "origen": 2000, "anio": 2000 + h, "horizonte_anios": h, "prevision": 10.0 + h, "real": 10.0 + h, "particion": p} for h in range(1, 11) for p in ("validacion", "test")]
+    res = {"predicciones": pd.DataFrame(filas), "elegido": "m"}
+    assert medio_plazo.acierto_media_decada(res) == {"acierto_decada_validacion": 100.0, "acierto_decada_test": 100.0}

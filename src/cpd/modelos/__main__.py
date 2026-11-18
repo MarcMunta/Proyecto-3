@@ -1101,6 +1101,140 @@ def _figura_10_anios(anual_twh: pd.Series, resultado: dict, prevision: pd.DataFr
     return _guardar_figura(figura, "07_demanda_nacional_10_anios.png")
 
 
+def ejecutar_medio_plazo() -> dict:
+    """Sostenibilidad operativa del CPD a 10 años (A3): temperatura → PUE → consumo y reserva de agua del ámbito
+    (`cpd.modelos.medio_plazo`)."""
+    import json
+
+    from cpd import simulator as simulador
+    from cpd.config import cargar_settings
+    from cpd.fuentes.curado import CARPETA_TABLAS
+    from cpd.fuentes.embalses import AMBITO_POR_PROVINCIA
+    from cpd.modelos import medio_plazo as medio
+
+    ajustes = cargar_settings()
+    validos = {f.name for f in dataclasses.fields(simulador.CPDParams)}
+    params = simulador.CPDParams(**{k: v for k, v in ajustes.get("cpd_por_defecto", {}).items() if k in validos})
+    nombres = pd.read_csv(CARPETA_TABLAS / "provincias.csv", dtype={"codigo_provincia": str}).set_index("codigo_provincia")["provincia"].to_dict()
+
+    temp = medio.anual_completo(pd.read_csv(CARPETA_TABLAS / "clima_mensual_largo.csv", dtype={"codigo_provincia": str}), "mes", "codigo_provincia", "tmedia_c")
+    res_t = medio.evaluar(temp, medio.PRIMER_ORIGEN_TEMPERATURA)
+    prev_t = medio.prevision(temp, res_t)
+    consumo = medio.validar_consumo(res_t, params)
+    tabla_op = medio.operacion_10_anios(prev_t, temp.iloc[-10:].mean(), params)
+    # Sensibilidad (no es la previsión elegida): si sigue la tendencia de 30 años, cuánto cambiarían la temperatura y el PUE.
+    con_tendencia = medio.candidatos()["media_10_con_tendencia"]
+    t_tendencia = pd.Series({c: float(con_tendencia(temp[c].dropna(), medio.HORIZONTE_ANIOS)[-1]) for c in temp.columns})
+    escenario = {
+        "temp_final_c": round(float(t_tendencia.mean()), 2),
+        "pendiente_c_decada": round(float(np.mean([10 * medio._pendiente(temp[c].dropna()) for c in temp.columns])), 2),
+        "pue_final": round(float(np.mean([simulador.pue_estimado(t, params.tipo_refrigeracion) for t in t_tendencia])), 3),
+        "cambio_consumo_pct": round(float(100 * (medio.consumo_cpd(t_tendencia.to_numpy(), params).mean() / medio.consumo_cpd(temp.iloc[-10:].mean().to_numpy(), params).mean() - 1)), 2),
+    }
+
+    reservas = medio.anual_completo(pd.read_csv(CARPETA_TABLAS / "reservas_ambito_mensual.csv"), "mes", "ambito", "reserva_pct_media_mes")
+    res_r = medio.evaluar(reservas, medio.PRIMER_ORIGEN_RESERVAS)
+    prev_r = medio.prevision(reservas, res_r, limites=(0.0, 100.0))
+    decada_t, decada_r = medio.acierto_media_decada(res_t), medio.acierto_media_decada(res_r)
+    print(
+        f"  temperatura a 10 años: {res_t['elegido']} · {res_t['acierto_validacion']:.1f} % / {res_t['acierto_test']:.1f} % "
+        f"(MAE {res_t['mae_validacion']:.2f} / {res_t['mae_test']:.2f} °C); consumo {consumo['acierto_validacion']:.1f} % / {consumo['acierto_test']:.1f} %"
+    )
+    print(f"  reservas a 10 años: año a año {res_r['acierto_validacion']:.1f} % / {res_r['acierto_test']:.1f} %; media de la década {decada_r['acierto_decada_validacion']:.1f} % / {decada_r['acierto_decada_test']:.1f} %")
+
+    def resumen(res: dict, decada: dict, anual: pd.DataFrame) -> dict:
+        return {
+            "modelo": res["elegido"], "miembros": res["miembros"],
+            "acierto_validacion": round(res["acierto_validacion"], 1), "acierto_test": round(res["acierto_test"], 1),
+            "mae_validacion": round(res["mae_validacion"], 2), "mae_test": round(res["mae_test"], 2),
+            "acierto_decada_validacion": round(decada["acierto_decada_validacion"], 1), "acierto_decada_test": round(decada["acierto_decada_test"], 1),
+            "origenes_validacion": [res["origenes_validacion"][0], res["origenes_validacion"][-1]], "origen_test": res["origen_test"],
+            "historia_desde": int(anual.index.min()), "historia_hasta": int(anual.index.max()),
+        }
+
+    ultimo = int(temp.index.max())
+    salida = {
+        "anio_base": ultimo, "anio_final": ultimo + medio.HORIZONTE_ANIOS,
+        "cpd": {"potencia_ti_mw": params.potencia_ti_mw, "factor_carga": params.factor_carga, "tipo_refrigeracion": params.tipo_refrigeracion},
+        "temperatura": {
+            **resumen(res_t, decada_t, temp), "consumo_acierto_validacion": round(consumo["acierto_validacion"], 1), "consumo_acierto_test": round(consumo["acierto_test"], 1),
+            "media_espana_10a_c": round(float(temp.iloc[-10:].mean().mean()), 2), "media_espana_final_c": round(float(tabla_op["temp_final_c"].mean()), 2),
+            "pue_medio_final": round(float(tabla_op["pue_final"].mean()), 3), "escenario_tendencia": escenario,
+        },
+        "reservas": resumen(res_r, decada_r, reservas),
+        "provincias": {}, "ambitos": {},
+    }
+    for ambito, d in prev_r.groupby("serie"):
+        salida["ambitos"][ambito] = {
+            "media_10a_real_pct": round(float(reservas[ambito].iloc[-10:].mean()), 1),
+            "media_decada_prevista_pct": round(float(d["prevision"].mean()), 1),
+            "inferior_anual_pct": round(float(d["inferior"].min()), 1),
+        }
+    final_t = prev_t[prev_t["horizonte_anios"] == medio.HORIZONTE_ANIOS].set_index("serie")
+    for f in tabla_op.itertuples():
+        ambito = AMBITO_POR_PROVINCIA.get(f.codigo_provincia)
+        salida["provincias"][f.codigo_provincia] = {
+            "nombre": nombres.get(f.codigo_provincia, f.codigo_provincia),
+            "temp_10a_c": round(f.temp_10a_c, 2), "temp_final_c": round(f.temp_final_c, 2),
+            "temp_final_inferior_c": round(float(final_t.loc[f.codigo_provincia, "inferior"]), 2), "temp_final_superior_c": round(float(final_t.loc[f.codigo_provincia, "superior"]), 2),
+            "pue_10a": round(f.pue_10a, 3), "pue_final": round(f.pue_final, 3),
+            "consumo_10a_mwh": round(f.consumo_10a_mwh, 0), "consumo_final_mwh": round(f.consumo_final_mwh, 0), "cambio_consumo_pct": round(f.cambio_consumo_pct, 2),
+            "ambito": ambito, "reserva_decada_prevista_pct": salida["ambitos"].get(ambito, {}).get("media_decada_prevista_pct") if ambito else None,
+        }
+    for nombre, res in (("temperatura", res_t), ("reservas", res_r)):
+        res["metricas"].to_csv(RUTA_SALIDAS / f"medio_plazo_metricas_{nombre}.csv", index=False)
+    prev_t.to_csv(RUTA_SALIDAS / "medio_plazo_prevision_temperatura.csv", index=False)
+    prev_r.to_csv(RUTA_SALIDAS / "medio_plazo_prevision_reservas.csv", index=False)
+    tabla_op.to_csv(RUTA_SALIDAS / "medio_plazo_operacion_cpd.csv", index=False)
+    (RUTA_SALIDAS / "prevision_medio_plazo.json").write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
+    datos = {"temp": temp, "res_t": res_t, "prev_t": prev_t, "reservas": reservas, "res_r": res_r, "prev_r": prev_r, "tabla": tabla_op, "json": salida}
+    return {**datos, "figura": _figura_medio_plazo(datos)}
+
+
+@_con_estilo
+def _figura_medio_plazo(datos: dict) -> str:
+    """Figura 16: (a) temperatura media de España (media de las 52 capitales), lo que se habría previsto en el test y
+    previsión a 10 años; (b) reserva media de los embalses por ámbito: últimos 10 años y próxima década."""
+    j = datos["json"]
+    temp, res_t, prev_t = datos["temp"], datos["res_t"], datos["prev_t"]
+    figura, (eje_t, eje_r) = plt.subplots(1, 2, figsize=(15, 6.2), gridspec_kw={"width_ratios": [1.35, 1]})
+
+    espana = temp.mean(axis=1)
+    pred = res_t["predicciones"]
+    test = pred[(pred["modelo"] == res_t["elegido"]) & (pred["particion"] == "test")].groupby("anio")["prevision"].mean()
+    futuro = prev_t.groupby("anio")[["prevision", "inferior", "superior"]].mean()
+    origen_test, ultimo = res_t["origen_test"], int(espana.index.max())
+    eje_t.fill_between(futuro.index, futuro["inferior"], futuro["superior"], color=COLOR_PREVISTO, alpha=0.14, lw=0, label="intervalo 10-90 % (media de las bandas)")
+    eje_t.plot(espana.index, espana.values, color=COLOR_REAL, label="real (NASA POWER, media de las 52 capitales)", zorder=4)
+    eje_t.plot([origen_test, *test.index], [espana.loc[origen_test], *test.values], color=COLOR_PREVISTO, alpha=0.6, lw=1.2, ls=(0, (4, 3)), label=f"lo que habría previsto desde {origen_test} (test)")
+    nombre = informe.NOMBRES_MODELO.get(res_t["elegido"], res_t["elegido"])
+    eje_t.plot([ultimo, *futuro.index], [espana.iloc[-1], *futuro["prevision"]], color=COLOR_PREVISTO, label=f"previsión a 10 años ({nombre})", zorder=4)
+    _punto_final(eje_t, ultimo, float(espana.iloc[-1]), f"{espana.iloc[-1]:.1f} °C".replace(".", ","), COLOR_REAL, arriba=True)
+    _punto_final(eje_t, int(futuro.index[-1]), float(futuro["prevision"].iloc[-1]), f"{futuro['prevision'].iloc[-1]:.1f} °C".replace(".", ","), COLOR_PREVISTO)
+    t = j["temperatura"]
+    eje_t.set_title(f"(a) Temperatura media anual · acierto {t['acierto_validacion']:.1f} % validación, {t['acierto_test']:.1f} % test".replace(".", ","), fontsize=10.5)
+    eje_t.set_ylabel("°C")
+    eje_t.xaxis.set_major_locator(MaxNLocator(integer=True))
+    eje_t.legend(loc="upper left", fontsize=8)
+
+    ambitos = pd.DataFrame.from_dict(j["ambitos"], orient="index").sort_values("media_decada_prevista_pct")
+    y = np.arange(len(ambitos))
+    eje_r.hlines(y, ambitos["media_10a_real_pct"], ambitos["media_decada_prevista_pct"], color=TINTA_3, lw=1, zorder=1)
+    eje_r.plot(ambitos["media_10a_real_pct"], y, "o", ms=6, color=COLOR_REAL, mec=FONDO, mew=1.2, label=f"media real {ultimo - 9}-{ultimo}", zorder=3)
+    eje_r.plot(ambitos["media_decada_prevista_pct"], y, "o", ms=6.5, color=COLOR_PREVISTO, mec=FONDO, mew=1.2, label=f"media prevista {ultimo + 1}-{ultimo + 10}", zorder=4)
+    eje_r.set_yticks(y, ambitos.index, fontsize=8)
+    eje_r.set_xlim(0, 100)
+    eje_r.grid(False)
+    eje_r.grid(axis="x")
+    eje_r.set_xlabel("Reserva media de los embalses (% de la capacidad)")
+    r = j["reservas"]
+    eje_r.set_title(f"(b) Reserva media de la década · acierto {r['acierto_decada_validacion']:.1f} % / {r['acierto_decada_test']:.1f} %".replace(".", ","), fontsize=10.5)
+    eje_r.legend(loc="lower right", fontsize=8)
+    figura.suptitle(f"Medio plazo (10 años): clima y agua para la operación del CPD ({ultimo + 1}-{ultimo + 10})", x=0.01, ha="left")
+    figura.tight_layout(rect=(0, 0, 1, 0.95))
+    return _guardar_figura(figura, "16_medio_plazo_10_anios.png")
+
+
 def ejecutar_sismico() -> dict:
     """Probabilidad de algún terremoto M ≥ 3 el año siguiente por provincia (`cpd.modelos.sismico`)."""
     from cpd.fuentes.curado import CARPETA_TABLAS
@@ -1118,7 +1252,7 @@ def ejecutar_sismico() -> dict:
     return resultado
 
 
-def control_de_acierto(anual_res: dict, diez: dict, prob: dict) -> pd.DataFrame:
+def control_de_acierto(anual_res: dict, diez: dict, prob: dict, medio: dict | None = None) -> pd.DataFrame:
     """Tabla del requisito de acierto (≥ 85 %, < 99,9 %) de los modelos que usa el proyecto, y su gráfico."""
     from cpd.modelos.metricas import ACIERTO_MINIMO, ACIERTO_OBJETIVO, ACIERTO_SOSPECHOSO, control_acierto
 
@@ -1140,8 +1274,16 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict) -> pd.DataFrame:
     filas += [
         ("Precio de la luz a 1 año", j["precio"]["acierto_validacion"], j["precio"]["acierto_test"], "100 − WAPE"),
         ("Demanda nacional a 10 años", diez["acierto"], None, "100 − WAPE (backtesting 2012-2025)"),
-        ("Probabilidad de CPD (prob_cpd)", 100 * prob["metricas_umbral"]["accuracy"], None, "accuracy fuera de pliegue"),
     ]
+    if medio is not None:
+        t, r = medio["json"]["temperatura"], medio["json"]["reservas"]
+        filas += [
+            ("Temperatura por provincia a 10 años", t["acierto_validacion"], t["acierto_test"], f"100 − WAPE (en °C; test desde {t['origen_test']})"),
+            ("Operación del CPD a 10 años: consumo", t["consumo_acierto_validacion"], t["consumo_acierto_test"], "100 − WAPE (temperatura prevista → PUE → consumo)"),
+            ("Reservas de agua a 10 años: media de la década", r["acierto_decada_validacion"], r["acierto_decada_test"], "100 − WAPE de la media de los 10 años"),
+            ("Reservas de agua a 10 años: año a año", r["acierto_validacion"], r["acierto_test"], "100 − WAPE de cada año"),
+        ]
+    filas.append(("Probabilidad de CPD (prob_cpd)", 100 * prob["metricas_umbral"]["accuracy"], None, "accuracy fuera de pliegue"))
     if "sismico" in anual_res:
         s = anual_res["sismico"]
         m = s["metricas"].set_index(["modelo", "particion"])
@@ -1228,10 +1370,12 @@ def main() -> None:
     anual_res = ejecutar_anual(panel)
     print("Demanda nacional a 10 años")
     diez = ejecutar_10_anios()
+    print("Medio plazo: clima y agua a 10 años (A3)")
+    anual_res["medio_plazo"] = ejecutar_medio_plazo()
     print("Riesgo sísmico (P8)")
     anual_res["sismico"] = ejecutar_sismico()
     print("Control de acierto")
-    control = control_de_acierto(anual_res, diez, prob)
+    control = control_de_acierto(anual_res, diez, prob, anual_res["medio_plazo"])
 
     print("Informes")
     _escribir(informe.informe_anual(anual_res, fecha, diez, control), RUTA_DOCS / "analisis" / "previsiones_1_anio.md")
