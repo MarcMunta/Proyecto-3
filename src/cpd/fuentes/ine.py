@@ -96,6 +96,44 @@ INDICADORES_AGUA: dict[str, str] = {
 }
 
 
+TABLA_PIB: int = 82284
+# Nombres de la tabla de PIB que son solo comunidad (las uniprovinciales aparecen una vez y sí se usan).
+SOLO_CCAA: frozenset[str] = frozenset(
+    {"Total Nacional", "Andalucía", "Aragón", "Canarias", "Castilla y León", "Castilla - La Mancha", "Castilla-La Mancha",
+     "Cataluña", "Comunitat Valenciana", "Extremadura", "Galicia", "País Vasco", "Extra-Regio"}
+)
+
+
+def pib_provincias(nult: int = 4) -> pd.DataFrame:
+    """PIB a precios de mercado por provincia, precios corrientes (miles de €), Contabilidad Regional del INE
+    (tabla 82284). Las comunidades uniprovinciales se toman de su fila de comunidad.
+
+    Returns:
+        DataFrame: codigo_provincia, anio, pib_miles_eur.
+    """
+    return pib_desde_series(_tabla(TABLA_PIB, nult))
+
+
+def pib_desde_series(series: list[dict]) -> pd.DataFrame:
+    """Interpreta las series «Territorio. Dato base. Producto interior bruto…» de la tabla 82284."""
+    filas = []
+    for serie in series:
+        territorio, separador, _ = serie.get("Nombre", "").partition(". Dato base.")
+        territorio = territorio.strip()
+        if not separador or territorio in SOLO_CCAA:
+            continue
+        codigo = emparejar_nombre_ine(territorio) or emparejar_nombre_ine(territorio.split(",")[0])
+        if codigo is None:
+            continue
+        for observacion in serie.get("Data", []):
+            if observacion.get("Valor") is None or observacion.get("Secreto"):
+                continue
+            anio = int(observacion.get("Anyo") or str(observacion.get("NombrePeriodo", ""))[:4])
+            filas.append({"codigo_provincia": codigo, "anio": anio, "pib_miles_eur": float(observacion["Valor"])})
+    tabla = pd.DataFrame(filas, columns=["codigo_provincia", "anio", "pib_miles_eur"])
+    return tabla.drop_duplicates(["codigo_provincia", "anio"]).sort_values(["codigo_provincia", "anio"]).reset_index(drop=True)
+
+
 def agua_ccaa(nult: int = 6) -> pd.DataFrame:
     """Agua de la red de abastecimiento público por comunidad (miles de m³/año), «Estadística sobre el suministro y
     saneamiento del agua» del INE (tabla 53447, bienal). Ceuta y Melilla se publican juntas (código «18-19»).

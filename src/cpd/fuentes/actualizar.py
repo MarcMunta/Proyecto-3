@@ -139,6 +139,7 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
         agua,
         embalses,
         ine,
+        ine_tio,
         nasa_power,
         natura,
         padron,
@@ -188,6 +189,16 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     _paso(acta, "poblacion", poblacion)
     _paso(acta, "renta", lambda: ine.renta_provincias())
     _paso(acta, "agua_ccaa", lambda: ine.agua_ccaa())
+    _paso(acta, "pib_provincia", lambda: ine.pib_provincias())
+    tio: dict[str, pd.DataFrame] = {}
+
+    def _tio() -> dict[str, pd.DataFrame]:
+        if not tio:
+            tio.update(ine_tio.leer_tio(ine_tio.descargar()))
+        return tio
+
+    _paso(acta, "tio_ramas", lambda: _tio()["ramas"])
+    _paso(acta, "tio_leontief_interior", lambda: _tio()["leontief"].rename_axis("codigo").reset_index())
     _paso(acta, "paro", lambda: sepe.paro_provincias_mensual(ANIO_INICIO, anio_fin))
 
     def conectividad() -> pd.DataFrame:
