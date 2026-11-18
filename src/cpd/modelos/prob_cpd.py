@@ -13,7 +13,9 @@ Modelos comparados (mismos pliegues):
 - `solo_poblacion`: regresión logística con una sola variable, la población (baseline de sentido común);
 - `logistica`: regresión logística con todas las features, con la regularización `C` elegida en una validación
   cruzada interna (anidada) para no elegirla con los mismos datos con que se evalúa;
-- `bosque`: random forest poco profundo (recomendación, no viene de clase).
+- `bosque`: random forest poco profundo (recomendación, no viene de clase);
+- `logistica_winsor`: la logística con todas las features y **winsorizing** de los percentiles 1 y 99 dentro de cada
+  pliegue (técnica de clase I58; añadido el 18/11/2026).
 
 Interpretación: es una **propensión** ("las provincias con estas características suelen tener CPD"), no la
 probabilidad de que se construya uno nuevo. No implica causalidad.
@@ -25,7 +27,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.base import clone
+from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -42,6 +44,25 @@ PLIEGUES: int = 5
 REPETICIONES: int = 20
 
 
+class Winsorizador(BaseEstimator, TransformerMixin):
+    """**Winsorizing** (técnica de clase I58, C4 p.8; añadido el 18/11/2026): recorta cada columna a sus percentiles
+    `inferior` y `superior` calculados **solo con los datos de entrenamiento** del pliegue (sin fuga, R-7). Alternativa a
+    borrar atípicos: el valor extremo se queda, pero no arrastra el ajuste (p. ej. terremotos por año, asimetría 7,2)."""
+
+    def __init__(self, inferior: float = 0.01, superior: float = 0.99) -> None:
+        self.inferior = inferior
+        self.superior = superior
+
+    def fit(self, X: Any, y: Any = None) -> Winsorizador:
+        datos = np.asarray(X, dtype=float)
+        self.limite_inferior_ = np.nanquantile(datos, self.inferior, axis=0)
+        self.limite_superior_ = np.nanquantile(datos, self.superior, axis=0)
+        return self
+
+    def transform(self, X: Any) -> np.ndarray:
+        return np.clip(np.asarray(X, dtype=float), self.limite_inferior_, self.limite_superior_)
+
+
 def modelos_candidatos() -> dict[str, tuple[Any, list[str]]]:
     """Cada modelo con las columnas que usa. Los pipelines imputan (mediana) y escalan dentro del pliegue."""
     logistica = GridSearchCV(
@@ -50,8 +71,15 @@ def modelos_candidatos() -> dict[str, tuple[Any, list[str]]]:
         scoring="neg_log_loss",
         cv=StratifiedKFold(n_splits=4, shuffle=True, random_state=SEMILLA),
     )
+    logistica_winsor = GridSearchCV(
+        make_pipeline(SimpleImputer(strategy="median"), Winsorizador(), StandardScaler(), LogisticRegression(max_iter=2000)),
+        param_grid={"logisticregression__C": [0.03, 0.1, 0.3, 1.0, 3.0]},
+        scoring="neg_log_loss",
+        cv=StratifiedKFold(n_splits=4, shuffle=True, random_state=SEMILLA),
+    )
     return {
         "mayoritaria": (DummyClassifier(strategy="prior"), ["log_poblacion"]),
+        "logistica_winsor": (logistica_winsor, list(FEATURES_PROVINCIA)),
         "solo_poblacion": (
             make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(max_iter=2000)),
             ["log_poblacion"],

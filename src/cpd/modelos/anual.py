@@ -95,6 +95,19 @@ def _ets(log_serie: pd.Series, pasos: int) -> np.ndarray:
     return np.exp(modelo.forecast(pasos))
 
 
+def _ar_diferencias(log_serie: pd.Series, pasos: int) -> np.ndarray:
+    """Modelo sobre **diferencias** (técnica de clase I52, C4 p.7 y 17; añadido el 18/11/2026): AR(1) sobre la
+    diferencia estacional del logaritmo, Δ₁₂ log y_t = c + φ · Δ₁₂ log y_(t−1) + ε (SARIMA(1,0,0)(0,1,0)₁₂ con
+    constante). La diferencia de 12 meses quita la estacionalidad y la tendencia; se prevé la diferencia y se deshace
+    sumándola al mismo mes del año anterior."""
+    from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        modelo = SARIMAX(log_serie.to_numpy(dtype=float), order=(1, 0, 0), seasonal_order=(0, 1, 0, 12), trend="c").fit(disp=False)
+    return np.exp(modelo.forecast(pasos))
+
+
 def _filas_futuras(serie: str, origen: pd.Timestamp) -> pd.DataFrame:
     meses = pd.date_range(origen + pd.DateOffset(months=1), periods=HORIZONTE, freq="MS")
     return pd.DataFrame({"serie": serie, "mes": meses, "horizonte_meses": range(1, HORIZONTE + 1)})
@@ -103,11 +116,15 @@ def _filas_futuras(serie: str, origen: pd.Timestamp) -> pd.DataFrame:
 # ---------------------------------------------------------------------------------------------- demanda por CCAA
 
 
-def candidatos_demanda(serie: pd.DataFrame) -> dict[str, Candidato]:
+def candidatos_demanda(serie: pd.DataFrame, con_diferencias: bool = False) -> dict[str, Candidato]:
     """Candidatos para la demanda mensual de cada comunidad (MWh).
 
     Args:
         serie: salida de `cpd.features.demanda.preparar_serie_modelo` (`codigo_ccaa`, `mes`, `demanda_mwh`).
+        con_diferencias: añade el modelo sobre diferencias (`ar_diferencias`, técnica I52). **Probado el 18/11/2026:**
+            por sí solo acierta 96,1 % / 95,0 % (como el estacional y el Ridge), pero entra en los 3 mejores por 0,003
+            puntos de MAPE, desplaza al Ridge y la combinación empeora un poco en validación (MAPE 3,93 % frente a
+            3,90 %); por eso no se usa en el pipeline.
     """
     por_ccaa = {c: g.set_index("mes")["demanda_mwh"].sort_index() for c, g in serie.groupby("codigo_ccaa")}
     tablas = {h: fdem.construir_features_demanda(serie, h, meses_futuros=HORIZONTE) for h in range(1, HORIZONTE + 1)}
@@ -140,6 +157,14 @@ def candidatos_demanda(serie: pd.DataFrame) -> dict[str, Candidato]:
             partes.append(filas)
         return pd.concat(partes, ignore_index=True)
 
+    def ar_diferencias(origen: pd.Timestamp) -> pd.DataFrame:
+        partes = []
+        for codigo, s in _hasta(origen).items():
+            filas = _filas_futuras(codigo, origen)
+            filas["prevision"] = _ar_diferencias(np.log(s.iloc[-96:]), HORIZONTE)  # 8 años como máximo, como la ETS
+            partes.append(filas)
+        return pd.concat(partes, ignore_index=True)
+
     def ridge(origen: pd.Timestamp) -> pd.DataFrame:
         partes = []
         for h, tabla in tablas.items():
@@ -161,7 +186,10 @@ def candidatos_demanda(serie: pd.DataFrame) -> dict[str, Candidato]:
             )
         return pd.concat(partes, ignore_index=True)
 
-    return {"estacional": estacional, "estacional_tendencia": estacional_tendencia, "ets": ets, "ridge": ridge}
+    candidatos = {"estacional": estacional, "estacional_tendencia": estacional_tendencia, "ets": ets, "ridge": ridge}
+    if con_diferencias:
+        candidatos["ar_diferencias"] = ar_diferencias
+    return candidatos
 
 
 def reales_demanda(serie: pd.DataFrame) -> pd.DataFrame:

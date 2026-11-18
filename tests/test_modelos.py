@@ -899,3 +899,40 @@ def test_candidato_por_dia_habil_multiplica_por_los_dias_del_mes_previsto():
     c = anual.candidatos_por_dia_habil(fabrica, reales)["naive_dias_habiles"](pd.Timestamp("2023-12-01"))
     esperado = [10.0 * dias_habiles(m) for m in c["mes"]]
     assert c["prevision"].tolist() == pytest.approx(esperado)
+
+
+# --- Técnicas de clase: estacionariedad (I51), diferencias (I52) y winsorizing (I58) --------------------------------
+
+
+def test_estacionariedad_distingue_paseo_aleatorio_de_ruido():
+    from cpd.modelos import estacionariedad as est
+
+    # Series SINTÉTICAS (solo para el test): un paseo aleatorio no es estacionario; su diferencia sí.
+    rng = np.random.default_rng(1)
+    paseo = pd.Series(np.cumsum(rng.normal(0, 1, 300)))
+    assert est.adf_pvalor(paseo) > 0.05
+    assert est.adf_pvalor(paseo.diff().dropna()) < 0.05
+    meses = pd.date_range("2010-01-01", periods=144, freq="MS")
+    serie = pd.Series(100 + 0.5 * np.arange(144) + 10 * np.sin(2 * np.pi * meses.month / 12), index=meses)
+    formas = est.transformar(serie)
+    assert list(formas) == ["nivel", "log", "dif_estacional_log", "dif_doble_log"]
+    assert len(formas["dif_estacional_log"]) == 132 and len(formas["dif_doble_log"]) == 131
+
+
+def test_winsorizador_usa_solo_los_percentiles_del_entrenamiento():
+    from cpd.modelos.prob_cpd import Winsorizador
+
+    entrenamiento = np.array([[1.0], [2.0], [3.0], [4.0], [100.0]])
+    w = Winsorizador(inferior=0.0, superior=0.75).fit(entrenamiento)
+    assert w.limite_superior_[0] == pytest.approx(4.0)
+    assert w.transform(np.array([[500.0], [2.5]])).ravel().tolist() == [4.0, 2.5]  # un valor nuevo no mueve los límites
+
+
+def test_modelo_sobre_diferencias_prevee_12_meses_positivos():
+    from cpd.modelos.anual import _ar_diferencias
+
+    meses = pd.date_range("2016-01-01", periods=96, freq="MS")
+    serie = pd.Series(np.log(1000 * (1 + 0.1 * np.sin(2 * np.pi * meses.month / 12)) * 1.01 ** np.arange(96)), index=meses)
+    prevision = _ar_diferencias(serie, 12)
+    assert prevision.shape == (12,) and (prevision > 0).all()
+    assert prevision[0] == pytest.approx(np.exp(serie.iloc[-12]) * 1.01 ** 12, rel=0.05)  # mismo mes del año anterior × crecimiento

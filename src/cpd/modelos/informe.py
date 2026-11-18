@@ -68,6 +68,8 @@ NOMBRES_MODELO = {
     "solo_poblacion": "Logística solo con población (baseline)",
     "logistica": "Logística con todas las features (ML)",
     "bosque": "Random forest (ML)",
+    "logistica_winsor": "Logística con winsorizing (percentiles 1-99, ML)",
+    "ar_diferencias": "AR(1) sobre la diferencia estacional (modelo sobre diferencias)",
 }
 # Versiones de los candidatos por día hábil o natural (`cpd.modelos.anual.escalar_por_dias`, afinado del 18/11/2026).
 for _clave, _texto in list(NOMBRES_MODELO.items()):
@@ -781,6 +783,49 @@ Red casi llena (≥ 50 % de la capacidad libre): {lista(red, 'pct_capacidad_disp
 """
 
 
+def _seccion_estacionariedad(est: dict[str, Any], figura: str) -> str:
+    """Estacionariedad (I51), diferencias (I52) y winsorizing (I58): técnicas de clase aplicadas y medidas."""
+    nombres = {"nivel": "Nivel (MWh)", "log": "Logaritmo", "dif_estacional_log": "Diferencia estacional Δ₁₂ log", "dif_doble_log": "Doble diferencia Δ₁ Δ₁₂ log"}
+    filas = [
+        {
+            "Forma": nombres.get(f.forma, f.forma), "Estacionarias (ADF, p < 0,05)": f"{int(f.estacionarias)} de {int(f.series)}",
+            "p mediano": "< 0,001" if f.p_mediana < 0.001 else _n(f.p_mediana, 3),
+            "Deriva de la media anual": _n(f.deriva_mediana, 2), "Varianza máx./mín. por año": _n(f.ratio_varianza_mediano, 2),
+        }
+        for f in est["por_forma"].itertuples()
+    ]
+    return f"""## Técnicas de clase: estacionariedad, diferencias y winsorizing (I51, I52, I58)
+
+**Estacionariedad (I51, C4 p.16).** Una serie es estacionaria si su media y su varianza no cambian con el tiempo. Se
+comprueba con el criterio de la clase (media y desviación de cada año) y con el test **ADF** (Dickey-Fuller aumentado;
+recomendación, no viene de clase) en la demanda mensual de las comunidades, 2015-2025, sin meses imputados. Código:
+`src/cpd/modelos/estacionariedad.py`.
+
+{_tabla(pd.DataFrame(filas))}
+
+«Deriva de la media anual»: rango de las medias de cada año dividido por la desviación de toda la serie (cerca de 0 =
+media estable). En nivel y en logaritmo **ninguna** comunidad es estacionaria (tendencia y estacionalidad); la diferencia
+estacional quita la estacionalidad pero no del todo la tendencia (choques de 2020 y 2022); la **doble diferencia** es
+estacionaria en **todas**. Por eso los modelos trabajan con el crecimiento frente al mismo mes del año anterior
+(`f_desv_12m` del Ridge, `estacional_tendencia`) y se evalúan con backtesting.
+
+![Estacionariedad]({figura})
+
+**Figura 21.** Demanda de {est['nombre_ejemplo']} en sus cuatro formas, con la media de cada año (naranja) ± una desviación.
+
+**Modelo sobre diferencias (I52, C4 p.7 y 17).** Se probó un AR(1) sobre la diferencia estacional del logaritmo
+(`anual._ar_diferencias`, SARIMA(1,0,0)(0,1,0)₁₂ con constante) como candidato más de la demanda: por sí solo acierta
+96,1 % en validación y 95,0 % en test, como el estacional y el Ridge, pero entra en los 3 mejores por 0,003 puntos de
+MAPE, desplaza al Ridge y la combinación empeora un poco (MAPE de validación 3,93 % frente a 3,90 %). No se usa
+(prueba del 18/11/2026; se repite con `candidatos_demanda(serie, con_diferencias=True)`).
+
+**Winsorizing (I58, C4 p.8).** `prob_cpd` tiene un candidato más, la logística con winsorizing (percentiles 1 y 99
+calculados **solo con el entrenamiento** de cada pliegue). Apenas cambia (log-loss 0,394 → 0,393): con 52 provincias los
+percentiles 1 y 99 casi coinciden con el mínimo y el máximo. El elegido sigue siendo «solo población». Ver
+[métricas](metricas.md).
+"""
+
+
 def _seccion_empresas(empresas: dict[str, Any], figura: str) -> str:
     """Atracción empresarial (E42): sociedades mercantiles creadas por provincia a 1 año."""
     r, tabla = empresas["resumen"], empresas["tabla"].copy()
@@ -1134,6 +1179,8 @@ def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None
     seccion_10 = _seccion_10_anios(diez) if diez else ""
     if anual.get("escenarios"):
         seccion_10 += "\n" + _seccion_escenarios(anual["escenarios"], "../../" + anual["escenarios"]["figura"])
+    if anual.get("estacionariedad"):
+        seccion_10 += "\n" + _seccion_estacionariedad(anual["estacionariedad"], "../../" + anual["estacionariedad"]["figura"])
     if anual.get("medio_plazo"):
         seccion_10 += "\n" + _seccion_medio_plazo(anual["medio_plazo"], "../../" + anual["medio_plazo"]["figura"])
     if anual.get("socioeconomico"):

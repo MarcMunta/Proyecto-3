@@ -1244,6 +1244,62 @@ def _figura_10_anios(anual_twh: pd.Series, resultado: dict, prevision: pd.DataFr
     return _guardar_figura(figura, "07_demanda_nacional_10_anios.png")
 
 
+def ejecutar_estacionariedad(panel: pd.DataFrame) -> dict:
+    """Estacionariedad de la demanda por comunidad en nivel, log y diferencias (técnicas de clase I51 e I52)."""
+    from cpd.fuentes.curado import CARPETA_TABLAS
+    from cpd.modelos import estacionariedad as est
+
+    serie = preparar_serie_modelo(serie_demanda_ccaa(panel))
+    series = est.series_demanda(serie)
+    resumen = est.resumen_series(series)
+    nombres = pd.read_csv(CARPETA_TABLAS / "provincias.csv", dtype={"codigo_ccaa": str}).drop_duplicates("codigo_ccaa").set_index("codigo_ccaa")["ccaa"].to_dict()
+    resumen["comunidad"] = resumen["serie"].map(nombres)
+    por_forma = resumen.groupby("forma", sort=False).agg(
+        estacionarias=("estacionaria", "sum"), series=("estacionaria", "size"), p_mediana=("p_adf", "median"),
+        deriva_mediana=("deriva_media", "median"), ratio_varianza_mediano=("ratio_varianza", "median"),
+    ).reset_index()
+    print("  " + "; ".join(f"{f.forma}: {f.estacionarias}/{f.series} estacionarias (p mediano {f.p_mediana:.2f})" for f in por_forma.itertuples()))
+    resumen.to_csv(RUTA_SALIDAS / "estacionariedad_demanda.csv", index=False)
+    ejemplo = "13"
+    datos = {"resumen": resumen, "por_forma": por_forma, "ejemplo": ejemplo, "nombre_ejemplo": nombres.get(ejemplo, ejemplo), "serie_ejemplo": series[ejemplo]}
+    return {**datos, "figura": _figura_estacionariedad(datos)}
+
+
+@_con_estilo
+def _figura_estacionariedad(datos: dict) -> str:
+    """Figura 21: la demanda de una comunidad en sus cuatro formas, con la media anual (naranja) ± una desviación."""
+    from cpd.modelos import estacionariedad as est
+
+    formas = est.transformar(datos["serie_ejemplo"])
+    mv = est.media_varianza_por_anio(datos["serie_ejemplo"])
+    r = datos["resumen"].set_index(["serie", "forma"])
+    titulos = {"nivel": "Nivel (GWh)", "log": "Logaritmo", "dif_estacional_log": "Diferencia estacional Δ₁₂ log", "dif_doble_log": "Doble diferencia Δ₁ Δ₁₂ log"}
+    figura, ejes = plt.subplots(2, 2, figsize=(14, 7.2))
+    for eje, (forma, s) in zip(ejes.flat, formas.items()):
+        m = mv[mv["forma"] == forma].copy()
+        if forma == "nivel":  # MWh → GWh para que el eje sea legible
+            s = s / 1e3
+            m[["media", "desviacion"]] = m[["media", "desviacion"]] / 1e3
+        inicio = pd.to_datetime(m["anio"].astype(str) + "-01-01")
+        fin = pd.to_datetime(m["anio"].astype(str) + "-12-31")
+        for a, b, media, desv in zip(inicio, fin, m["media"], m["desviacion"]):
+            eje.fill_between([a, b], media - desv, media + desv, color=COLOR_PREVISTO, alpha=0.12, lw=0)
+            eje.plot([a, b], [media, media], color=COLOR_PREVISTO, lw=1.8)
+        eje.plot(s.index, s.values, color=COLOR_REAL, lw=1.1)
+        p = float(r.loc[(datos["ejemplo"], forma), "p_adf"])
+        estado = "estacionaria" if p < 0.05 else "no estacionaria"
+        eje.set_title(f"{titulos[forma]} · ADF p = {p:.3f} ({estado})".replace(".", ",", 1) if p >= 0.001 else f"{titulos[forma]} · ADF p < 0,001 ({estado})", fontsize=9.5, loc="left")
+        _eje_anios(eje)
+        eje.tick_params(labelsize=7.5)
+    figura.legend(
+        handles=[Line2D([], [], color=COLOR_REAL, label="serie mensual"), Line2D([], [], color=COLOR_PREVISTO, lw=1.8, label="media de cada año"), Patch(color=COLOR_PREVISTO, alpha=0.12, label="± una desviación del año")],
+        loc="upper right", ncols=3, fontsize=8,
+    )
+    figura.suptitle(f"Estacionariedad (I51) y diferencias (I52): demanda eléctrica de {datos['nombre_ejemplo']}, 2015-2025", x=0.01, ha="left")
+    figura.tight_layout(rect=(0, 0, 1, 0.94))
+    return _guardar_figura(figura, "21_estacionariedad_demanda.png")
+
+
 def ejecutar_escenarios(diez: dict, anual_res: dict) -> dict:
     """Escenarios de demanda a 10 años con la capacidad de red otorgada y en trámite (P5, `cpd.modelos.escenarios`)."""
     import json
@@ -1702,6 +1758,8 @@ def main() -> None:
     anual_res = ejecutar_anual(panel)
     print("Demanda nacional a 10 años")
     diez = ejecutar_10_anios()
+    print("Estacionariedad y diferencias (I51, I52)")
+    anual_res["estacionariedad"] = ejecutar_estacionariedad(panel)
     print("Escenarios de demanda con los nuevos grandes consumos (P5)")
     anual_res["escenarios"] = ejecutar_escenarios(diez, anual_res)
     print("Medio plazo: clima y agua a 10 años (A3)")
