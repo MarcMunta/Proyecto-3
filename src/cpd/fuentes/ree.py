@@ -19,6 +19,7 @@ import datetime as dt
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from cpd.fuentes.http import RUTA_API, ErrorFuente, guardar_cache_json, json_de, leer_cache_json, registrar
@@ -194,6 +195,26 @@ def generacion_ccaa_mensual(anio_inicio: int = ANIO_INICIO_HISTORIA, anio_fin: i
             datos = _pedir("generacion/estructura-generacion", params, ruta, _cerrado(anio))
             filas.extend(generacion_desde_respuesta(datos, codigo_ccaa))
     return _con_nombre_ccaa(pd.DataFrame(filas, columns=["codigo_ccaa", "fecha", "tecnologia", "tipo", "generacion_mwh"]))
+
+
+def generacion_por_grupo(generacion: pd.DataFrame) -> pd.DataFrame:
+    """Generación mensual (MWh) por comunidad y grupo de tecnología: `solar` (fotovoltaica y térmica), `eolica`,
+    `hidraulica`, `otras_renovables` y `no_renovable`. Sirve para prever cada tecnología por separado: la solar es
+    estacional y crece, la hidráulica depende del agua y la eólica es casi aleatoria.
+
+    Returns:
+        DataFrame: codigo_ccaa, fecha, grupo, generacion_mwh.
+    """
+    tecnologias = generacion[generacion["tipo"] != "total"]
+    if tecnologias.empty:
+        return pd.DataFrame(columns=["codigo_ccaa", "fecha", "grupo", "generacion_mwh"])
+    tecnologia = tecnologias["tecnologia"].astype(str)
+    grupo = np.select(
+        [tecnologias["tipo"] == "No-Renovable", tecnologia.str.startswith("Solar"), tecnologia == "Eólica", tecnologia == "Hidráulica"],
+        ["no_renovable", "solar", "eolica", "hidraulica"],
+        default="otras_renovables",
+    )
+    return tecnologias.assign(grupo=grupo).groupby(["codigo_ccaa", "fecha", "grupo"], as_index=False)["generacion_mwh"].sum()
 
 
 def resumen_renovable(generacion: pd.DataFrame) -> pd.DataFrame:

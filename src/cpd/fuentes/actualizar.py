@@ -160,7 +160,15 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     _paso(acta, "reservas_ambito_mensual", lambda: embalses.reservas_mensuales_desde_zip())
     _paso(acta, "estres_hidrico_wri", lambda: agua.estres_hidrico_wri())
     _paso(acta, "ccaa_demanda", lambda: ree.demanda_ccaa_mensual(ANIO_INICIO, anio_fin))
-    _paso(acta, "ccaa_generacion", lambda: ree.resumen_renovable(ree.generacion_ccaa_mensual(ANIO_INICIO, anio_fin)))
+    generacion: dict[str, pd.DataFrame] = {}  # una sola descarga para las dos tablas
+
+    def _generacion() -> pd.DataFrame:
+        if "tabla" not in generacion:
+            generacion["tabla"] = ree.generacion_ccaa_mensual(ANIO_INICIO, anio_fin)
+        return generacion["tabla"]
+
+    _paso(acta, "ccaa_generacion", lambda: ree.resumen_renovable(_generacion()))
+    _paso(acta, "ccaa_generacion_tecnologia", lambda: ree.generacion_por_grupo(_generacion()))
     _paso(acta, "co2", lambda: ree.co2_nacional_mensual(ANIO_INICIO, anio_fin))
     _paso(acta, "precios_diarios", lambda: ree.precios_diarios_historicos(ANIO_INICIO, anio_fin))
     from cpd.fuentes import mibgas
