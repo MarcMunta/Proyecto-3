@@ -1,6 +1,6 @@
 # Previsiones · 1 año (demanda, precio de la luz, reservas de agua, temperatura y renovables) y 10 años (demanda nacional)
 
-> Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
+> Generado por `python -m cpd.modelos` el 18/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
 Previsión mes a mes de los **12 meses siguientes** al último dato con el modelo que menos se equivoca a 1 año (demanda
 por comunidad, precio de la luz, reservas de agua por ámbito, temperatura por provincia y % de generación renovable por
@@ -22,18 +22,18 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Demanda por comunidad a 1 año | 96,7 % | 95,6 % | 100 − WAPE | cumple (objetivo 90 %) |
 | Reservas de agua a 1 año | 86,7 % | 85,3 % | 100 − WAPE | cumple |
 | Temperatura por provincia a 1 año | 93,8 % | 92,8 % | 100 − WAPE (en °C) | cumple (objetivo 90 %) |
-| Renovables por comunidad a 1 año (mes a mes) | 84,3 % | 89,5 % | 100 − WAPE | no cumple (< 85 %) |
-| Renovables por comunidad: % medio de 12 meses | 88,7 % | 93,6 % | 100 − WAPE de la media anual | cumple |
-| Generación renovable por comunidad a 1 año (mes a mes) | 84,9 % | 88,1 % | 100 − WAPE (MWh) | no cumple (< 85 %) |
-| Generación renovable por comunidad: total de 12 meses | 90,9 % | 94,0 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
+| Renovables por comunidad a 1 año (mes a mes) | 84,8 % | 88,6 % | 100 − WAPE | no cumple (< 85 %) |
+| Renovables por comunidad: % medio de 12 meses | 89,4 % | 92,2 % | 100 − WAPE de la media anual | cumple |
+| Generación renovable por comunidad a 1 año (mes a mes) | 85,6 % | 88,1 % | 100 − WAPE (MWh) | cumple |
+| Generación renovable por comunidad: total de 12 meses | 91,5 % | 93,6 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: consumo | 99,7 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
-| Operación del CPD a 1 año: emisiones | 89,4 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple |
+| Operación del CPD a 1 año: emisiones | 90,6 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
 | Precio de la luz a 1 año | 59,0 % | 62,4 % | 100 − WAPE | no cumple (< 85 %) |
 | Demanda nacional a 10 años | 97,3 % | — | 100 − WAPE (backtesting 2012-2025) | cumple (objetivo 90 %) |
 | Probabilidad de CPD (prob_cpd) | 90,4 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
 | Riesgo sísmico: algún M ≥ 3 el año siguiente | 74,2 % | 73,1 % | accuracy (validación 2018-2024, test 2025) | no cumple (< 85 %) |
 
-**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Generación renovable por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
+**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
 
 
 ## Cómo se ha buscado el menor error
@@ -231,7 +231,8 @@ años (con y sin tendencia) y la combinación de los 3 mejores.
 **Transparencia.** Las dos ETS de 5 años se añadieron después de una primera prueba en la que la combinación se
 quedaba en un 83,8 % en validación: con tanta potencia solar nueva, la historia larga frena la tendencia. La elección
 sigue siendo con la validación. La fila de la media de 12 meses del control de acierto se añadió después de ver que el
-mes a mes no llegaba al mínimo; las dos filas se enseñan.
+mes a mes no llegaba al mínimo; las dos filas se enseñan. El 18/11/2026 se añadió un Ridge sobre anomalías con la
+reserva de los embalses (más agua, más hidráulica), elegido también con la validación.
 
 ![Renovables por comunidad](../../docs/figuras/previsiones/11_renovables_ccaa_1_anio.png)
 
@@ -240,10 +241,11 @@ con su intervalo 10-90 % (barra).
 
 | Modelo | Acierto validación | Acierto test | MAE validación (puntos) | MAE test (puntos) |
 |---|---|---|---|---|
-| Combinación de los 3 mejores **(elegido)** | 84,3 % | 89,5 % | 7,49 | 5,27 |
+| Combinación de los 3 mejores **(elegido)** | 84,8 % | 88,6 % | 7,23 | 5,73 |
 | ETS de 5 años sin tendencia (en la combinación) | 84,2 % | 88,7 % | 7,55 | 5,69 |
 | ETS de 5 años con tendencia amortiguada (en la combinación) | 84,0 % | 89,1 % | 7,60 | 5,45 |
-| ETS (Holt-Winters amortiguado) (en la combinación) | 83,5 % | 89,5 % | 7,85 | 5,27 |
+| Ridge sobre anomalías con la reserva de los embalses (ML) (en la combinación) | 83,7 % | 86,1 % | 7,75 | 6,99 |
+| ETS (Holt-Winters amortiguado) | 83,5 % | 89,5 % | 7,85 | 5,27 |
 | Anomalía persistente (φ de cada comunidad) | 81,8 % | 88,8 % | 8,66 | 5,63 |
 | Anomalía persistente (φ común) | 81,3 % | 87,1 % | 8,89 | 6,45 |
 | Mismo mes del año anterior (estacional) | 80,5 % | 88,9 % | 9,26 | 5,56 |
@@ -252,15 +254,15 @@ con su intervalo 10-90 % (barra).
 
 Validación: orígenes 2022-09 a 2024-08 (24 orígenes). Test: meses 2025-09 a 2026-08.
 
-**Resultado.** Modelo elegido: **Combinación de los 3 mejores** (ETS de 5 años sin tendencia, ETS de 5 años con tendencia amortiguada, ETS (Holt-Winters amortiguado)).
-Mes a mes: 84,3 % de acierto en validación y 89,5 % en test (error de 7,5 y
-5,3 puntos). **% medio de los 12 meses: 88,7 % en validación y 93,6 % en test.**
-Previsión: de 0 % en Melilla a 95 % en Castilla y León; de media,
-0,5 puntos más que el último año.
+**Resultado.** Modelo elegido: **Combinación de los 3 mejores** (ETS de 5 años sin tendencia, ETS de 5 años con tendencia amortiguada, Ridge sobre anomalías con la reserva de los embalses (ML)).
+Mes a mes: 84,8 % de acierto en validación y 88,6 % en test (error de 7,2 y
+5,7 puntos). **% medio de los 12 meses: 89,4 % en validación y 92,2 % en test.**
+Previsión: de 0 % en Melilla a 96 % en Castilla y León; de media,
+0,3 puntos más que el último año.
 
 **¿Por qué el mes a mes no llega al 85 %?** El % renovable de un mes depende del viento, la lluvia y el sol de
-ese mes, que no se pueden saber con un año de antelación: el acierto baja de 89 % a 1 mes a 83 % a 12 meses. Tres
-comunidades suman el 36 % del error de validación: Cantabria (15 %), Comunidad Foral de Navarra (11 %), Madrid (10 %). En las comunidades con poca generación, una sola
+ese mes, que no se pueden saber con un año de antelación: el acierto baja de 88 % a 1 mes a 84 % a 12 meses. Tres
+comunidades suman el 37 % del error de validación: Cantabria (17 %), Comunidad Foral de Navarra (11 %), Madrid (9 %). En las comunidades con poca generación, una sola
 central que para o arranca cambia mucho el porcentaje. Los errores de meses sueltos se compensan en la media de 12 meses, que es la cifra que
 interesa para un CPD (un contrato de energía renovable es anual): esa sí cumple. El gráfico mes a mes se enseña como
 orientativo, con aviso.
@@ -275,15 +277,17 @@ previsión a 1 año con su intervalo.
 
 Cuánta energía renovable genera cada comunidad frente a la que consume: **cobertura = generación renovable / demanda**.
 Por encima del 100 %, la comunidad genera en renovables más de lo que consume: hay energía verde de sobra para un CPD
-nuevo. La generación renovable (MWh, REData) se prevé con los mismos candidatos que el % renovable más una ETS sobre el
-logaritmo; la demanda, con su propio modelo (arriba). Comunidades por encima del 100 %: Extremadura, Castilla y León, Castilla-La Mancha, Aragón.
+nuevo. La generación renovable (MWh, REData) se prevé con los mismos candidatos que el % renovable, una ETS sobre el
+logaritmo y, desde el 18/11/2026, la **suma de tecnologías**: solar, eólica, hidráulica y resto se prevén por separado
+(cada una con su estacionalidad y su tendencia) y se suman. La demanda, con su propio modelo (arriba). Comunidades por encima del 100 %: Extremadura, Castilla y León, Castilla-La Mancha, Aragón, La Rioja, Galicia.
 
 | Modelo | Acierto validación (mes a mes) | Acierto test (mes a mes) |
 |---|---|---|
-| Combinación de los 3 mejores **(elegido)** | 84,9 % | 88,1 % |
+| Combinación de los 3 mejores **(elegido)** | 85,6 % | 88,1 % |
+| Suma de tecnologías (ETS de solar, eólica, hidráulica y resto) (en la combinación) | 84,9 % | 87,7 % |
 | ETS de 5 años con tendencia amortiguada (en la combinación) | 84,9 % | 86,6 % |
 | ETS de 5 años sin tendencia (en la combinación) | 84,2 % | 87,3 % |
-| ETS de 5 años sobre el logaritmo (en la combinación) | 84,1 % | 87,5 % |
+| ETS de 5 años sobre el logaritmo | 84,1 % | 87,5 % |
 | ETS (Holt-Winters amortiguado) | 82,7 % | 86,4 % |
 | Anomalía persistente (φ de cada comunidad) | 82,0 % | 84,2 % |
 | Mismo mes del año anterior (estacional) | 80,8 % | 84,4 % |
@@ -292,7 +296,7 @@ logaritmo; la demanda, con su propio modelo (arriba). Comunidades por encima del
 | Climatología (media del mes en los años anteriores) | 70,0 % | 69,4 % |
 
 Validación: orígenes 2022-09 a 2024-08 (24 orígenes). Test: meses 2025-09 a 2026-08. **Total de 12 meses** (la cifra que entra en
-la cobertura): **90,9 %** en validación y **94,0 %** en test. El mes a mes depende del viento, la
+la cobertura): **91,5 %** en validación y **93,6 %** en test. El mes a mes depende del viento, la
 lluvia y el sol de cada mes y se enseña solo como orientativo.
 
 ![Cobertura renovable](../../docs/figuras/previsiones/13_cobertura_renovable_ccaa.png)
@@ -303,20 +307,20 @@ así que los dos periodos de 12 meses no coinciden del todo.
 
 | Comunidad | Renovable último año (GWh) | Demanda último año (GWh) | Cobertura último año | Cobertura prevista |
 |---|---|---|---|---|
-| Extremadura | 15.615 | 5.081 | 307 % | 315 % |
-| Castilla y León | 30.956 | 13.336 | 232 % | 241 % |
-| Castilla-La Mancha | 23.002 | 12.243 | 188 % | 199 % |
-| Aragón | 19.320 | 11.369 | 170 % | 170 % |
-| Galicia | 16.562 | 15.599 | 106 % | 98 % |
-| Comunidad Foral de Navarra | 4.249 | 4.838 | 88 % | 86 % |
-| La Rioja | 1.084 | 1.539 | 70 % | 74 % |
-| Andalucía | 24.116 | 41.573 | 58 % | 60 % |
+| Extremadura | 15.615 | 5.081 | 307 % | 317 % |
+| Castilla y León | 30.956 | 13.336 | 232 % | 247 % |
+| Castilla-La Mancha | 23.002 | 12.243 | 188 % | 201 % |
+| Aragón | 19.320 | 11.369 | 170 % | 168 % |
+| La Rioja | 1.084 | 1.539 | 70 % | 113 % |
+| Galicia | 16.562 | 15.599 | 106 % | 101 % |
+| Comunidad Foral de Navarra | 4.249 | 4.838 | 88 % | 87 % |
+| Andalucía | 24.116 | 41.573 | 58 % | 61 % |
 | Región de Murcia | 3.689 | 9.359 | 39 % | 48 % |
-| Asturias | 3.118 | 8.259 | 38 % | 41 % |
+| Asturias | 3.118 | 8.259 | 38 % | 39 % |
 | Canarias | 1.922 | 9.137 | 21 % | 20 % |
 | Cataluña | 7.808 | 45.353 | 17 % | 17 % |
-| Illes Balears | 739 | 6.659 | 11 % | 12 % |
 | Comunitat Valenciana | 3.270 | 27.718 | 12 % | 12 % |
+| Illes Balears | 739 | 6.659 | 11 % | 12 % |
 | Cantabria | 403 | 3.741 | 11 % | 11 % |
 | País Vasco | 1.105 | 14.876 | 7 % | 6 % |
 | Madrid | 763 | 28.956 | 3 % | 3 % |
@@ -334,7 +338,7 @@ usar el mix de la comunidad es una aproximación (recomendación, no viene de cl
 prevista de los embalses del ámbito en los próximos 12 meses.
 
 **Validación de punta a punta** (22 orígenes de validación comunes a los dos modelos, 51 provincias): el consumo
-del año siguiente calculado con lo previsto acierta un **99,7 %** y las emisiones un **89,4 %**. El
+del año siguiente calculado con lo previsto acierta un **99,7 %** y las emisiones un **90,6 %**. El
 consumo acierta tanto porque el PUE apenas cambia con la temperatura en la fórmula del simulador (de 1,409 a 1,510
 entre provincias); no hay fuga de información: el dato real de cada año no se usa para prever ese año.
 
@@ -343,7 +347,7 @@ entre provincias); no hay fuga de información: el dato real de cada año no se 
 **Figura 10.** Emisiones anuales del CPD de referencia en cada provincia: último año (azul) y próximos 12 meses
 (naranja).
 
-Menos emisiones previstas: Soria (2,2 mil t), Burgos (2,2 mil t), León (2,2 mil t), Ávila (2,3 mil t), Palencia (2,3 mil t). Más: Melilla (52,3 mil t), Ceuta (52,1 mil t), Balears, Illes (44,9 mil t), Palmas, Las (42,0 mil t), Santa Cruz de Tenerife (41,9 mil t).
+Menos emisiones previstas: Soria (2,2 mil t), Burgos (2,2 mil t), León (2,2 mil t), Ávila (2,2 mil t), Palencia (2,2 mil t). Más: Melilla (52,3 mil t), Ceuta (52,1 mil t), Balears, Illes (44,8 mil t), Palmas, Las (42,1 mil t), Santa Cruz de Tenerife (42,0 mil t).
 
 
 ## Riesgo sísmico por provincia (P8)

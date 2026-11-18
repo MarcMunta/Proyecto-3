@@ -1,6 +1,6 @@
 # Métricas de los modelos
 
-> Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
+> Generado por `python -m cpd.modelos` el 18/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
 Fase 8 de [la metodología](../metodologia/03_Flujo_de_trabajo.md). **La previsión a 1 año que usa el mapa (con todos los
 gráficos) está en [previsiones_1_anio.md](previsiones_1_anio.md).** Fichas de modelo:

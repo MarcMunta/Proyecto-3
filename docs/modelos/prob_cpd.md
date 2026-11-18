@@ -1,6 +1,6 @@
 # Model card · Probabilidad de que una provincia tenga un CPD (`prob_cpd`)
 
-> Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
+> Generado por `python -m cpd.modelos` el 18/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
 ## Datos
 
@@ -119,4 +119,4 @@ solo para interpretar):
 
 `.\.venv\Scripts\python.exe -m cpd.modelos` (semilla 42; versiones en `requirements.txt`). Salida en
 `data/curated/modelos/prob_cpd_provincia.csv`; modelo final en `models/prob_cpd.joblib` (fuera de git).
-Entrenado el 17/11/2026.
+Entrenado el 18/11/2026.
