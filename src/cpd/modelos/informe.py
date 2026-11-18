@@ -48,6 +48,8 @@ NOMBRES_MODELO = {
     "ets_5_anios_sin_tendencia": "ETS de 5 años sin tendencia",
     "ets_5_anios_log": "ETS de 5 años sobre el logaritmo",
     "persistencia": "Persistencia (como el año anterior)",
+    "ridge_anomalias": "Ridge sobre anomalías con la reserva de los embalses (ML)",
+    "suma_tecnologias": "Suma de tecnologías (ETS de solar, eólica, hidráulica y resto)",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
@@ -616,7 +618,8 @@ años (con y sin tendencia) y la combinación de los 3 mejores.
 **Transparencia.** Las dos ETS de 5 años se añadieron después de una primera prueba en la que la combinación se
 quedaba en un 83,8 % en validación: con tanta potencia solar nueva, la historia larga frena la tendencia. La elección
 sigue siendo con la validación. La fila de la media de 12 meses del control de acierto se añadió después de ver que el
-mes a mes no llegaba al mínimo; las dos filas se enseñan.
+mes a mes no llegaba al mínimo; las dos filas se enseñan. El 18/11/2026 se añadió un Ridge sobre anomalías con la
+reserva de los embalses (más agua, más hidráulica), elegido también con la validación.
 
 ![Renovables por comunidad]({figura})
 
@@ -669,8 +672,9 @@ def _seccion_cobertura(cobertura: dict[str, Any], figura: str) -> str:
 
 Cuánta energía renovable genera cada comunidad frente a la que consume: **cobertura = generación renovable / demanda**.
 Por encima del 100 %, la comunidad genera en renovables más de lo que consume: hay energía verde de sobra para un CPD
-nuevo. La generación renovable (MWh, REData) se prevé con los mismos candidatos que el % renovable más una ETS sobre el
-logaritmo; la demanda, con su propio modelo (arriba). Comunidades por encima del 100 %: {por_encima}.
+nuevo. La generación renovable (MWh, REData) se prevé con los mismos candidatos que el % renovable, una ETS sobre el
+logaritmo y, desde el 18/11/2026, la **suma de tecnologías**: solar, eólica, hidráulica y resto se prevén por separado
+(cada una con su estacionalidad y su tendencia) y se suman. La demanda, con su propio modelo (arriba). Comunidades por encima del 100 %: {por_encima}.
 
 {_tabla(pd.DataFrame(filas))}
 

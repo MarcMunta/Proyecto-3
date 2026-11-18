@@ -658,6 +658,9 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     generacion = pd.read_csv(CARPETA_TABLAS / "ccaa_generacion.csv", dtype={"codigo_ccaa": str})
     reales_v = anual.series_renovables(generacion)
     candidatos_v = anual.candidatos_renovables(reales_v)
+    # Mejora (18/11/2026): Ridge sobre anomalías con la reserva de los embalses (validación 84,3 % → 84,8 %).
+    reserva_nacional = fprecio.serie_reserva_nacional(pd.read_csv(CARPETA_TABLAS / "reservas_ambito_mensual.csv"))
+    candidatos_v["ridge_anomalias"] = anual.candidato_ridge_anomalias(reales_v, reserva_nacional)
     origenes_v = anual.definir_origenes(reales_v.groupby("serie")["mes"].max().min())
     res_v = anual.evaluar(candidatos_v, reales_v, origenes_v, "mae")
     prev_v = anual.prevision_final(candidatos_v, res_v, reales_v.groupby("serie")["mes"].max().to_dict(), aditivo=True)
@@ -693,6 +696,10 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     # Más del 100 %: la comunidad genera en renovables más de lo que consume (energía verde de sobra para un CPD).
     reales_g = anual.series_generacion_renovable(generacion)
     candidatos_g = anual.candidatos_renovables(reales_g, maximo=np.inf, con_log=True)
+    # Mejora (18/11/2026): cada tecnología por separado (solar, eólica, hidráulica…) y sumadas (85,6 % en validación).
+    if (CARPETA_TABLAS / "ccaa_generacion_tecnologia.csv").exists():
+        tecnologias = pd.read_csv(CARPETA_TABLAS / "ccaa_generacion_tecnologia.csv", dtype={"codigo_ccaa": str})
+        candidatos_g["suma_tecnologias"] = anual.candidato_suma_tecnologias(tecnologias, "mwh")
     origenes_g = anual.definir_origenes(reales_g.groupby("serie")["mes"].max().min())
     res_g = anual.evaluar(candidatos_g, reales_g, origenes_g, "mae")
     prev_g = anual.prevision_final(candidatos_g, res_g, reales_g.groupby("serie")["mes"].max().to_dict())

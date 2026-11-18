@@ -544,3 +544,50 @@ def test_riesgo_sismico_solo_usa_anios_anteriores():
     pd.testing.assert_frame_equal(a[sismico.FEATURES], b[sismico.FEATURES])
     assert a.loc["18", "f_frecuencia"] == 1.0 and a.loc["42", "f_frecuencia"] == 0.0
     assert panel["anio"].max() == 2024  # el año en curso (2025) no entra
+
+
+def test_suma_de_tecnologias_sin_fuga_y_coherente():
+    from cpd.modelos import anual
+
+    # Generación por tecnología SINTÉTICA (solo para el test): solar creciente de verano, eólica de invierno, gas.
+    meses = pd.date_range("2016-01-01", "2024-12-01", freq="MS")
+    n = np.arange(len(meses))
+    filas = []
+    for grupo, valores in (
+        ("solar", (100 + 2 * n) * (1.3 + np.sin(2 * np.pi * (meses.month - 3) / 12))),
+        ("eolica", 300 * (1.2 + 0.3 * np.cos(2 * np.pi * (meses.month - 1) / 12))),
+        ("no_renovable", np.full(len(meses), 400.0)),
+    ):
+        filas.append(pd.DataFrame({"codigo_ccaa": "07", "fecha": meses, "grupo": grupo, "generacion_mwh": valores}))
+    tecnologias = pd.concat(filas, ignore_index=True)
+    origen = pd.Timestamp("2022-06-01")
+    alterada = tecnologias.copy()
+    alterada.loc[alterada["fecha"] > origen, "generacion_mwh"] = 1.0
+    hoy = pd.Timestamp("2025-06-01").date()
+    a = anual.candidato_suma_tecnologias(tecnologias, "mwh", hoy=hoy)(origen)
+    b = anual.candidato_suma_tecnologias(alterada, "mwh", hoy=hoy)(origen)
+    np.testing.assert_allclose(a["prevision"].to_numpy(), b["prevision"].to_numpy(), rtol=1e-6)
+    assert (a["prevision"] > 0).all() and len(a) == 12
+    pct = anual.candidato_suma_tecnologias(tecnologias, "pct", hoy=hoy)(origen)
+    assert pct["prevision"].between(0, 100).all()
+
+
+def test_ridge_de_anomalias_sin_fuga():
+    from cpd.modelos import anual
+
+    # % renovable y reserva de embalses SINTÉTICOS (solo para el test).
+    meses = pd.date_range("2015-01-01", "2024-12-01", freq="MS")
+    rng = np.random.default_rng(11)
+    reales = pd.concat(
+        [pd.DataFrame({"serie": s, "mes": meses, "real": 50 + 15 * np.sin(2 * np.pi * meses.month / 12 + k) + rng.normal(0, 3, len(meses))}) for k, s in enumerate(("02", "07"))]
+    )
+    reserva = pd.Series(50 + 20 * np.sin(2 * np.pi * meses.month / 12) + rng.normal(0, 5, len(meses)), index=meses)
+    origen = pd.Timestamp("2021-06-01")
+    alterada = reales.copy()
+    alterada.loc[alterada["mes"] > origen, "real"] = 0.0
+    reserva_alterada = reserva.copy()
+    reserva_alterada[reserva_alterada.index > origen] = 0.0
+    a = anual.candidato_ridge_anomalias(reales, reserva)(origen)
+    b = anual.candidato_ridge_anomalias(alterada, reserva_alterada)(origen)
+    np.testing.assert_allclose(a["prevision"].to_numpy(), b["prevision"].to_numpy(), rtol=1e-6)
+    assert a["prevision"].between(0, 100).all() and set(a["serie"]) == {"02", "07"}

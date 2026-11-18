@@ -469,6 +469,119 @@ def candidatos_renovables(reales: pd.DataFrame, maximo: float = 100.0, con_log: 
     return candidatos
 
 
+GRUPOS_RENOVABLES: tuple[str, ...] = ("solar", "eolica", "hidraulica", "otras_renovables")
+
+
+def candidato_suma_tecnologias(tecnologias: pd.DataFrame, objetivo: str, hoy: dt.date | None = None) -> Candidato:
+    """Prevé cada grupo de tecnología de cada comunidad por separado (ETS amortiguada sobre el logaritmo, últimos
+    5 años) y los suma. Cada tecnología tiene su propia estacionalidad (la solar alcanza su máximo en verano, la
+    eólica en invierno y la hidráulica en primavera) y su propia tendencia (la solar crece mucho), que se mezclan en
+    el total.
+
+    Args:
+        tecnologias: tabla `ccaa_generacion_tecnologia` (`codigo_ccaa`, `fecha`, `grupo`, `generacion_mwh`).
+        objetivo: `mwh` (generación renovable) o `pct` (% renovable = renovable / (renovable + no renovable)).
+    """
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+    en_curso = pd.Timestamp(hoy or dt.date.today()).to_period("M").to_timestamp()
+    datos = tecnologias.assign(
+        mes=pd.to_datetime(tecnologias["fecha"]).dt.to_period("M").dt.to_timestamp(),
+        serie=tecnologias["codigo_ccaa"].astype(str).str.zfill(2),
+    )
+    datos = datos[datos["mes"] < en_curso]
+    tabla = datos.pivot_table(index=["serie", "grupo"], columns="mes", values="generacion_mwh", aggfunc="sum").fillna(0.0)
+    cache: dict[pd.Timestamp, dict[tuple[str, str], np.ndarray]] = {}
+
+    def _componentes(origen: pd.Timestamp) -> dict[tuple[str, str], np.ndarray]:
+        if origen not in cache:
+            salida = {}
+            for clave, fila in tabla.iterrows():
+                historia = fila.loc[:origen].iloc[-60:].to_numpy(dtype=float)
+                if len(historia) < 60 or historia.sum() <= 0:
+                    salida[clave] = np.zeros(HORIZONTE)
+                    continue
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    ajuste = ExponentialSmoothing(
+                        np.log(np.maximum(historia, 1.0)), trend="add", damped_trend=True, seasonal="add", seasonal_periods=12,
+                        initialization_method="estimated",
+                    ).fit()
+                salida[clave] = np.exp(ajuste.forecast(HORIZONTE))
+            cache[origen] = salida
+        return cache[origen]
+
+    def prever(origen: pd.Timestamp) -> pd.DataFrame:
+        componentes = _componentes(origen)
+        partes = []
+        for serie in tabla.index.get_level_values("serie").unique():
+            renovable = sum(componentes.get((serie, g), np.zeros(HORIZONTE)) for g in GRUPOS_RENOVABLES)
+            no_renovable = componentes.get((serie, "no_renovable"), np.zeros(HORIZONTE))
+            filas = _filas_futuras(serie, origen)
+            filas["prevision"] = renovable if objetivo == "mwh" else np.clip(100 * renovable / np.maximum(renovable + no_renovable, 1.0), 0, 100)
+            partes.append(filas)
+        return pd.concat(partes, ignore_index=True)
+
+    return prever
+
+
+def candidato_ridge_anomalias(reales: pd.DataFrame, reserva_nacional: pd.Series, logaritmo: bool = False) -> Candidato:
+    """Ridge (ML) sobre anomalías: prevé la diferencia entre el mes objetivo y la media de ese mes en los 3 años
+    anteriores, con la anomalía del origen (último mes y media de 3 meses), la anomalía de la **reserva nacional de
+    los embalses** en el origen (más agua → más hidráulica los meses siguientes), el horizonte, el mes y la comunidad.
+    Una sola regresión para todas las comunidades y horizontes, entrenada solo con meses objetivo hasta el origen.
+
+    Args:
+        reales: `serie`, `mes`, `real` (% renovable, o MWh con `logaritmo`).
+        reserva_nacional: reserva nacional de los embalses (%) por mes (`cpd.features.precio.serie_reserva_nacional`).
+        logaritmo: trabajar con el logaritmo (para MWh).
+    """
+    tabla = reales.pivot(index="mes", columns="serie", values="real").sort_index()
+    if logaritmo:
+        tabla = np.log(tabla.clip(lower=1.0))
+    base = pd.concat([tabla.shift(12), tabla.shift(24), tabla.shift(36)]).groupby(level=0).mean()
+    anomalia = tabla - base
+    reserva = reserva_nacional.sort_index()
+    anomalia_reserva = reserva - reserva.groupby(reserva.index.month).transform(lambda v: v.rolling(10, min_periods=3).mean().shift(1))
+    filas = []
+    for h in range(1, HORIZONTE + 1):
+        for serie in tabla.columns:
+            f = pd.DataFrame(
+                {
+                    "serie": serie, "origen": tabla.index, "h": h, "a1": anomalia[serie].to_numpy(),
+                    "a3": anomalia[serie].rolling(3).mean().to_numpy(), "res": anomalia_reserva.reindex(tabla.index).to_numpy(),
+                }
+            )
+            f["mes"] = f["origen"] + pd.DateOffset(months=h)
+            # Media del mes objetivo en los 3 años anteriores: usa meses ≤ objetivo − 12 ≤ origen (h ≤ 12).
+            f["base"] = base[serie].reindex(f["mes"]).to_numpy()
+            f["real"] = tabla[serie].reindex(f["mes"]).to_numpy()
+            filas.append(f)
+    X = pd.concat(filas, ignore_index=True)
+    X["y"] = X["real"] - X["base"]
+    X["mes_sin"], X["mes_cos"] = np.sin(2 * np.pi * X["mes"].dt.month / 12), np.cos(2 * np.pi * X["mes"].dt.month / 12)
+    X["a1_h"], X["res_h"] = X["a1"] / X["h"], X["res"] / X["h"]
+    ficticias = pd.get_dummies(X["serie"], prefix="s", dtype=float)
+    X = pd.concat([X, ficticias], axis=1)
+    columnas = ["a1", "a3", "res", "h", "mes_sin", "mes_cos", "a1_h", "res_h", *ficticias.columns]
+
+    def prever(origen: pd.Timestamp) -> pd.DataFrame:
+        entrenamiento = X[X["mes"] <= origen].dropna(subset=[*columnas, "y"])
+        filas_origen = X[X["origen"] == origen].dropna(subset=[*columnas, "base"])
+        if len(entrenamiento) < 200 or filas_origen.empty:
+            return pd.DataFrame({"serie": pd.Series(dtype=str), "mes": pd.Series(dtype="datetime64[ns]"), "horizonte_meses": pd.Series(dtype=int), "prevision": pd.Series(dtype=float)})
+        modelo = make_pipeline(StandardScaler(), Ridge(alpha=10.0)).fit(entrenamiento[columnas].to_numpy(), entrenamiento["y"].to_numpy())
+        valor = filas_origen["base"].to_numpy() + modelo.predict(filas_origen[columnas].to_numpy())
+        return pd.DataFrame(
+            {
+                "serie": filas_origen["serie"].to_numpy(), "mes": filas_origen["mes"].to_numpy(),
+                "horizonte_meses": filas_origen["h"].to_numpy(), "prevision": np.exp(valor) if logaritmo else np.clip(valor, 0, 100),
+            }
+        )
+
+    return prever
+
+
 def candidatos_temperatura(reales: pd.DataFrame) -> dict[str, Candidato]:
     """Candidatos para la temperatura media mensual de cada provincia (°C): los mismos que las reservas
     (`candidatos_estacionales`), sin recortar y con 5 años de historia mínima (NASA POWER empieza en 2015)."""
@@ -503,6 +616,7 @@ def evaluar(candidatos: dict[str, Candidato], reales: pd.DataFrame, origenes: Or
                 if p is not None and not p.empty:
                     partes.append(p.assign(modelo=nombre, origen=origen, particion=particion))
     pred = pd.concat(partes, ignore_index=True).merge(reales, on=["serie", "mes"], how="inner").dropna(subset=["prevision", "real"])
+    pred["prevision"] = pred["prevision"].astype(float)
     # Mismas filas para todos: solo (serie, mes, origen) que tienen todos los modelos.
     claves = ["serie", "mes", "origen", "particion"]
     completos = pred.groupby(claves)["modelo"].nunique() == len(candidatos)
@@ -608,6 +722,7 @@ def prevision_final(
         juntas = juntas[juntas["serie"].isin(series)]
         partes.append(juntas.groupby(["serie", "mes", "horizonte_meses"], as_index=False)["prevision"].mean().assign(origen=origen))
     salida = pd.concat(partes, ignore_index=True)
+    salida["prevision"] = salida["prevision"].astype(float)
     residuos = resultado["residuos_abs" if aditivo else "residuos_log"]
     bajo = salida["horizonte_meses"].map(lambda h: np.quantile(residuos[h], cuantiles[0]))
     alto = salida["horizonte_meses"].map(lambda h: np.quantile(residuos[h], cuantiles[1]))
