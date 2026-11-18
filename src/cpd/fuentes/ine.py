@@ -134,6 +134,38 @@ def pib_desde_series(series: list[dict]) -> pd.DataFrame:
     return tabla.drop_duplicates(["codigo_provincia", "anio"]).sort_values(["codigo_provincia", "anio"]).reset_index(drop=True)
 
 
+TABLA_SOCIEDADES: int = 6295
+
+
+def sociedades_provincias(nult: int = 400) -> pd.DataFrame:
+    """Sociedades mercantiles constituidas por provincia y mes (número), Estadística de Sociedades Mercantiles del INE
+    (tabla 6295). Sirve para la atracción empresarial (E42).
+
+    Returns:
+        DataFrame: codigo_provincia, mes (primer día), sociedades_creadas.
+    """
+    return sociedades_desde_series(_tabla(TABLA_SOCIEDADES, nult))
+
+
+def sociedades_desde_series(series: list[dict]) -> pd.DataFrame:
+    """Interpreta las series «Provincia. Sociedades Constituídas. Mercantiles. Número de Sociedades.» de la tabla 6295."""
+    filas = []
+    for serie in series:
+        partes = _partes(serie.get("Nombre", ""))
+        if len(partes) < 4 or partes[1:4] != ["Sociedades Constituídas", "Mercantiles", "Número de Sociedades"]:
+            continue
+        codigo = None if partes[0] in SOLO_CCAA else emparejar_nombre_ine(partes[0])
+        if codigo is None:
+            continue
+        for observacion in serie.get("Data", []):
+            mes = observacion.get("FK_Periodo")
+            if observacion.get("Valor") is None or observacion.get("Secreto") or not isinstance(mes, int) or not 1 <= mes <= 12:
+                continue
+            filas.append({"codigo_provincia": codigo, "mes": pd.Timestamp(int(observacion["Anyo"]), mes, 1), "sociedades_creadas": float(observacion["Valor"])})
+    tabla = pd.DataFrame(filas, columns=["codigo_provincia", "mes", "sociedades_creadas"])
+    return tabla.drop_duplicates(["codigo_provincia", "mes"]).sort_values(["codigo_provincia", "mes"]).reset_index(drop=True)
+
+
 def agua_ccaa(nult: int = 6) -> pd.DataFrame:
     """Agua de la red de abastecimiento público por comunidad (miles de m³/año), «Estadística sobre el suministro y
     saneamiento del agua» del INE (tabla 53447, bienal). Ceuta y Melilla se publican juntas (código «18-19»).

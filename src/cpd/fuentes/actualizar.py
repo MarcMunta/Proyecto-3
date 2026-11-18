@@ -190,6 +190,7 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     _paso(acta, "renta", lambda: ine.renta_provincias())
     _paso(acta, "agua_ccaa", lambda: ine.agua_ccaa())
     _paso(acta, "pib_provincia", lambda: ine.pib_provincias())
+    _paso(acta, "sociedades_provincia", lambda: ine.sociedades_provincias())
     tio: dict[str, pd.DataFrame] = {}
 
     def _tio() -> dict[str, pd.DataFrame]:
