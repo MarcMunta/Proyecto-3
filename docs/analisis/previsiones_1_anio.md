@@ -34,10 +34,14 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Hidráulica de España (tiempo) a 1 año · entrada del precio, inestable | 72,9 % | 85,5 % | 100 − WAPE | no cumple (< 85 %) |
 | Precio de la luz a 1 año | 59,7 % | 61,4 % | 100 − WAPE | no cumple (< 85 %) |
 | Demanda nacional a 10 años | 97,3 % | — | 100 − WAPE (backtesting 2012-2025) | cumple (objetivo 90 %) |
+| Temperatura por provincia a 10 años | 97,7 % | 94,8 % | 100 − WAPE (en °C; test desde 2015) | cumple (objetivo 90 %) |
+| Operación del CPD a 10 años: consumo | 99,8 % | 99,5 % | 100 − WAPE (temperatura prevista → PUE → consumo) | cumple (objetivo 90 %) |
+| Reservas de agua a 10 años: media de la década | 91,1 % | 86,6 % | 100 − WAPE de la media de los 10 años | cumple |
+| Reservas de agua a 10 años: año a año | 83,3 % | 81,9 % | 100 − WAPE de cada año | no cumple (< 85 %) |
 | Probabilidad de CPD (prob_cpd) | 90,4 % | — | accuracy fuera de pliegue | cumple (objetivo 90 %) |
 | Riesgo sísmico: algún M ≥ 3 el año siguiente | 74,2 % | 73,1 % | accuracy (validación 2018-2024, test 2025) | no cumple (< 85 %) |
 
-**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Gas natural (MIBGAS) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Eólica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Hidráulica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
+**No cumplen:** Renovables por comunidad a 1 año (mes a mes) (no cumple (< 85 %)); Gas natural (MIBGAS) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Eólica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Hidráulica de España (tiempo) a 1 año · entrada del precio, inestable (no cumple (< 85 %)); Precio de la luz a 1 año (no cumple (< 85 %)); Reservas de agua a 10 años: año a año (no cumple (< 85 %)); Riesgo sísmico: algún M ≥ 3 el año siguiente (no cumple (< 85 %)). Sus previsiones se enseñan solo como escenario, con el aviso, y no se usan como dato en el simulador.
 
 
 ## Cómo se ha buscado el menor error
@@ -420,7 +424,7 @@ deriva, tendencia lineal, Holt amortiguado y la combinación de los 3 mejores.
 
 MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirlo):
 
-| Años vista | Orígenes | Combinación de los 3 mejores | holt_amortiguado | tendencia_lineal | sin_cambio |
+| Años vista | Orígenes | Combinación de los 3 mejores | Holt con tendencia amortiguada | Tendencia lineal | Sin cambio (último año) |
 |---|---|---|---|---|---|
 | 1 | 14 | 1,9 % | 2,3 % | 2,2 % | 1,9 % |
 | 2 | 13 | 2,8 % | 3,2 % | 2,9 % | 2,7 % |
@@ -434,13 +438,86 @@ MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirl
 | 10 | 5 | 2,2 % | 4,0 % | 5,4 % | 4,7 % |
 
 **Resultado.** Modelo elegido: **Combinación de los 3 mejores**
-(holt_amortiguado, tendencia_lineal, sin_cambio); acierto en el backtesting **97,3 %**. Previsión:
+(Holt con tendencia amortiguada, Tendencia lineal, Sin cambio (último año)); acierto en el backtesting **97,3 %**. Previsión:
 251 TWh en 2026 y **244 TWh en 2035** (intervalo 10-90 %:
 221-269 TWh), frente a 256 TWh en 2025.
 
 **Limitación.** Es una previsión **tendencial**: no incluye la electrificación, el hidrógeno ni los nuevos centros de
 datos, que pueden hacer crecer la demanda. Un CPD de 50 MW de TI consume unos 0,46 TWh al año (el 0,2 % de la demanda
 nacional). El intervalo a más de 7 años se extrapola (σ·√h) porque hay pocos orígenes para medirlo.
+
+## Medio plazo: clima y agua a 10 años (sostenibilidad operativa, objetivo A3)
+
+El objetivo A3 pide previsiones a corto **y medio plazo** de la sostenibilidad operativa del CPD. A 1 año ya están el
+PUE, el consumo y las emisiones; a 10 años (2026-2035) lo que cambia la operación es el **clima** (temperatura →
+PUE → consumo) y el **agua** de los embalses del ámbito. Código: `src/cpd/modelos/medio_plazo.py`.
+
+**Datos nuevos.** La tabla diaria de clima empieza en 2015 y no basta para validar 10 años. Se añade la temperatura
+**mensual de NASA POWER desde 1981** (la misma fuente y el mismo punto que la diaria: en los meses comunes difieren
+0,003 °C de media). Las reservas de MITECO ya venían desde 1988.
+
+**Protocolo.** Test: lo que se habría previsto desde 2015 para 2016-2025 (ningún modelo lo ve).
+Validación: orígenes 1995-2005 en la temperatura y 1997-2005 en las reservas, cuyos 10 años
+previstos terminan antes del test, para que la elección no mire ningún año del test. Candidatos: sin cambio, media de 10
+años, media larga (30 años), tendencia lineal de 30 años, media de 10 años más la tendencia, Holt amortiguado y la
+combinación de los 3 mejores por MAE de validación.
+
+![Medio plazo](../../docs/figuras/previsiones/16_medio_plazo_10_anios.png)
+
+**Figura 11b.** (a) Temperatura media anual de España (media de las 52 capitales): real, lo que se habría previsto
+desde 2015 (test) y previsión a 10 años con su intervalo 10-90 %. (b) Reserva media de los embalses de cada
+ámbito: últimos 10 años (azul) y próxima década (naranja).
+
+### Temperatura por provincia a 10 años
+
+| Modelo | MAE validación (°C) | MAE test (°C) | Acierto validación | Acierto test |
+|---|---|---|---|---|
+| Combinación de los 3 mejores **(elegido)** | 0,34 | 0,79 | 97,7 % | 94,8 % |
+| Media de 10 años (en la combinación) | 0,34 | 0,79 | 97,6 % | 94,9 % |
+| Media larga (30 años) (en la combinación) | 0,34 | 0,89 | 97,6 % | 94,2 % |
+| Holt con tendencia amortiguada (en la combinación) | 0,36 | 0,71 | 97,5 % | 95,4 % |
+| Tendencia lineal de 30 años | 0,37 | 0,71 | 97,5 % | 95,4 % |
+| Media de 10 años + tendencia de 30 | 0,37 | 0,71 | 97,4 % | 95,4 % |
+| Sin cambio (último año) | 0,44 | 0,49 | 97,0 % | 96,8 % |
+
+Elegido: **Combinación de los 3 mejores** (Media de 10 años, Media larga (30 años), Holt con tendencia amortiguada). Acierto **97,7 %** en validación y
+**94,8 %** en test (error medio 0,34 y 0,79 °C). El test es peor porque 2016-2025 se calentó más
+de lo que decía la historia: los modelos con tendencia habrían acertado algo más en el test, pero en la validación (que
+es con lo que se elige) no ganaban. Se dice tal cual, sin cambiar la elección: la validación cae en 1996-2015, años
+en que la temperatura subió más despacio.
+
+**Sensibilidad (no es la previsión elegida).** Si sigue la tendencia de los últimos 30 años
+(0,48 °C por década), la media de España en 2035 sería 16,1 °C en lugar de 15,5 °C (últimos 10
+años: 15,4 °C). El PUE medio pasaría de 1,455 a 1,461 y el consumo del CPD subiría un
+0,5 % respecto a la última década: el calentamiento afecta poco a la operación con la fórmula del simulador.
+
+**Consumo del CPD a 10 años, de punta a punta** (temperatura prevista → PUE → consumo, frente a lo mismo con la
+temperatura real): **99,8 %** en validación y **99,5 %** en test. Es tan alto porque el PUE del simulador
+cambia poco con la temperatura; no hay fuga (la temperatura real de cada año no se usa para prever ese año).
+
+Más calor previsto en 2035: Palmas, Las (20,5 °C, PUE 1,50), Santa Cruz de Tenerife (20,1 °C, PUE 1,50), Balears, Illes (19,8 °C, PUE 1,50), Melilla (19,4 °C, PUE 1,49), Cádiz (18,9 °C, PUE 1,49). Menos: Soria (10,3 °C, PUE 1,40), Burgos (11,2 °C, PUE 1,41), León (11,4 °C, PUE 1,41), Teruel (11,7 °C, PUE 1,42), Ávila (11,7 °C, PUE 1,42).
+
+### Reserva de agua por ámbito a 10 años
+
+| Modelo | MAE validación (puntos) | MAE test (puntos) | Acierto validación | Acierto test |
+|---|---|---|---|---|
+| Combinación de los 3 mejores **(elegido)** | 10,21 | 10,76 | 83,3 % | 81,9 % |
+| Media de 10 años (en la combinación) | 10,65 | 10,94 | 82,6 % | 81,5 % |
+| Media larga (30 años) (en la combinación) | 10,91 | 9,26 | 82,2 % | 84,4 % |
+| Sin cambio (último año) (en la combinación) | 11,66 | 13,56 | 80,9 % | 77,1 % |
+| Tendencia lineal de 30 años | 12,95 | 16,20 | 78,8 % | 72,7 % |
+| Media de 10 años + tendencia de 30 | 13,16 | 15,34 | 78,5 % | 74,1 % |
+| Holt con tendencia amortiguada | 13,40 | 14,10 | 78,1 % | 76,2 % |
+
+Elegido: **Combinación de los 3 mejores** (Media de 10 años, Media larga (30 años), Sin cambio (último año)). **Año a año** acierta 83,3 % en validación y
+81,9 % en test: **no llega al 85 %**, porque el año concreto de una sequía no se puede saber con 10 años de
+antelación. Para un CPD lo que cuenta en una inversión a 10 años es el **agua media de la década**, y esa sí cumple:
+**91,1 %** en validación y **86,6 %** en test. El año a año se enseña como orientativo.
+
+Ámbitos con menos reserva media prevista: Segura (29 %), Júcar (46 %), Cuenca Mediterránea Andaluza (46 %), Guadalete-Barbate (48 %).
+
+**Emisiones a 10 años: no se prevén.** El mix por comunidad solo existe desde 2015 (11 años), con lo que no se puede
+validar un horizonte de 10 años; además depende sobre todo de decisiones políticas (PNIEC), no de la historia.
 
 
 ## Errores por horizonte y comparación de modelos
