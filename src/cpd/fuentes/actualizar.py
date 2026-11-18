@@ -157,6 +157,7 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     poligonos = provincias.cargar_poligonos()
     _paso(acta, "clima_diario", lambda: nasa_power.clima_diario_power(ANIO_INICIO, anio_fin))
     _paso(acta, "free_cooling", lambda: nasa_power.free_cooling_mensual_power(ANIO_INICIO, anio_fin))
+    _paso(acta, "clima_mensual_largo", lambda: nasa_power.temperatura_mensual_larga())
     _paso(acta, "reservas_ambito_mensual", lambda: embalses.reservas_mensuales_desde_zip())
     _paso(acta, "estres_hidrico_wri", lambda: agua.estres_hidrico_wri())
     _paso(acta, "ccaa_demanda", lambda: ree.demanda_ccaa_mensual(ANIO_INICIO, anio_fin))

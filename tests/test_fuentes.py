@@ -523,3 +523,12 @@ def test_norma_sismica_lee_municipios_y_toma_la_capital():
     assert tabla.loc["50", "aceleracion_sismica_max_g"] == 0.05
     assert tabla.loc["52", "aceleracion_sismica_capital_g"] == 0.08  # Melilla: valor en la línea siguiente
     assert tabla.loc["42", "aceleracion_sismica_capital_g"] == 0.04  # Soria: no aparece
+
+
+def test_temperatura_mensual_de_power_descarta_el_mes_13_y_los_ausentes():
+    from cpd.fuentes import nasa_power
+
+    respuesta = {"properties": {"parameter": {"T2M": {"198101": 5.2, "198102": -999.0, "198113": 14.1, "198201": 6.0}}}}
+    serie = nasa_power.parsear_mensual(respuesta)
+    assert list(serie.index) == [pd.Timestamp(1981, 1, 1), pd.Timestamp(1981, 2, 1), pd.Timestamp(1982, 1, 1)]
+    assert serie.iloc[0] == 5.2 and pd.isna(serie.iloc[1])
