@@ -24,9 +24,9 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 |---|---|---|---|---|
 | A. Objetivo general | 1 | 2 | 0 | 3 |
 | B. Objetivos específicos (1-10) | 3 | 7 | 0 | 10 |
-| C. Preguntas funcionales (P1-P8) | 4 | 4 | 0 | 8 |
+| C. Preguntas funcionales (P1-P8) | 5 | 3 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
-| E. Variables del entorno territorial (enunciado) | 8 | 22 | 17 | 47 |
+| E. Variables del entorno territorial (enunciado) | 11 | 21 | 15 | 47 |
 | F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
@@ -65,7 +65,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | ID | Pregunta | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
 | P1 | ¿Qué municipios son los más adecuados? | 🟡 | `src/cpd/scoring.py` (`evaluar`, ranking) | | Ranking real a nivel de provincia; municipal con datos reales |
-| P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | 🟡 | `simulator.impacto_local_pct` | | Datos de consumo municipal reales o explicación de límite |
+| P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | ✅ | `src/cpd/modelos/impacto_local.py`: consumo previsto del CPD sobre la demanda prevista de su comunidad (validación de punta a punta 96,1 %, 20 orígenes), potencia máxima sobre la capacidad de acceso libre (REE; 0 MW en Madrid, Navarra y Ceuta: no cabe) y agua sobre la distribuida por la red pública de su comunidad (INE tabla 53447, 2024), con habitantes equivalentes; figura 17, ficha del mapa; `tests/test_modelos.py` | | Escala de comunidad: no hay consumo eléctrico ni de agua abierto por municipio (E8, E14) |
 | P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw`, `capacidad_demanda_rdt_otorgada_mw` y `_pendiente_mw` (REE, por comunidad); cobertura renovable prevista (generación renovable / demanda, `docs/analisis/previsiones_1_anio.md`), en el bloque de energía del score | | Análisis por nudo (hoy por comunidad) |
 | P4 | ¿Existe riesgo hídrico? | ✅ | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m`; previsión de reservas a 1 año por ámbito (acierto 85,3 % en test) en `docs/analisis/previsiones_1_anio.md`; reserva media de la próxima década por ámbito (acierto 86,6 % en test, `src/cpd/modelos/medio_plazo.py`) | | Afinar la asignación provincia → ámbito |
 | P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) | | Escenarios con electrificación y nuevos CPD (fuera del modelo tendencial) |
@@ -133,7 +133,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
 | E13 | Disponibilidad hídrica | 🟡 | `reserva_hidrica_pct`, `reserva_hidrica_hm3` (por ámbito) | | Explicar relación con disponibilidad real |
-| E14 | Consumo hídrico municipal | ❌ | — | | Buscar fuente abierta o documentar que no existe |
+| E14 | Consumo hídrico municipal | 🟡 | Por comunidad: INE «Estadística sobre el suministro y saneamiento del agua» (tabla 53447, bienal 2014-2024: suministrada, registrada y distribuida, pérdidas), `ine.agua_ccaa`, `agua_ccaa.csv` | | No hay dato municipal abierto: documentado |
 | E15 | Embalses cercanos | 🟡 | Reserva por ámbito hidrográfico (MITECO) | | Asociar embalse al municipio o provincia |
 | E16 | Estrés hídrico | ✅ | `estres_hidrico_wri_0_1` (WRI Aqueduct) | | — |
 | E17 | Sequías históricas | 🟡 | `indice_sequia_12m` (suma de 12 meses, no índice oficial) | | Documentar que no es SPI oficial |
@@ -192,8 +192,8 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E43 | Incremento del consumo energético local | 🟡 | `simulator.impacto_local_pct` | | Necesita consumo municipal (E8) |
-| E44 | Incremento del consumo hídrico | 🟡 | `simulator.agua_m3_anual` (sin % sobre consumo local) | | Calcular % sobre consumo local |
+| E43 | Incremento del consumo energético local | ✅ | % del consumo previsto del CPD sobre la demanda prevista de su comunidad y habitantes equivalentes (`src/cpd/modelos/impacto_local.py`, 96,1 % en validación); `simulator.impacto_local_pct` queda para el dato municipal | | Municipal sin fuente abierta (E8) |
+| E44 | Incremento del consumo hídrico | ✅ | % del agua anual del CPD sobre el agua registrada y distribuida de su comunidad (INE, tabla 53447) y habitantes equivalentes (`src/cpd/modelos/impacto_local.py`) | | — |
 | E45 | Huella de carbono | ✅ | `simulator.co2_t` | | Documentar factor de emisión y alcance |
 | E46 | Emisiones indirectas | 🟡 | `co2_t` (solo energía comprada) | | Aclarar alcance 2 y 3 |
 | E47 | Ocupación del suelo | ❌ | — | | Calcular a partir de superficie (D1) |
