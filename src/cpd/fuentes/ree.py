@@ -217,6 +217,28 @@ def generacion_por_grupo(generacion: pd.DataFrame) -> pd.DataFrame:
     return tecnologias.assign(grupo=grupo).groupby(["codigo_ccaa", "fecha", "grupo"], as_index=False)["generacion_mwh"].sum()
 
 
+GRUPOS_DETALLE: dict[str, tuple[str, ...]] = {
+    "eolica": ("Eólica",), "solar": ("Solar fotovoltaica", "Solar térmica"), "hidraulica": ("Hidráulica",),
+    "nuclear": ("Nuclear",), "ciclo_combinado": ("Ciclo combinado",), "carbon": ("Carbón",),
+}
+
+
+def generacion_nacional_detalle(generacion: pd.DataFrame) -> pd.DataFrame:
+    """Generación mensual de España (MWh, suma de comunidades) por tecnología con detalle para el precio de la luz:
+    eólica, solar, hidráulica, nuclear, ciclo combinado (la central de gas que suele marcar el precio), carbón y total.
+
+    Returns:
+        DataFrame: fecha, eolica, solar, hidraulica, nuclear, ciclo_combinado, carbon, total.
+    """
+    tecnologias = generacion[generacion["tipo"] != "total"]
+    if tecnologias.empty:
+        return pd.DataFrame(columns=["fecha", *GRUPOS_DETALLE, "total"])
+    tabla = tecnologias.pivot_table(index="fecha", columns="tecnologia", values="generacion_mwh", aggfunc="sum").fillna(0.0)
+    salida = pd.DataFrame({g: tabla[[c for c in cols if c in tabla.columns]].sum(axis=1) for g, cols in GRUPOS_DETALLE.items()})
+    salida["total"] = tabla.sum(axis=1)
+    return salida.reset_index()
+
+
 def resumen_renovable(generacion: pd.DataFrame) -> pd.DataFrame:
     """Por CCAA y mes: generación total, renovable, no renovable y % renovable (sin contar 'total')."""
     if generacion.empty:

@@ -51,6 +51,8 @@ NOMBRES_MODELO = {
     "ridge_anomalias": "Ridge sobre anomalías con la reserva de los embalses (ML)",
     "suma_tecnologias": "Suma de tecnologías (ETS de solar, eólica, hidráulica y resto)",
     "tecnologias_hidro_embalses": "Suma de tecnologías con la hidráulica desde los embalses",
+    "estructural_gas_tiempo": "Precio estructural con el gas y el tiempo previstos",
+    "futuros_gas": "Futuros del gas (MIBGAS)",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
@@ -761,6 +763,54 @@ Probabilidades más altas para {int(prev['anio'].iloc[0])}: {', '.join(f"{nombre
 """
 
 
+def _seccion_gas_tiempo(gas_tiempo: dict[str, Any], figura: str, precio: dict[str, Any]) -> str:
+    """Gas y tiempo: modelos añadidos para intentar mejorar el precio de la luz (inestables) y su efecto."""
+    j = gas_tiempo["resumen"]
+    nombres = {"gas": "Gas natural (MIBGAS)", "eolica": "Eólica de España", "solar": "Solar de España", "hidraulica": "Hidráulica de España"}
+    filas = [
+        {
+            "Modelo": nombres.get(k, k),
+            "Elegido": NOMBRES_MODELO.get(m["modelo"], m["modelo"]),
+            "Acierto validación": f"{_n(m['acierto_validacion'], 1)} %",
+            "Acierto test": f"{_n(m['acierto_test'], 1)} %",
+        }
+        for k, m in j["modelos"].items()
+    ]
+    rp = precio["resultado"]
+    est = rp["metricas"].query("modelo == 'estructural_gas_tiempo'").set_index("particion")["acierto_pct"] if "estructural_gas_tiempo" in set(rp["metricas"]["modelo"]) else None
+    linea_est = (
+        f"Como candidato del precio, el **precio estructural** acierta un {_n(est['validacion'], 1)} % en validación y un {_n(est['test'], 1)} % en test"
+        + (" y entra en la combinación." if "estructural_gas_tiempo" in rp["miembros"] else ".")
+        if est is not None
+        else ""
+    )
+    return f"""## Gas y tiempo: modelos añadidos para el precio de la luz (inestables)
+
+El precio de la luz era el modelo más difícil: se quedaba en un 59-62 % de acierto. Como el precio lo marca casi
+siempre la central de gas de ciclo combinado y baja cuando hay mucho viento, sol o agua, se añadieron (18/11/2026)
+los **modelos del gas** (MIBGAS: último valor, ETS y los futuros del gas) y **del tiempo**, a través de la generación
+eólica, solar e hidráulica de España (REData; la hidráulica, también con la reserva de los embalses). Con ellos se
+construye un **precio estructural**: log(precio) = f(log(gas), cuotas de eólica, solar, hidráulica, nuclear, ciclo
+combinado y carbón, ciclo combinado × gas, mes), ajustado con los meses reales y alimentado con las previsiones.
+
+**Son inestables:** el gas y el tiempo de dentro de un año no se pueden saber, y sus aciertos cambian mucho entre
+validación y test. Se usan solo como entradas del precio, no como dato del simulador.
+
+![Gas y tiempo]({figura})
+
+**Figura 2b.** Gas y generación eólica, solar e hidráulica de España: últimos 3 años y previsión a 1 año, con su
+acierto (validación / test).
+
+{_tabla(pd.DataFrame(filas))}
+
+**Resultado para la luz.** {linea_est} El acierto del precio queda en {_n(precio['resumen']['acierto_validacion'], 1)} % en validación y
+{_n(precio['resumen']['acierto_test'], 1)} % en test. **Diagnóstico:** aun con el gas y la generación **reales** de cada mes (sin previsión), el
+precio solo se explica en un {_n(j['diagnostico_precio_con_reales'], 1)} %: faltan datos que no son abiertos o no son mensuales, como el precio del CO2 (la
+fuente de la bolsa EEX es de pago), la demanda hora a hora y las interconexiones. Por eso el precio sigue como
+orientativo.
+"""
+
+
 def _por_que_precio(res: dict[str, Any]) -> str:
     """Si el precio a 1 año no llega al acierto mínimo (D8), explica por qué con cifras de su propia validación."""
     from cpd.modelos.metricas import ACIERTO_MINIMO
@@ -826,6 +876,9 @@ def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None
     seccion_cobertura = _seccion_cobertura(anual["cobertura"], fig["cobertura"]) if "cobertura" in anual and "cobertura" in fig else ""
     seccion_operacion = _seccion_operacion(anual["operacion"], fig["operacion"]) if "operacion" in anual and "operacion" in fig else ""
     seccion_sismico = _seccion_sismico(anual["sismico"]) if "sismico" in anual else ""
+    seccion_gas_tiempo = (
+        _seccion_gas_tiempo(anual["gas_tiempo"], fig["gas_tiempo"], anual["precio"]) if anual.get("gas_tiempo") and "gas_tiempo" in fig else ""
+    )
     seccion_10 = _seccion_10_anios(diez) if diez else ""
     return f"""# Previsiones · 1 año (demanda, precio de la luz, reservas de agua, temperatura y renovables) y 10 años (demanda nacional)
 
@@ -887,6 +940,8 @@ validación y {_n(jp['error_test'], 1)} €/MWh en test, frente a {_n(rp['metric
 (la previsión tarda en reaccionar a los cambios bruscos).
 
 {_por_que_precio(rp)}
+
+{seccion_gas_tiempo}
 ## Demanda eléctrica por comunidad autónoma
 
 ![Demanda por comunidad]({fig['demanda']})

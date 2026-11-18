@@ -617,3 +617,44 @@ def test_tecnologias_con_hidraulica_desde_embalses_sin_fuga():
     b = anual.candidato_tecnologias_hidro_embalses(alterada, reserva_alterada, hoy=hoy)(origen)
     np.testing.assert_allclose(a.sort_values(["serie", "mes"])["prevision"].to_numpy(), b.sort_values(["serie", "mes"])["prevision"].to_numpy(), rtol=1e-6)
     assert (a["prevision"] > 0).all() and set(a["serie"]) == {"07", "12"}
+
+
+def _gas_y_detalle_sinteticos():
+    # Gas, generación por tecnología y precio SINTÉTICOS (solo para los tests).
+    meses = pd.date_range("2016-01-01", "2024-12-01", freq="MS")
+    rng = np.random.default_rng(21)
+    gas = pd.DataFrame(
+        {
+            "gas_spot_eur_mwh": 20 + 5 * np.sin(2 * np.pi * meses.month / 12) + rng.normal(0, 1, len(meses)),
+            "gas_m1_eur_mwh": 21.0, "gas_q1_eur_mwh": 22.0, "gas_y1_eur_mwh": 23.0,
+        },
+        index=meses,
+    )
+    detalle = pd.DataFrame(
+        {
+            "fecha": meses, "eolica": 400 + 50 * np.cos(2 * np.pi * meses.month / 12), "solar": 200 + 100 * np.sin(2 * np.pi * (meses.month - 3) / 12),
+            "hidraulica": 250 + rng.normal(0, 20, len(meses)), "nuclear": 450.0, "ciclo_combinado": 300 + rng.normal(0, 30, len(meses)), "carbon": 50.0,
+        }
+    )
+    detalle["total"] = detalle[["eolica", "solar", "hidraulica", "nuclear", "ciclo_combinado", "carbon"]].sum(axis=1)
+    precio = pd.Series(2.5 * gas["gas_spot_eur_mwh"].to_numpy() * (detalle["ciclo_combinado"] / detalle["total"]).to_numpy() * 4, index=meses)
+    return gas, detalle, precio
+
+
+def test_gas_y_precio_estructural_sin_fuga():
+    from cpd.modelos import gas_tiempo
+
+    gas, detalle, precio = _gas_y_detalle_sinteticos()
+    origen = pd.Timestamp("2021-06-01")
+    gas_b, detalle_b, precio_b = gas.copy(), detalle.copy(), precio.copy()
+    gas_b.loc[gas_b.index > origen] = 999.0
+    detalle_b.loc[detalle_b["fecha"] > origen, ["eolica", "solar", "hidraulica", "ciclo_combinado"]] = 1.0
+    precio_b[precio_b.index > origen] = 999.0
+    for nombre, prever in gas_tiempo.candidatos_gas(gas).items():
+        np.testing.assert_allclose(prever(origen)["prevision"].to_numpy(), gas_tiempo.candidatos_gas(gas_b)[nombre](origen)["prevision"].to_numpy(), rtol=1e-6, err_msg=nombre)
+    a = gas_tiempo.candidato_precio_estructural(gas, detalle, precio)(origen)
+    b = gas_tiempo.candidato_precio_estructural(gas_b, detalle_b, precio_b)(origen)
+    np.testing.assert_allclose(a["prevision"].to_numpy(), b["prevision"].to_numpy(), rtol=1e-6)
+    assert len(a) == 12 and (a["prevision"] > 0).all()
+    futuros = gas_tiempo.candidatos_gas(gas)["futuros_gas"](origen).set_index("horizonte_meses")["prevision"]
+    assert futuros[1] == 21.0 and futuros[3] == 22.0 and futuros[12] == 23.0

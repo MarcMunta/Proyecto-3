@@ -548,6 +548,16 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
         gas,
     )
     candidatos_p = anual.candidatos_precio(mensual)
+    # Precio estructural con los modelos del gas y del tiempo (18/11/2026; ver cpd.modelos.gas_tiempo).
+    from cpd.modelos import gas_tiempo
+
+    detalle = None
+    if gas is not None and (CARPETA_TABLAS / "generacion_nacional_detalle.csv").exists():
+        generacion_ccaa = pd.read_csv(CARPETA_TABLAS / "ccaa_generacion.csv", dtype={"codigo_ccaa": str}, parse_dates=["fecha"])
+        ultimo_completo = generacion_ccaa.groupby("codigo_ccaa")["fecha"].max().min()  # todas las comunidades
+        detalle = pd.read_csv(CARPETA_TABLAS / "generacion_nacional_detalle.csv", parse_dates=["fecha"])
+        detalle = detalle[detalle["fecha"] <= ultimo_completo]
+        candidatos_p["estructural_gas_tiempo"] = gas_tiempo.candidato_precio_estructural(gas, detalle, mensual["precio_eur_mwh"].dropna())
     origenes_p = anual.definir_origenes(mensual["precio_eur_mwh"].dropna().index.max())
     res_p = anual.evaluar(candidatos_p, anual.reales_precio(mensual), origenes_p, "mae")
     prev_p = anual.prevision_final(candidatos_p, res_p, {"ES": origenes_p.fin})
@@ -730,6 +740,29 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
             "cobertura_prevista_pct": cobertura(renovable_prevista, d["prevision_12m"]),
         }
 
+    # Gas y tiempo (entradas del precio de la luz, inestables): backtesting a 1 año y previsión de los 12 meses.
+    gas_tiempo_res = None
+    if detalle is not None:
+        gas_tiempo_res = gas_tiempo.evaluar_todo(gas, detalle, reserva_nacional)
+        diagnostico = gas_tiempo.diagnostico_precio(gas, detalle, mensual["precio_eur_mwh"].dropna(), "2022-12", str(origenes_p.validacion[-1] + pd.DateOffset(months=12))[:7])
+        salida["gas_tiempo"] = {"diagnostico_precio_con_reales": round(diagnostico, 1), "modelos": {}}
+        series_gt = {"gas": (gas_tiempo_res["gas"], gas_tiempo.reales_gas(gas), gas_tiempo.candidatos_gas(gas))}
+        for tec in gas_tiempo.TECNOLOGIAS_TIEMPO:
+            reales_tec = gas_tiempo.reales_tecnologia(detalle, tec)
+            series_gt[tec] = (gas_tiempo_res["tiempo"][tec], reales_tec, gas_tiempo.candidatos_tecnologia(reales_tec, reserva_nacional))
+        gas_tiempo_res["previsiones"], gas_tiempo_res["reales"] = {}, {}
+        for nombre, (res_x, reales_x, cand_x) in series_gt.items():
+            prev_x = anual.prevision_final(cand_x, res_x, {reales_x["serie"].iloc[0]: reales_x["mes"].max()})
+            gas_tiempo_res["previsiones"][nombre], gas_tiempo_res["reales"][nombre] = prev_x, reales_x
+            m_x = res_x["metricas"].query("modelo == @res_x['elegido']").set_index("particion")["acierto_pct"]
+            salida["gas_tiempo"]["modelos"][nombre] = {
+                "modelo": res_x["elegido"], "miembros": res_x["miembros"],
+                "acierto_validacion": round(float(m_x["validacion"]), 1), "acierto_test": round(float(m_x["test"]), 1),
+            }
+            res_x["metricas"].to_csv(RUTA_SALIDAS / f"anual_metricas_{nombre}.csv", index=False)
+            prev_x.to_csv(RUTA_SALIDAS / f"anual_prevision_{nombre}.csv", index=False)
+        print(f"  gas y tiempo: diagnóstico del precio con los reales {diagnostico:.1f} %; " + ", ".join(f"{k} {v['acierto_validacion']} %" for k, v in salida["gas_tiempo"]["modelos"].items()))
+
     # Operación del CPD de referencia a 1 año (objetivo A3): temperatura → PUE → consumo; % renovable → emisiones.
     from cpd import simulator as simulador
     from cpd.config import cargar_settings
@@ -792,12 +825,15 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     renovables = {"resultado": res_v, "prevision": prev_v, "reales": reales_v, "resumen": salida["renovables"]}
     cobertura = {"resultado": res_g, "prevision": prev_g, "resumen": salida["cobertura_renovable"]}
     operacion_res = {"backtesting": bt_op, "tabla": tabla_op, "resumen": salida["operacion"], "nombres": salida["temperatura"]["provincias"]}
+    gas_tiempo_res = None if gas_tiempo_res is None else {**gas_tiempo_res, "resumen": salida.get("gas_tiempo")}
     figuras = _figuras_anual(precio, demanda, mensual, serie)
     figuras.update(_figuras_reservas(reservas))
     figuras.update(_figuras_temperatura(temperatura))
     figuras.update(_figuras_renovables(renovables))
     figuras.update(_figura_cobertura(cobertura))
     figuras.update(_figura_operacion(operacion_res))
+    if gas_tiempo_res is not None:
+        figuras.update(_figura_gas_tiempo(gas_tiempo_res))
     # MAE de la generación renovable en GWh para que el eje sea legible.
     en_gwh = {k: (v.assign(mae=v["mae"] / 1e3) if k in ("metricas", "por_horizonte") else v) for k, v in res_g.items()}
     figuras.update(
@@ -814,7 +850,7 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     )
     return {
         "precio": precio, "demanda": demanda, "reservas": reservas, "temperatura": temperatura, "renovables": renovables,
-        "cobertura": cobertura, "operacion": operacion_res, "figuras": figuras, "json": salida,
+        "cobertura": cobertura, "operacion": operacion_res, "gas_tiempo": gas_tiempo_res, "figuras": figuras, "json": salida,
     }
 
 
@@ -910,6 +946,33 @@ def _figura_operacion(operacion_res: dict) -> dict[str, str]:
     eje.set_title("Emisiones del CPD de referencia por provincia: último año y previsión", pad=28)
     eje.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncols=2, fontsize=7.5)
     return {"operacion": _guardar_figura(figura, "14_operacion_cpd_emisiones.png")}
+
+
+@_con_estilo
+def _figura_gas_tiempo(gas_tiempo_res: dict) -> dict[str, str]:
+    """Figura 15: gas y tiempo (eólica, solar e hidráulica de España), últimos 3 años y previsión a 1 año, con su
+    acierto. Son entradas del precio de la luz y son inestables."""
+    titulos = {
+        "gas": ("Gas natural MIBGAS (€/MWh)", 1.0), "eolica": ("Eólica de España (TWh al mes)", 1e6),
+        "solar": ("Solar de España (TWh al mes)", 1e6), "hidraulica": ("Hidráulica de España (TWh al mes)", 1e6),
+    }
+    modelos = gas_tiempo_res["resumen"]["modelos"]
+    figura, ejes = plt.subplots(2, 2, figsize=(14, 7.6))
+    for eje, (clave, (titulo, escala)) in zip(ejes.flat, titulos.items()):
+        reales, prev = gas_tiempo_res["reales"][clave], gas_tiempo_res["previsiones"][clave]
+        s = reales.set_index("mes")["real"].sort_index().iloc[-36:] / escala
+        p = prev.sort_values("mes")
+        eje.fill_between(p["mes"], p["inferior"] / escala, p["superior"] / escala, color=COLOR_PREVISTO, alpha=0.16, lw=0)
+        eje.plot(s.index, s.values, color=COLOR_REAL, lw=1.6)
+        eje.plot([s.index[-1], *p["mes"]], [s.iloc[-1], *(p["prevision"] / escala)], color=COLOR_PREVISTO, lw=1.8)
+        m = modelos[clave]
+        eje.set_title(f"{titulo} · acierto {m['acierto_validacion']:.1f} % / {m['acierto_test']:.1f} %".replace(".", ","), fontsize=9.5)
+        eje.set_ylim(bottom=0)
+        _eje_anios(eje)
+    figura.suptitle("Gas y tiempo: entradas del precio de la luz (inestables) · últimos 3 años y previsión a 1 año", x=0.01, ha="left")
+    figura.legend(handles=_leyenda_previsiones("previsión"), loc="upper right", ncols=3)
+    figura.tight_layout(rect=(0, 0, 1, 0.95))
+    return {"gas_tiempo": _guardar_figura(figura, "15_gas_y_tiempo.png")}
 
 
 @_con_estilo
@@ -1070,6 +1133,11 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict) -> pd.DataFrame:
         ("Generación renovable por comunidad: total de 12 meses", j["cobertura_renovable"]["acierto_anual_validacion"], j["cobertura_renovable"]["acierto_anual_test"], "100 − WAPE del total anual"),
         ("Operación del CPD a 1 año: consumo", j["operacion"]["acierto_consumo"], None, f"100 − WAPE del total anual ({j['operacion']['origenes']} orígenes comunes)"),
         ("Operación del CPD a 1 año: emisiones", j["operacion"]["acierto_emisiones"], None, f"100 − WAPE del total anual ({j['operacion']['origenes']} orígenes comunes)"),
+    ]
+    nombres_gt = {"gas": "Gas natural (MIBGAS)", "eolica": "Eólica de España (tiempo)", "solar": "Solar de España (tiempo)", "hidraulica": "Hidráulica de España (tiempo)"}
+    for clave, m in (j.get("gas_tiempo") or {}).get("modelos", {}).items():
+        filas.append((f"{nombres_gt.get(clave, clave)} a 1 año · entrada del precio, inestable", m["acierto_validacion"], m["acierto_test"], "100 − WAPE"))
+    filas += [
         ("Precio de la luz a 1 año", j["precio"]["acierto_validacion"], j["precio"]["acierto_test"], "100 − WAPE"),
         ("Demanda nacional a 10 años", diez["acierto"], None, "100 − WAPE (backtesting 2012-2025)"),
         ("Probabilidad de CPD (prob_cpd)", 100 * prob["metricas_umbral"]["accuracy"], None, "accuracy fuera de pliegue"),
