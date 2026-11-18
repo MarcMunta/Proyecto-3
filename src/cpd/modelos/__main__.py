@@ -700,6 +700,8 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     if (CARPETA_TABLAS / "ccaa_generacion_tecnologia.csv").exists():
         tecnologias = pd.read_csv(CARPETA_TABLAS / "ccaa_generacion_tecnologia.csv", dtype={"codigo_ccaa": str})
         candidatos_g["suma_tecnologias"] = anual.candidato_suma_tecnologias(tecnologias, "mwh")
+        # Hidráulica prevista desde los embalses (18/11/2026): 85,6 % → 86,2 % en validación.
+        candidatos_g["tecnologias_hidro_embalses"] = anual.candidato_tecnologias_hidro_embalses(tecnologias, reserva_nacional)
     origenes_g = anual.definir_origenes(reales_g.groupby("serie")["mes"].max().min())
     res_g = anual.evaluar(candidatos_g, reales_g, origenes_g, "mae")
     prev_g = anual.prevision_final(candidatos_g, res_g, reales_g.groupby("serie")["mes"].max().to_dict())

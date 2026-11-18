@@ -525,6 +525,25 @@ def candidato_suma_tecnologias(tecnologias: pd.DataFrame, objetivo: str, hoy: dt
     return prever
 
 
+def candidato_tecnologias_hidro_embalses(tecnologias: pd.DataFrame, reserva_nacional: pd.Series, hoy: dt.date | None = None) -> Candidato:
+    """Generación renovable (MWh) como suma de tecnologías, pero con la **hidráulica prevista desde los embalses**
+    (Ridge sobre anomalías con la reserva nacional, `candidato_ridge_anomalias`): la hidráulica depende sobre todo
+    del agua embalsada. Solar, eólica y resto, con su ETS (`candidato_suma_tecnologias`)."""
+    datos = tecnologias.assign(codigo_ccaa=tecnologias["codigo_ccaa"].astype(str).str.zfill(2))
+    hidro = datos[datos["grupo"] == "hidraulica"]
+    reales_hidro = series_renovables(hidro.assign(pct_renovable=hidro["generacion_mwh"]), hoy, columna="pct_renovable")
+    prever_hidro = candidato_ridge_anomalias(reales_hidro, reserva_nacional, logaritmo=True)
+    prever_resto = candidato_suma_tecnologias(datos[datos["grupo"] != "hidraulica"], "mwh", hoy)
+    claves = ["serie", "mes", "horizonte_meses"]
+
+    def prever(origen: pd.Timestamp) -> pd.DataFrame:
+        resto = prever_resto(origen).set_index(claves)["prevision"].astype(float)
+        agua = prever_hidro(origen).set_index(claves)["prevision"].astype(float)
+        return resto.add(agua.reindex(resto.index).fillna(0.0), fill_value=0.0).rename("prevision").reset_index()
+
+    return prever
+
+
 def candidato_ridge_anomalias(reales: pd.DataFrame, reserva_nacional: pd.Series, logaritmo: bool = False) -> Candidato:
     """Ridge (ML) sobre anomalías: prevé la diferencia entre el mes objetivo y la media de ese mes en los 3 años
     anteriores, con la anomalía del origen (último mes y media de 3 meses), la anomalía de la **reserva nacional de

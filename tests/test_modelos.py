@@ -591,3 +591,29 @@ def test_ridge_de_anomalias_sin_fuga():
     b = anual.candidato_ridge_anomalias(alterada, reserva_alterada)(origen)
     np.testing.assert_allclose(a["prevision"].to_numpy(), b["prevision"].to_numpy(), rtol=1e-6)
     assert a["prevision"].between(0, 100).all() and set(a["serie"]) == {"02", "07"}
+
+
+def test_tecnologias_con_hidraulica_desde_embalses_sin_fuga():
+    from cpd.modelos import anual
+
+    # Generación por tecnología y reserva SINTÉTICAS (solo para el test): la hidráulica sigue a la reserva.
+    meses = pd.date_range("2015-01-01", "2024-12-01", freq="MS")
+    rng = np.random.default_rng(5)
+    reserva = pd.Series(55 + 15 * np.sin(2 * np.pi * meses.month / 12) + rng.normal(0, 4, len(meses)), index=meses)
+    filas = []
+    for codigo in ("07", "12"):
+        for grupo, valores in (
+            ("hidraulica", 10 * reserva.to_numpy() + rng.normal(0, 20, len(meses))),
+            ("solar", 200 + 100 * np.sin(2 * np.pi * (meses.month - 3) / 12) + np.arange(len(meses))),
+            ("no_renovable", np.full(len(meses), 300.0)),
+        ):
+            filas.append(pd.DataFrame({"codigo_ccaa": codigo, "fecha": meses, "grupo": grupo, "generacion_mwh": np.maximum(valores, 1.0)}))
+    tecnologias = pd.concat(filas, ignore_index=True)
+    origen, hoy = pd.Timestamp("2021-06-01"), pd.Timestamp("2025-06-01").date()
+    alterada = tecnologias.copy()
+    alterada.loc[alterada["fecha"] > origen, "generacion_mwh"] = 1.0
+    reserva_alterada = reserva.where(reserva.index <= origen, 0.0)
+    a = anual.candidato_tecnologias_hidro_embalses(tecnologias, reserva, hoy=hoy)(origen)
+    b = anual.candidato_tecnologias_hidro_embalses(alterada, reserva_alterada, hoy=hoy)(origen)
+    np.testing.assert_allclose(a.sort_values(["serie", "mes"])["prevision"].to_numpy(), b.sort_values(["serie", "mes"])["prevision"].to_numpy(), rtol=1e-6)
+    assert (a["prevision"] > 0).all() and set(a["serie"]) == {"07", "12"}

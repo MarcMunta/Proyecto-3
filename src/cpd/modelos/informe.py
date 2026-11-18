@@ -50,6 +50,7 @@ NOMBRES_MODELO = {
     "persistencia": "Persistencia (como el año anterior)",
     "ridge_anomalias": "Ridge sobre anomalías con la reserva de los embalses (ML)",
     "suma_tecnologias": "Suma de tecnologías (ETS de solar, eólica, hidráulica y resto)",
+    "tecnologias_hidro_embalses": "Suma de tecnologías con la hidráulica desde los embalses",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
