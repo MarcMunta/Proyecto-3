@@ -128,6 +128,12 @@ export interface Previsiones {
   impacto: Map<string, ImpactoLocal>;
   /** Empleo, inversión inducida y PIB (tablas input-output del INE; E39-E41). */
   socioeconomico: Socioeconomico | null;
+  /** Atracción empresarial (E42): sociedades creadas al año por 10.000 habitantes, previstas, y aciertos del total anual. */
+  empresas: {
+    hasta: string | null;
+    aciertoAnualTest: number | null;
+    provincias: Map<string, { por10000: number | null; cambioPct: number | null }>;
+  } | null;
   /** Energía de la red otorgada y en trámite frente a la demanda actual de cada comunidad (%), escenarios P5. */
   redOtorgada: Map<string, { pctOtorgada: number | null; pctPendiente: number | null; factor: number | null }>;
   /** Requisito de acierto por modelo. */
@@ -313,6 +319,15 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
       anioPib: numero(se.anio_pib), provincias,
     };
   }
+  let empresas: Previsiones["empresas"] = null;
+  const em = raiz.empresas;
+  if (em && em.provincias && typeof em.provincias === "object") {
+    const provincias = new Map<string, { por10000: number | null; cambioPct: number | null }>();
+    for (const [codigo, f] of Object.entries(em.provincias as Record<string, Record<string, unknown>>)) {
+      if (/^\d{2}$/.test(codigo) && f) provincias.set(codigo, { por10000: numero(f.por_10000_hab), cambioPct: numero(f.cambio_pct) });
+    }
+    empresas = { hasta: esMes(em.hasta) ? em.hasta : null, aciertoAnualTest: numero(em.acierto_anual_test), provincias };
+  }
   const redOtorgada = new Map<string, { pctOtorgada: number | null; pctPendiente: number | null; factor: number | null }>();
   const es = raiz.escenarios_demanda;
   if (es && es.ccaa && typeof es.ccaa === "object") {
@@ -327,9 +342,9 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
         texto(c?.modelo) && texto(c?.estado) ? [{ modelo: texto(c.modelo)!, estado: texto(c.estado)! }] : [],
       )
     : [];
-  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size && !impacto.size && !socioeconomico && !redOtorgada.size) return null;
+  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size && !impacto.size && !socioeconomico && !redOtorgada.size && !empresas) return null;
   return {
     generado: texto((json as Record<string, unknown>).generado), precio, demanda, demandaModelo, reservas, temperatura, renovables, operacion,
-    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, impacto, socioeconomico, redOtorgada, control,
+    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, impacto, socioeconomico, empresas, redOtorgada, control,
   };
 }

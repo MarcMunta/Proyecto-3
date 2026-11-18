@@ -64,6 +64,7 @@ export function Ficha(p: Props) {
   const socio = p.previsiones?.socioeconomico ?? null;
   const socioProvincia = socio?.provincias.get(meta.codigo);
   const redCcaa = base?.codigo_ccaa ? p.previsiones?.redOtorgada.get(base.codigo_ccaa) : undefined;
+  const empresaProvincia = p.previsiones?.empresas?.provincias.get(meta.codigo);
   const rango = useMemo(() => rangoVanClasificadas(prediccion), [prediccion]);
   const descartada = d?.clase === "no_rentable" && d.estado === "No viable";
 
@@ -296,6 +297,17 @@ export function Ficha(p: Props) {
                     </>
                   )}
                   .
+                </p>
+              )}
+              {empresaProvincia?.por10000 != null && (
+                <p className="dato-linea">
+                  Atracción empresarial: <strong>{num(empresaProvincia.por10000, 1)} sociedades nuevas</strong> al año por cada 10.000
+                  habitantes previstas para los próximos 12 meses
+                  {empresaProvincia.cambioPct != null && (
+                    <> ({empresaProvincia.cambioPct >= 0 ? "+" : ""}{num(empresaProvincia.cambioPct, 1)} % frente a los 12 anteriores)</>
+                  )}
+                  {p.previsiones?.empresas?.aciertoAnualTest != null && <>. Acierto del total anual en test: {num(p.previsiones.empresas.aciertoAnualTest, 1)} %</>}
+                  {p.previsiones?.empresas?.hasta ? ` (INE, datos hasta ${mesLegible(p.previsiones.empresas.hasta)})` : ""}.
                 </p>
               )}
               {d.prob_cpd != null && (

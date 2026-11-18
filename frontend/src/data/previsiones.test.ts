@@ -171,3 +171,13 @@ describe("escenarios de demanda (P5)", () => {
     expect(p.redOtorgada.get("02")).toEqual({ pctOtorgada: 242.7, pctPendiente: 200, factor: 0.8 });
   });
 });
+
+describe("atracción empresarial (E42)", () => {
+  it("lee las sociedades nuevas por 10.000 habitantes de cada provincia", () => {
+    // Datos de PRUEBA (valores inventados solo para el test).
+    const p = normalizarPrevisiones({ empresas: { hasta: "2025-12", acierto_anual_test: 92.6, provincias: { "50": { por_10000_hab: 20.4, cambio_pct: 3.1 }, X: {} } } })!;
+    expect(p.empresas).toMatchObject({ hasta: "2025-12", aciertoAnualTest: 92.6 });
+    expect(p.empresas!.provincias.get("50")).toEqual({ por10000: 20.4, cambioPct: 3.1 });
+    expect(p.empresas!.provincias.size).toBe(1);
+  });
+});
