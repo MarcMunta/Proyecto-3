@@ -964,3 +964,21 @@ def test_target_encoding_se_ajusta_solo_con_el_entrenamiento():
     ajustado = modelo.fit(x[entrenar], y[entrenar])
     prob = ajustado.predict_proba(x[~entrenar])[:, 1]  # filas no vistas
     assert (prob[x[~entrenar, 1] >= 2] > 0.5).all() and (prob[x[~entrenar, 1] < 2] < 0.5).all()
+
+
+def test_precio_estructural_con_demanda_sin_fuga():
+    from cpd.modelos import gas_tiempo
+
+    gas, detalle, precio = _gas_y_detalle_sinteticos()
+    meses = gas.index
+    demanda = pd.Series(20_000_000 * (1 + 0.1 * np.cos(2 * np.pi * meses.month / 12)), index=meses)
+    origen = pd.Timestamp("2021-06-01")
+    base = gas_tiempo.candidato_precio_estructural(gas, detalle, precio, demanda)(origen)
+    alterada = demanda.copy()
+    alterada[alterada.index > origen] = 1.0  # la demanda posterior al origen no debe influir
+    otra = gas_tiempo.candidato_precio_estructural(gas, detalle, precio, alterada)(origen)
+    assert len(base) == 12 and base["prevision"].notna().all()
+    pd.testing.assert_series_equal(base["prevision"], otra["prevision"])
+    # Si la demanda acaba antes del origen, se alarga con ETS hasta cubrir los 12 meses previstos.
+    corta = gas_tiempo.candidato_precio_estructural(gas, detalle, precio, demanda.loc[:"2020-12-01"])(origen)
+    assert corta["prevision"].notna().all()

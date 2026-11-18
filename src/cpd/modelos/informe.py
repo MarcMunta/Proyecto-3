@@ -52,6 +52,7 @@ NOMBRES_MODELO = {
     "suma_tecnologias": "Suma de tecnologías (ETS de solar, eólica, hidráulica y resto)",
     "tecnologias_hidro_embalses": "Suma de tecnologías con la hidráulica desde los embalses",
     "estructural_gas_tiempo": "Precio estructural con el gas y el tiempo previstos",
+    "estructural_demanda": "Precio estructural con el gas, el tiempo y la demanda previstos",
     "futuros_gas": "Futuros del gas (MIBGAS)",
     "sin_cambio": "Sin cambio (último año)",
     "media_3_anios": "Media de 3 años",

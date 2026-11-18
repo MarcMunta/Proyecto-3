@@ -115,25 +115,46 @@ def _vacio() -> pd.DataFrame:
     )
 
 
-def candidato_precio_estructural(gas: pd.DataFrame, detalle: pd.DataFrame, precio: pd.Series) -> anual.Candidato:
-    """Precio estructural con el gas y la generación **previstos** en el origen (ver docstring del módulo)."""
+def _demanda_prevista(demanda: pd.Series, origen: pd.Timestamp, meses: pd.DatetimeIndex) -> np.ndarray:
+    """Log de la demanda nacional en `meses`, prevista con ETS (log) usando solo los datos hasta el origen. Si la serie
+    acaba antes del origen, la ETS se alarga desde su último dato hasta el último mes pedido."""
+    d = demanda.loc[:origen].dropna()
+    ultimo = d.index.max()
+    pasos = (meses.max().year - ultimo.year) * 12 + (meses.max().month - ultimo.month)
+    prevision = pd.Series(_ets_log(d, pasos, 96), index=pd.date_range(ultimo + pd.offsets.MonthBegin(1), periods=pasos, freq="MS"))
+    return np.log(prevision.reindex(meses).to_numpy(dtype=float))
+
+
+def candidato_precio_estructural(gas: pd.DataFrame, detalle: pd.DataFrame, precio: pd.Series, demanda: pd.Series | None = None) -> anual.Candidato:
+    """Precio estructural con el gas y la generación **previstos** en el origen (ver docstring del módulo).
+
+    Con `demanda` (demanda nacional mensual, MWh) se añade el log de la demanda como variable (afinado del 18/11/2026):
+    a más demanda, más horas marca el precio el ciclo combinado. En el diagnóstico con datos reales sube de 78,9 % a
+    80,0 %; en el backtesting, la validación del precio pasa de 59,7 % a 61,7 % (el test baja: se elige con la
+    validación)."""
     conductores = tabla_conductores(gas, detalle)
     spot = gas["gas_spot_eur_mwh"].dropna()
+    columnas = COLUMNAS_PRECIO + (["ldemanda"] if demanda is not None else [])
 
     def prever(origen: pd.Timestamp) -> pd.DataFrame:
         historia = conductores.loc[:origen]
         if len(historia) < 48 or origen > conductores.index.max():
             return _vacio()
         X = _variables_precio(historia)
+        if demanda is not None:
+            X["ldemanda"] = np.log(demanda.reindex(X.index))
         y = np.log(precio.reindex(X.index))
-        conocidos = y.notna()
-        modelo = make_pipeline(StandardScaler(), Ridge(alpha=1.0)).fit(X[conocidos][COLUMNAS_PRECIO], y[conocidos])
+        conocidos = y.notna() & X[columnas].notna().all(axis=1)
+        modelo = make_pipeline(StandardScaler(), Ridge(alpha=1.0)).fit(X[conocidos][columnas], y[conocidos])
         filas = anual._filas_futuras("ES", origen)
         futuro = pd.DataFrame(index=pd.DatetimeIndex(filas["mes"]))
         futuro["gas"] = _ets_log(spot.loc[:origen], anual.HORIZONTE, 96)
         for c in (*CUOTAS, "total"):
             futuro[c] = _ets_log(historia[c].clip(lower=1.0), anual.HORIZONTE, 60)
-        filas["prevision"] = np.exp(modelo.predict(_variables_precio(futuro)[COLUMNAS_PRECIO]))
+        Xf = _variables_precio(futuro)
+        if demanda is not None:
+            Xf["ldemanda"] = _demanda_prevista(demanda, origen, pd.DatetimeIndex(filas["mes"]))
+        filas["prevision"] = np.exp(modelo.predict(Xf[columnas]))
         return filas
 
     return prever

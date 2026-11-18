@@ -571,6 +571,12 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
         detalle = pd.read_csv(CARPETA_TABLAS / "generacion_nacional_detalle.csv", parse_dates=["fecha"])
         detalle = detalle[detalle["fecha"] <= ultimo_completo]
         candidatos_p["estructural_gas_tiempo"] = gas_tiempo.candidato_precio_estructural(gas, detalle, mensual["precio_eur_mwh"].dropna())
+        # Afinado del 18/11/2026: el mismo modelo con la demanda nacional (REData, `ree_demanda_mensual.csv`).
+        from cpd.config import RUTA_DEMANDA_LIMPIA
+
+        if RUTA_DEMANDA_LIMPIA.exists():
+            demanda_nacional = pd.read_csv(RUTA_DEMANDA_LIMPIA, parse_dates=["fecha"]).set_index("fecha")["demanda_mwh"]
+            candidatos_p["estructural_demanda"] = gas_tiempo.candidato_precio_estructural(gas, detalle, mensual["precio_eur_mwh"].dropna(), demanda_nacional)
     origenes_p = anual.definir_origenes(mensual["precio_eur_mwh"].dropna().index.max())
     res_p = anual.evaluar(candidatos_p, anual.reales_precio(mensual), origenes_p, "mae")
     prev_p = anual.prevision_final(candidatos_p, res_p, {"ES": origenes_p.fin})
@@ -606,6 +612,8 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
             "media_12m_actual": round(float(historia_p.iloc[-12:].mean()), 2),
             "ultimo_mes": mes(historia_p.index.max()), "ultimo_mes_valor": round(float(historia_p.iloc[-1]), 2),
             "futuro_gas_anio": round(float(mensual["gas_y1_eur_mwh"].dropna().iloc[-1]), 2) if gas is not None else None,
+            # Acierto del precio medio de los 12 meses (el que pesaría en el VAN), además del mes a mes.
+            **{f"acierto_anual_{k}": round(v, 1) for k, v in anual.acierto_media_anual(res_p).items()},
         },
         "demanda": {
             "modelo": res_d["elegido"], "miembros": res_d["miembros"], "metrica": "mape_pct", "unidad": "MWh",
@@ -1673,6 +1681,7 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict, medio: dict | No
         filas.append((f"{nombres_gt.get(clave, clave)} a 1 año · entrada del precio, inestable", m["acierto_validacion"], m["acierto_test"], "100 − WAPE"))
     filas += [
         ("Precio de la luz a 1 año", j["precio"]["acierto_validacion"], j["precio"]["acierto_test"], "100 − WAPE"),
+        ("Precio de la luz: media de 12 meses", j["precio"].get("acierto_anual_validacion"), j["precio"].get("acierto_anual_test"), "100 − WAPE de la media anual"),
         ("Demanda nacional a 10 años", diez["acierto"], None, "100 − WAPE (backtesting 2012-2025)"),
     ]
     if medio is not None:
