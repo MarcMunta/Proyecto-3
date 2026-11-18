@@ -28,6 +28,7 @@ indica una fuga de información. El control se ejecuta en cada `python -m cpd.mo
 | Generación renovable por comunidad: total de 12 meses | 92,3 % | 93,5 % | 100 − WAPE del total anual | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: consumo | 99,7 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
 | Operación del CPD a 1 año: emisiones | 90,6 % | — | 100 − WAPE del total anual (22 orígenes comunes) | cumple (objetivo 90 %) |
+| Impacto eléctrico local a 1 año (P2) | 96,1 % | — | 100 − WAPE del % del CPD sobre la demanda de su comunidad | cumple (objetivo 90 %) |
 | Gas natural (MIBGAS) a 1 año · entrada del precio, inestable | 70,4 % | 52,3 % | 100 − WAPE | no cumple (< 85 %) |
 | Eólica de España (tiempo) a 1 año · entrada del precio, inestable | 86,6 % | 83,7 % | 100 − WAPE | no cumple (< 85 %) |
 | Solar de España (tiempo) a 1 año · entrada del precio, inestable | 90,9 % | 90,9 % | 100 − WAPE | cumple (objetivo 90 %) |
@@ -389,6 +390,35 @@ entre provincias); no hay fuga de información: el dato real de cada año no se 
 (naranja).
 
 Menos emisiones previstas: Soria (2,2 mil t), Burgos (2,2 mil t), León (2,2 mil t), Ávila (2,2 mil t), Palencia (2,2 mil t). Más: Melilla (52,3 mil t), Ceuta (52,1 mil t), Balears, Illes (44,8 mil t), Palmas, Las (42,1 mil t), Santa Cruz de Tenerife (42,0 mil t).
+
+## Impacto del CPD sobre los recursos locales (pregunta P2)
+
+No hay consumo eléctrico ni de agua abierto por municipio o provincia, así que el impacto del CPD de referencia se mide
+frente a lo que sí se publica por **comunidad**. Código: `src/cpd/modelos/impacto_local.py`.
+
+- **Electricidad:** consumo previsto del CPD en los próximos 12 meses (temperatura prevista → PUE) frente a la demanda
+  prevista de su comunidad (modelo de demanda).
+- **Red:** potencia máxima del CPD (potencia TI × PUE) frente a la capacidad de acceso **libre** para nueva demanda en su
+  comunidad (Red Eléctrica).
+- **Agua:** agua anual del CPD frente al agua registrada y distribuida por la red pública de su comunidad (INE,
+  «Estadística sobre el suministro y saneamiento del agua», 2024; dato nuevo, tabla 53447). Ceuta y Melilla se
+  publican juntas.
+- **Habitantes equivalentes:** consumo del CPD entre el consumo por habitante de su comunidad (todos los usos: hogares,
+  industria y servicios). Es una comparación de escala, no un número de hogares.
+
+**Validación de punta a punta** del % eléctrico (20 orígenes de validación comunes a los modelos de temperatura y
+demanda): acierto **96,1 %** en validación.
+
+![Impacto local](../../docs/figuras/previsiones/17_impacto_local.png)
+
+**Figura 17.** Impacto previsto del CPD de referencia por comunidad (media de sus provincias). Las barras que se salen
+de la escala llevan «▸».
+
+En la provincia mediana el CPD supondría el **3,7 %** de la electricidad de su comunidad (como
+90.453 habitantes) y el **0,10 %** de su agua (como 2.563 habitantes): el recurso que más
+pesa es la electricidad, no el agua. Mayor peso eléctrico: Ceuta (244,9 %), Melilla (216,3 %), Rioja, La (32,4 %), Cantabria (13,3 %) (sistemas pequeños o aislados).
+Red casi llena (≥ 50 % de la capacidad libre): Zaragoza (82 %), Huesca (82 %), Teruel (80 %). Sin capacidad libre (0 MW):
+Madrid, Navarra, Ceuta; ahí el CPD no cabe hoy en la red de acceso de su comunidad.
 
 
 ## Riesgo sísmico por provincia (P8)
