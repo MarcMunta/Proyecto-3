@@ -777,6 +777,81 @@ Red casi llena (≥ 50 % de la capacidad libre): {lista(red, 'pct_capacidad_disp
 """
 
 
+def _seccion_escenarios(esc: dict[str, Any], figura: str) -> str:
+    """Escenarios de demanda a 10 años con la red otorgada y en trámite (P5)."""
+    j = esc["json"]
+    f = j["final"]
+    ccaa = pd.DataFrame.from_dict(j["ccaa"], orient="index").sort_values("pct_otorgada", ascending=False)
+    top = ", ".join(f"{r.ccaa} ({_n(r.pct_otorgada, 0)} %)" for r in ccaa.head(4).itertuples())
+    real = j["ultimo_real"]
+    linea = lambda k: f"{_n(f[k]['demanda_twh'], 0)} TWh ({'+' if f[k]['cambio_pct'] >= 0 else ''}{_n(f[k]['cambio_pct'], 0)} %)"  # noqa: E731
+    reals = [k for k in f if k.startswith("otorgada_")]
+    return f"""### Escenarios con los nuevos grandes consumos (P5)
+
+La previsión anterior es **tendencial**: no sabe que llegan centros de datos, hidrógeno o industria electrificada. Red
+Eléctrica publica la capacidad de acceso a la red de transporte ya **otorgada** a nuevos consumos
+(**{_n(j['otorgada_mw'], 0)} MW** en España) y la que está **en trámite** (**{_n(j['pendiente_mw'], 0)} MW**). Usada al {_n(100 * j['factor_utilizacion'], 0)} % (factor de carga del CPD
+de referencia), la otorgada serían **{_n(j['otorgada_twh_anio'], 0)} TWh al año**: la mitad de la demanda actual ({_n(real['valor'], 0)} TWh en {real['anio']}).
+Código: `src/cpd/modelos/escenarios.py`.
+
+No hay dato abierto de cuánto de lo otorgado llega a consumir (Red Eléctrica solo publica el último mes), así que se
+dan **escenarios** con supuestos a la vista (`config/settings.yaml → escenarios_demanda`, a calibrar; recomendación, no
+viene de clase), con la capacidad entrando de forma lineal en 10 años. **No es una previsión con acierto**: el único
+modelo validado es el tendencial.
+
+![Escenarios de demanda]({figura})
+
+**Figura 11c.** (a) Demanda de España: real, previsión tendencial con su intervalo y escenarios. (b) Energía de la red
+otorgada y en trámite de cada comunidad frente a su demanda actual.
+
+En {j['anio_final']}: tendencial {linea('tendencial')}; {'; '.join(f"con el {k.removeprefix('otorgada_')} % de lo otorgado {linea(k)}" for k in reals)}; techo (otorgada y en trámite enteras)
+{linea('techo')}. Por comunidad, lo otorgado pesa más en {top}: en **Aragón** la red concedida equivale a más de dos veces su
+demanda actual, la huella de los centros de datos anunciados allí. La capacidad incluye todos los grandes consumos,
+no solo CPD.
+"""
+
+
+def _seccion_socioeconomico(socio: dict[str, Any], figura: str) -> str:
+    """Impacto socioeconómico (E39-E41): empleo, inversión inducida y PIB con las tablas input-output del INE."""
+    j = socio["json"]
+    c, o = j["construccion"], j["operacion"]
+    nombres = socio["ramas"].set_index("codigo")["nombre"] if "ramas" in socio else pd.Series(dtype=str)
+    corto = lambda k: (str(nombres.get(k, f"producto {k}")).split(";")[0].split(",")[0]).lower()  # noqa: E731
+    reparto = ", ".join(f"{corto(k)} {_n(100 * v, 0)} %" for k, v in j["reparto_capex"].items())
+    prov = pd.DataFrame.from_dict(j["provincias"], orient="index")
+    mas, menos = prov.nlargest(4, "pct_pib"), prov.nsmallest(3, "pct_pib")
+    lista = lambda d: ", ".join(f"{f.nombre} ({_n(f.pct_pib, 2)} %)" for f in d.itertuples())  # noqa: E731
+    cu = o["cuentas_meur"]
+    return f"""## Impacto socioeconómico: empleo, inversión inducida y PIB (E39-E41)
+
+Modelo **input-output de Leontief (tipo I)** con las **Tablas Input-Output 2022 del INE** (Revisión Estadística 2024;
+dato nuevo): la matriz inversa **interior** de Leontief da la producción española que genera cada euro de demanda, y el
+empleo (puestos equivalentes a tiempo completo) y el VAB por euro producido de cada rama la pasan a empleos y VAB.
+Es el método estándar de la contabilidad nacional para efectos indirectos (recomendación, no viene de clase). Código:
+`src/cpd/modelos/socioeconomico.py`.
+
+- **Construcción (una vez):** el CAPEX del CPD de referencia ({_n(c['inversion_meur'], 0)} M€) repartido por productos
+  ({reparto}; **supuesto a calibrar** en `config/settings.yaml`). A cada producto se le quita su cuota de importación
+  real: de los {_n(c['inversion_meur'], 0)} M€ se quedan en España **{_n(c['en_espana_meur'], 0)} M€** (la mitad del equipo eléctrico y de la maquinaria se importa).
+  Genera **{_n(c['empleo_anio'], 0)} empleos-año**, {_n(c['produccion_meur'], 0)} M€ de producción (**inversión inducida**, E40) y {_n(c['vab_meur'], 0)} M€ de VAB.
+- **Operación (cada año):** **{_n(o['directo']['empleo_etc'], 0)} empleos directos** (plantilla del simulador) y **{_n(o['indirecto']['empleo_etc'], 0)} indirectos** en los
+  proveedores de electricidad, agua y mantenimiento: **{_n(o['empleo_total'], 0)} empleos** (multiplicador ×{_n(o['multiplicador_empleo'], 1)}). VAB directo
+  {_n(o['directo']['vab_meur'], 1)} M€ (ingresos {_n(cu['ingresos'], 1)} M€ − compras {_n(cu['compras'], 1)} M€, con las fórmulas del VAN) e indirecto {_n(o['indirecto']['vab_meur'], 1)} M€: **{_n(o['vab_total_meur'], 1)} M€ al año**.
+- **PIB (E41):** no hay PIB municipal; el VAB directo se compara con el PIB de cada provincia (INE, Contabilidad
+  Regional, {j['anio_pib']}). Pesa más en las provincias pequeñas: {lista(mas)}; menos en {lista(menos)}.
+
+![Impacto socioeconómico]({figura})
+
+**Figura 18.** (a) Empleo de la construcción por producto (empleos-año). (b) Empleo de un año de operación: plantilla
+del CPD (azul) y proveedores (naranja). (c) VAB directo del CPD sobre el PIB de las 15 provincias donde más pesa.
+
+**Límites.** Es un cálculo con coeficientes medios nacionales de 2022, no una previsión: no tiene acierto que medir
+con backtesting. Tipo I (no incluye el gasto de los salarios, tipo II). El empleo indirecto y el de la obra se reparten
+por toda España (proveedores), así que no se comparan con el paro de la provincia; solo los {_n(o['directo']['empleo_etc'], 0)} empleos directos
+(en Soria serían el {_n(prov.loc['42', 'pct_paro_directo'], 1) if '42' in prov.index else '—'} % de su paro registrado, {j['mes_paro']}).
+"""
+
+
 def _seccion_medio_plazo(medio: dict[str, Any], figura: str) -> str:
     """Medio plazo (10 años, A3): temperatura → PUE → consumo del CPD y reserva de agua del ámbito."""
     j = medio["json"]
@@ -1017,8 +1092,12 @@ def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None
         _seccion_gas_tiempo(anual["gas_tiempo"], fig["gas_tiempo"], anual["precio"]) if anual.get("gas_tiempo") and "gas_tiempo" in fig else ""
     )
     seccion_10 = _seccion_10_anios(diez) if diez else ""
+    if anual.get("escenarios"):
+        seccion_10 += "\n" + _seccion_escenarios(anual["escenarios"], "../../" + anual["escenarios"]["figura"])
     if anual.get("medio_plazo"):
         seccion_10 += "\n" + _seccion_medio_plazo(anual["medio_plazo"], "../../" + anual["medio_plazo"]["figura"])
+    if anual.get("socioeconomico"):
+        seccion_10 += "\n" + _seccion_socioeconomico(anual["socioeconomico"], "../../" + anual["socioeconomico"]["figura"])
     return f"""# Previsiones · 1 año (demanda, precio de la luz, reservas de agua, temperatura y renovables) y 10 años (demanda nacional)
 
 {AVISO.format(fecha=fecha)}

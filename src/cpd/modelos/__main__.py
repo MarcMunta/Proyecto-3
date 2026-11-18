@@ -18,6 +18,7 @@ import dataclasses
 import datetime as dt
 import functools
 import sys
+import textwrap
 import time
 from pathlib import Path
 
@@ -1184,6 +1185,185 @@ def _figura_10_anios(anual_twh: pd.Series, resultado: dict, prevision: pd.DataFr
     return _guardar_figura(figura, "07_demanda_nacional_10_anios.png")
 
 
+def ejecutar_escenarios(diez: dict, anual_res: dict) -> dict:
+    """Escenarios de demanda a 10 años con la capacidad de red otorgada y en trámite (P5, `cpd.modelos.escenarios`)."""
+    import json
+
+    from cpd.config import cargar_settings
+    from cpd.fuentes.curado import CARPETA_TABLAS
+    from cpd.modelos import escenarios as esc
+
+    ajustes = cargar_settings()["escenarios_demanda"]
+    factor, realizaciones = float(ajustes["factor_utilizacion"]), [float(r) for r in ajustes["realizaciones"]]
+    capacidad = pd.read_csv(CARPETA_TABLAS / "capacidad_ccaa.csv", dtype={"codigo_ccaa": str})
+    otorgada, pendiente = float(capacidad["capacidad_demanda_rdt_otorgada_mw"].sum()), float(capacidad["capacidad_demanda_rdt_pendiente_mw"].sum())
+    nacional = esc.escenarios_nacionales(diez["prevision"], otorgada, pendiente, factor, realizaciones)
+    demanda_ccaa = pd.Series({c: v["ultimos_12m"] for c, v in anual_res["json"]["demanda"]["ccaa"].items()})
+    ccaa = esc.por_ccaa(capacidad, demanda_ccaa, factor)
+    final = nacional[nacional["anio"] == nacional["anio"].max()].set_index("escenario")
+    ultimo = diez["json"]["historia"][-1]
+    print(f"  escenarios {int(final['anio'].iloc[0])}: " + ", ".join(f"{k} {v:.0f} TWh" for k, v in final["demanda_twh"].items()))
+    salida = {
+        "factor_utilizacion": factor, "realizaciones": realizaciones, "otorgada_mw": otorgada, "pendiente_mw": pendiente,
+        "otorgada_twh_anio": round(esc.energia_twh(otorgada, factor), 1), "pendiente_twh_anio": round(esc.energia_twh(pendiente, factor), 1),
+        "ultimo_real": ultimo, "anio_final": int(final["anio"].iloc[0]),
+        "final": {k: {"demanda_twh": round(float(v.demanda_twh), 1), "cambio_pct": round(100 * (float(v.demanda_twh) / ultimo["valor"] - 1), 1)} for k, v in final.iterrows()},
+        "ccaa": {
+            f.codigo_ccaa: {"ccaa": f.ccaa, "otorgada_mw": f.otorgada_mw, "pendiente_mw": f.pendiente_mw, "demanda_twh": round(f.demanda_twh, 2), "pct_otorgada": round(f.pct_otorgada, 1), "pct_pendiente": round(f.pct_pendiente, 1)}
+            for f in ccaa.itertuples() if pd.notna(f.demanda_twh)
+        },
+    }
+    nacional.to_csv(RUTA_SALIDAS / "escenarios_demanda_10_anios.csv", index=False)
+    ccaa.to_csv(RUTA_SALIDAS / "escenarios_demanda_ccaa.csv", index=False)
+    (RUTA_SALIDAS / "escenarios_demanda.json").write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
+    datos = {"nacional": nacional, "ccaa": ccaa, "json": salida, "diez": diez}
+    return {**datos, "figura": _figura_escenarios(datos)}
+
+
+@_con_estilo
+def _figura_escenarios(datos: dict) -> str:
+    """Figura 19: (a) demanda nacional real, previsión tendencial y escenarios con la red otorgada y en trámite;
+    (b) energía de la red otorgada y en trámite de cada comunidad frente a su demanda actual (%)."""
+    j, nacional, ccaa, diez = datos["json"], datos["nacional"], datos["ccaa"].dropna(subset=["demanda_twh"]), datos["diez"]
+    coma = lambda v, d=0: f"{v:,.{d}f}".replace(",", " ").replace(".", ",").replace(" ", ".")  # noqa: E731
+    figura, (eje_n, eje_c) = plt.subplots(1, 2, figsize=(16, 6.6), gridspec_kw={"width_ratios": [1.25, 1]})
+    historia = pd.DataFrame(diez["json"]["historia"])
+    prev = diez["prevision"]
+    ultimo = historia.iloc[-1]
+    eje_n.fill_between(prev["anio"], prev["inferior_twh"], prev["superior_twh"], color=COLOR_PREVISTO, alpha=0.14, lw=0, label="intervalo 10-90 % (tendencial)")
+    eje_n.plot(historia["anio"], historia["valor"], color=COLOR_REAL, label="demanda real", zorder=4)
+    estilos = {"tendencial": ((0, ()), 2.0), "techo": ((0, (1, 2)), 1.4)}
+    for nombre, d in nacional.groupby("escenario", sort=False):
+        ls, lw = estilos.get(nombre, ((0, (5, 3)), 1.3))
+        if nombre == "tendencial":
+            etiqueta = f"tendencial (validado, {coma(diez['json']['acierto'], 1)} %)"
+        elif nombre == "techo":
+            etiqueta = "techo: otorgada + en trámite enteras"
+        else:
+            etiqueta = f"+ {nombre.removeprefix('otorgada_')} % de la red otorgada"
+        eje_n.plot([ultimo["anio"], *d["anio"]], [ultimo["valor"], *d["demanda_twh"]], color=COLOR_PREVISTO, ls=ls, lw=lw, label=etiqueta, zorder=3)
+        _punto_final(eje_n, int(d["anio"].iloc[-1]), float(d["demanda_twh"].iloc[-1]), f"{coma(d['demanda_twh'].iloc[-1])}", COLOR_PREVISTO)
+    eje_n.set_title(f"(a) Demanda de España (TWh/año): escenarios con {coma(j['otorgada_mw'])} MW otorgados y {coma(j['pendiente_mw'])} MW en trámite", fontsize=10, loc="left")
+    eje_n.set_ylabel("TWh al año")
+    eje_n.xaxis.set_major_locator(MaxNLocator(integer=True))
+    eje_n.legend(loc="upper left", fontsize=8)
+
+    ccaa = ccaa.sort_values("pct_otorgada")
+    y = np.arange(len(ccaa))
+    eje_c.barh(y - 0.2, ccaa["pct_otorgada"], 0.38, color=COLOR_PREVISTO, edgecolor=FONDO, lw=1, label="otorgada")
+    eje_c.barh(y + 0.2, ccaa["pct_pendiente"], 0.38, color=COLOR_REAL, edgecolor=FONDO, lw=1, label="en trámite")
+    for yi, v in zip(y, ccaa["pct_otorgada"]):
+        eje_c.annotate(f"{coma(v)} %", (v, yi - 0.2), xytext=(3, 0), textcoords="offset points", va="center", fontsize=7, color=TINTA_2)
+    eje_c.set_yticks(y, ccaa["ccaa"], fontsize=8)
+    eje_c.grid(False)
+    eje_c.grid(axis="x")
+    eje_c.xaxis.set_major_formatter(lambda x, _: f"{x:,.0f}".replace(",", "."))
+    eje_c.set_xlabel(f"% de la demanda actual de la comunidad (energía = MW × 8.760 h × {coma(j['factor_utilizacion'], 1)})")
+    eje_c.set_title("(b) Red otorgada y en trámite frente a la demanda de cada comunidad", fontsize=10, loc="left")
+    eje_c.legend(loc="lower right", fontsize=8)
+    figura.suptitle("Escenarios de demanda a 10 años con los nuevos grandes consumos (P5) · supuestos a calibrar, no es una previsión", x=0.01, ha="left")
+    figura.tight_layout(rect=(0, 0, 1, 0.94))
+    return _guardar_figura(figura, "19_escenarios_demanda.png")
+
+
+def ejecutar_socioeconomico(anual_res: dict) -> dict:
+    """Impacto socioeconómico del CPD de referencia (E39-E41) con las Tablas Input-Output del INE
+    (`cpd.modelos.socioeconomico`). El consumo es la mediana del previsto en las provincias a 1 año."""
+    import json
+
+    from cpd import simulator as simulador
+    from cpd.config import cargar_settings
+    from cpd.fuentes.curado import CARPETA_TABLAS
+    from cpd.modelos import socioeconomico as se
+
+    ajustes = cargar_settings()
+    validos = {f.name for f in dataclasses.fields(simulador.CPDParams)}
+    params = simulador.CPDParams(**{k: v for k, v in ajustes.get("cpd_por_defecto", {}).items() if k in validos})
+    reparto = {str(k): float(v) for k, v in ajustes["impacto_socioeconomico"]["reparto_capex"].items()}
+    ramas = pd.read_csv(CARPETA_TABLAS / "tio_ramas.csv", dtype={"codigo": str})
+    leontief = pd.read_csv(CARPETA_TABLAS / "tio_leontief_interior.csv", dtype={"codigo": str}).set_index("codigo")
+    provincias_op = anual_res["json"]["operacion"]["provincias"]
+    consumo = float(np.median([p["consumo_previsto_mwh"] for p in provincias_op.values()]))
+    res = se.impacto(params, dict(ajustes["precios"]), reparto, consumo, ramas, leontief)
+    c, o = res["construccion"], res["operacion"]
+    paro = pd.read_csv(CARPETA_TABLAS / "paro.csv", dtype={"codigo_provincia": str})
+    mes_paro = paro["mes"].max()
+    paro_ult = paro[paro["mes"] == mes_paro].set_index("codigo_provincia")["paro_registrado"]
+    tabla = se.por_provincia(o["directo"]["vab_meur"], o["directo"]["empleo_etc"], pd.read_csv(CARPETA_TABLAS / "pib_provincia.csv", dtype={"codigo_provincia": str}), paro_ult)
+    print(
+        f"  construcción: {c['empleo_etc']:.0f} empleos-año, VAB {c['vab_meur']:.0f} M€ (de {params.inversion_eur / 1e6:.0f} M€, {c['demanda_interior_meur']:.0f} M€ en España); "
+        f"operación: {o['directo']['empleo_etc']:.0f} directos + {o['indirecto']['empleo_etc']:.0f} indirectos, VAB {o['vab_total_meur']:.0f} M€/año"
+    )
+    nombres = {k: v.get("nombre", k) for k, v in anual_res["json"]["temperatura"]["provincias"].items()}
+    redondeo = lambda d: {k: round(float(v), 1) for k, v in d.items()}  # noqa: E731
+    salida = {
+        "fuente": "INE, Tablas Input-Output 2022 (inversa interior de Leontief) y Contabilidad Regional (PIB provincial)",
+        "cpd": {"inversion_eur": params.inversion_eur, "personal": params.personal, "potencia_ti_mw": params.potencia_ti_mw},
+        "reparto_capex": reparto, "consumo_mwh": round(consumo, 0),
+        "construccion": {
+            "inversion_meur": params.inversion_eur / 1e6, "en_espana_meur": round(c["demanda_interior_meur"], 1),
+            "produccion_meur": round(c["produccion_meur"], 1), "vab_meur": round(c["vab_meur"], 1), "empleo_anio": round(c["empleo_etc"], 0),
+        },
+        "operacion": {
+            "directo": redondeo(o["directo"]), "indirecto": {"empleo_etc": round(o["indirecto"]["empleo_etc"], 0), "vab_meur": round(o["indirecto"]["vab_meur"], 1)},
+            "empleo_total": round(o["empleo_total"], 0), "vab_total_meur": round(o["vab_total_meur"], 1),
+            "multiplicador_empleo": round(res["multiplicador_empleo_operacion"], 2), "cuentas_meur": {k: round(v / 1e6, 2) for k, v in res["operacion_eur"].items()},
+        },
+        "mes_paro": str(mes_paro)[:7], "anio_pib": int(tabla["anio_pib"].iloc[0]),
+        "provincias": {
+            f.codigo_provincia: {"nombre": nombres.get(f.codigo_provincia, f.codigo_provincia), "pct_pib": round(f.pct_pib, 3), "pct_paro_directo": round(f.pct_paro_directo, 2)}
+            for f in tabla.itertuples()
+        },
+    }
+    c["por_producto"].to_csv(RUTA_SALIDAS / "socioeconomico_construccion_por_producto.csv")
+    o["indirecto"]["por_producto"].to_csv(RUTA_SALIDAS / "socioeconomico_operacion_por_producto.csv")
+    tabla.to_csv(RUTA_SALIDAS / "socioeconomico_provincia.csv", index=False)
+    (RUTA_SALIDAS / "impacto_socioeconomico.json").write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
+    datos = {"resultado": res, "tabla": tabla, "ramas": ramas, "json": salida}
+    return {**datos, "figura": _figura_socioeconomico(datos)}
+
+
+@_con_estilo
+def _figura_socioeconomico(datos: dict) -> str:
+    """Figura 18: (a) empleo de la construcción por producto (empleos-año), (b) empleo de un año de operación (directo e
+    indirecto por producto) y (c) VAB directo del CPD sobre el PIB de las 15 provincias donde más pesa."""
+    res, ramas, j = datos["resultado"], datos["ramas"].set_index("codigo"), datos["json"]
+    corto = lambda codigo: textwrap.shorten(str(ramas.loc[codigo, "nombre"]), 42, placeholder="…")  # noqa: E731
+    coma = lambda v, d=0: f"{v:,.{d}f}".replace(",", " ").replace(".", ",").replace(" ", ".")  # noqa: E731
+    figura, ejes = plt.subplots(1, 3, figsize=(17, 6.6), gridspec_kw={"width_ratios": [1.15, 1.15, 1]})
+
+    def barras(eje, serie: pd.Series, titulo: str, unidad: str, dec: int = 0, colores: list[str] | None = None) -> None:
+        y = np.arange(len(serie))
+        eje.barh(y, serie.to_numpy(), 0.62, color=colores or COLOR_PREVISTO, edgecolor=FONDO, lw=1)
+        for yi, v in zip(y, serie.to_numpy()):
+            eje.annotate(f"{coma(v, dec)}{unidad}", (v, yi), xytext=(4, 0), textcoords="offset points", va="center", fontsize=7.5, color=TINTA_2)
+        eje.set_yticks(y, serie.index, fontsize=8)
+        eje.invert_yaxis()
+        eje.set_xlim(0, serie.max() * 1.25)
+        eje.xaxis.set_major_formatter(lambda x, _: f"{x:,.10g}".replace(",", " ").replace(".", ",").replace(" ", "."))
+        eje.set_title(titulo, fontsize=9.5, loc="left")
+        eje.grid(False)
+        eje.grid(axis="x")
+
+    c = res["construccion"]["por_producto"]["empleo_etc"].head(8)
+    barras(ejes[0], c.rename(index=corto), f"(a) Construcción: {coma(j['construccion']['empleo_anio'])} empleos-año", "")
+    ind = res["operacion"]["indirecto"]["por_producto"]["empleo_etc"].head(7)
+    oper = pd.concat([pd.Series({"Plantilla del CPD (directo)": j["operacion"]["directo"]["empleo_etc"]}), ind.rename(index=corto)])
+    barras(
+        ejes[1], oper, f"(b) Operación: {coma(j['operacion']['empleo_total'])} empleos al año (×{coma(j['operacion']['multiplicador_empleo'], 1)})", "",
+        colores=[COLOR_REAL] + [COLOR_PREVISTO] * len(ind),
+    )
+    ejes[1].annotate("azul: plantilla del CPD (directo) · naranja: proveedores (indirecto)", (0, -0.09), xycoords="axes fraction", fontsize=7.5, color=TINTA_3)
+    prov = pd.DataFrame.from_dict(j["provincias"], orient="index").nlargest(15, "pct_pib")
+    barras(ejes[2], prov.set_index("nombre")["pct_pib"], f"(c) VAB directo / PIB provincial ({j['anio_pib']})", " %", 2)
+    figura.suptitle(
+        f"Impacto socioeconómico del CPD de referencia ({coma(j['construccion']['inversion_meur'])} M€, {j['cpd']['personal']} empleados): INE, tablas input-output 2022",
+        x=0.01, ha="left",
+    )
+    figura.tight_layout(rect=(0, 0, 1, 0.94))
+    return _guardar_figura(figura, "18_impacto_socioeconomico.png")
+
+
 def ejecutar_medio_plazo() -> dict:
     """Sostenibilidad operativa del CPD a 10 años (A3): temperatura → PUE → consumo y reserva de agua del ámbito
     (`cpd.modelos.medio_plazo`)."""
@@ -1457,8 +1637,12 @@ def main() -> None:
     anual_res = ejecutar_anual(panel)
     print("Demanda nacional a 10 años")
     diez = ejecutar_10_anios()
+    print("Escenarios de demanda con los nuevos grandes consumos (P5)")
+    anual_res["escenarios"] = ejecutar_escenarios(diez, anual_res)
     print("Medio plazo: clima y agua a 10 años (A3)")
     anual_res["medio_plazo"] = ejecutar_medio_plazo()
+    print("Impacto socioeconómico (E39-E41)")
+    anual_res["socioeconomico"] = ejecutar_socioeconomico(anual_res)
     print("Riesgo sísmico (P8)")
     anual_res["sismico"] = ejecutar_sismico()
     print("Control de acierto")

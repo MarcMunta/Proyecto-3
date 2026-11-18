@@ -748,3 +748,94 @@ def test_agua_del_ine_lee_comunidades_con_coma_en_el_nombre():
     t = ine.agua_desde_series(series).set_index("codigo_ccaa")
     assert list(t.index) == ["03", "18-19"]
     assert t.loc["03", "agua_registrada_miles_m3"] == 82738.0 and t.loc["03", "anio"] == 2024
+
+
+# --- Impacto socioeconómico (E39-E41) --------------------------------------------------------------------------------
+
+
+def _economia_sintetica() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Economía SINTÉTICA de 4 productos (solo para el test)."""
+    ramas = pd.DataFrame(
+        {
+            "codigo": ["23", "24", "25", "27"], "nombre": ["mantenimiento", "electricidad", "agua", "construcción"],
+            "produccion_meur": [100.0, 200.0, 50.0, 400.0], "vab_meur": [40.0, 90.0, 20.0, 160.0], "importaciones_meur": [0.0, 20.0, 0.0, 100.0],
+            "oferta_meur": [100.0, 220.0, 50.0, 500.0], "empleo_etc_miles": [0.5, 0.2, 0.1, 2.0],
+        }
+    )
+    codigos = ["23", "24", "25", "27"]
+    leontief = pd.DataFrame(np.eye(4), index=codigos, columns=codigos)
+    leontief.loc["24", "27"] = 0.1  # cada € de construcción pide 0,1 € de electricidad
+    return ramas, leontief
+
+
+def test_socioeconomico_efecto_con_leontief_y_cuota_interior():
+    from cpd.modelos import socioeconomico
+
+    ramas, leontief = _economia_sintetica()
+    c = socioeconomico.coeficientes(ramas)
+    assert c.loc["27", "empleo_por_meur"] == pytest.approx(5.0)  # 2.000 ETC / 400 M€
+    assert c.loc["27", "cuota_interior"] == pytest.approx(0.8)  # 1 − 100 / 500
+    e = socioeconomico.efecto({"27": 10.0}, ramas, leontief)
+    assert e["demanda_interior_meur"] == pytest.approx(8.0)
+    assert e["produccion_meur"] == pytest.approx(8.0 + 0.8)  # 8 de construcción + 0,8 de electricidad
+    assert e["empleo_etc"] == pytest.approx(8.0 * 5.0 + 0.8 * 1.0)
+
+
+def test_socioeconomico_reparto_del_capex_debe_sumar_uno():
+    from cpd import simulator as sim
+    from cpd.modelos import socioeconomico
+
+    ramas, leontief = _economia_sintetica()
+    precios = {"precio_electricidad_eur_mwh": 75, "precio_agua_eur_m3": 2, "mantenimiento_pct_inversion": 0.02, "precio_venta_eur_kw_mes": 120, "ocupacion": 0.85}
+    with pytest.raises(ValueError):
+        socioeconomico.impacto(sim.CPDParams(), precios, {"27": 0.5}, 500_000, ramas, leontief)
+    r = socioeconomico.impacto(sim.CPDParams(), precios, {"27": 1.0}, 500_000, ramas, leontief)
+    assert r["operacion"]["directo"]["empleo_etc"] == sim.CPDParams().personal
+    assert r["operacion"]["empleo_total"] > r["operacion"]["directo"]["empleo_etc"]
+
+
+def test_pib_del_ine_descarta_comunidades_y_lee_uniprovinciales():
+    from cpd.fuentes import ine
+
+    series = [
+        {"Nombre": "Aragón. Dato base. Producto interior bruto a precios de mercado. Precios corrientes. ", "Data": [{"Anyo": 2024, "Valor": 50.0}]},
+        {"Nombre": "Zaragoza. Dato base. Producto interior bruto a precios de mercado. Precios corrientes. ", "Data": [{"Anyo": 2024, "Valor": 36.0}]},
+        {"Nombre": "Madrid, Comunidad de. Dato base. Producto interior bruto a precios de mercado. Precios corrientes. ", "Data": [{"Anyo": 2024, "Valor": 318.0}]},
+        {"Nombre": "Zaragoza. Estructura Porcentual. Producto interior bruto a precios de mercado. Precios corrientes. ", "Data": [{"Anyo": 2024, "Valor": 2.3}]},
+    ]
+    t = ine.pib_desde_series(series).set_index("codigo_provincia")
+    assert sorted(t.index) == ["28", "50"] and t.loc["50", "pib_miles_eur"] == 36.0
+
+
+def test_tio_codigo_de_producto_incluye_bis():
+    from cpd.fuentes import ine_tio
+
+    assert ine_tio._codigo("40. Servicios de programación") == "40"
+    assert ine_tio._codigo("44 bis. Alquileres imputados") == "44bis"
+    assert ine_tio._codigo("Total de empleos a precios básicos") is None
+
+
+# --- Escenarios de demanda a 10 años (P5) ----------------------------------------------------------------------------
+
+
+def test_escenarios_suman_la_red_otorgada_con_rampa_lineal():
+    from cpd.modelos import escenarios
+
+    # Datos SINTÉTICOS (solo para el test).
+    prevision = pd.DataFrame({"anio": [2026, 2027], "horizonte_anios": [1, 2], "prevision_twh": [250.0, 248.0]})
+    t = escenarios.escenarios_nacionales(prevision, otorgada_mw=1000.0, pendiente_mw=500.0, factor_utilizacion=0.5, realizaciones=[0.5, 1.0])
+    final = t[t["anio"] == 2027].set_index("escenario")["demanda_twh"]
+    assert final["tendencial"] == pytest.approx(248.0)
+    assert final["otorgada_100"] == pytest.approx(248.0 + 1000 * 8760 * 0.5 / 1e6)  # año 2 de 2: rampa completa
+    assert final["otorgada_50"] == pytest.approx(248.0 + 500 * 8760 * 0.5 / 1e6)
+    assert final["techo"] == pytest.approx(248.0 + 1500 * 8760 * 0.5 / 1e6)
+    primero = t[(t["anio"] == 2026) & (t["escenario"] == "otorgada_100")]["extra_twh"].iloc[0]
+    assert primero == pytest.approx(1000 * 8760 * 0.5 / 1e6 / 2)  # año 1 de 2: la mitad
+
+
+def test_escenarios_por_comunidad_peso_sobre_su_demanda():
+    from cpd.modelos import escenarios
+
+    capacidad = pd.DataFrame({"codigo_ccaa": ["02"], "ccaa": ["Aragón"], "capacidad_demanda_rdt_otorgada_mw": [1000.0], "capacidad_demanda_rdt_pendiente_mw": [0.0]})
+    t = escenarios.por_ccaa(capacidad, pd.Series({"02": 8_760_000.0}), 1.0).iloc[0]
+    assert t["otorgada_twh"] == pytest.approx(8.76) and t["pct_otorgada"] == pytest.approx(100.0)
