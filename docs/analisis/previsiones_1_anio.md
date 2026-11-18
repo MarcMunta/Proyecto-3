@@ -476,6 +476,29 @@ MAPE por horizonte (cuantos más años vista, menos orígenes con los que medirl
 datos, que pueden hacer crecer la demanda. Un CPD de 50 MW de TI consume unos 0,46 TWh al año (el 0,2 % de la demanda
 nacional). El intervalo a más de 7 años se extrapola (σ·√h) porque hay pocos orígenes para medirlo.
 
+### Escenarios con los nuevos grandes consumos (P5)
+
+La previsión anterior es **tendencial**: no sabe que llegan centros de datos, hidrógeno o industria electrificada. Red
+Eléctrica publica la capacidad de acceso a la red de transporte ya **otorgada** a nuevos consumos
+(**18.535 MW** en España) y la que está **en trámite** (**23.500 MW**). Usada al 80 % (factor de carga del CPD
+de referencia), la otorgada serían **130 TWh al año**: la mitad de la demanda actual (256 TWh en 2025).
+Código: `src/cpd/modelos/escenarios.py`.
+
+No hay dato abierto de cuánto de lo otorgado llega a consumir (Red Eléctrica solo publica el último mes), así que se
+dan **escenarios** con supuestos a la vista (`config/settings.yaml → escenarios_demanda`, a calibrar; recomendación, no
+viene de clase), con la capacidad entrando de forma lineal en 10 años. **No es una previsión con acierto**: el único
+modelo validado es el tendencial.
+
+![Escenarios de demanda](../../docs/figuras/previsiones/19_escenarios_demanda.png)
+
+**Figura 11c.** (a) Demanda de España: real, previsión tendencial con su intervalo y escenarios. (b) Energía de la red
+otorgada y en trámite de cada comunidad frente a su demanda actual.
+
+En 2035: tendencial 244 TWh (-5 %); con el 25 % de lo otorgado 276 TWh (+8 %); con el 50 % de lo otorgado 309 TWh (+20 %); con el 100 % de lo otorgado 374 TWh (+46 %); techo (otorgada y en trámite enteras)
+539 TWh (+110 %). Por comunidad, lo otorgado pesa más en Aragón (243 %), Extremadura (131 %), Castilla-La Mancha (128 %), Castilla y León (66 %): en **Aragón** la red concedida equivale a más de dos veces su
+demanda actual, la huella de los centros de datos anunciados allí. La capacidad incluye todos los grandes consumos,
+no solo CPD.
+
 ## Medio plazo: clima y agua a 10 años (sostenibilidad operativa, objetivo A3)
 
 El objetivo A3 pide previsiones a corto **y medio plazo** de la sostenibilidad operativa del CPD. A 1 año ya están el
@@ -548,6 +571,34 @@ antelación. Para un CPD lo que cuenta en una inversión a 10 años es el **agua
 
 **Emisiones a 10 años: no se prevén.** El mix por comunidad solo existe desde 2015 (11 años), con lo que no se puede
 validar un horizonte de 10 años; además depende sobre todo de decisiones políticas (PNIEC), no de la historia.
+
+## Impacto socioeconómico: empleo, inversión inducida y PIB (E39-E41)
+
+Modelo **input-output de Leontief (tipo I)** con las **Tablas Input-Output 2022 del INE** (Revisión Estadística 2024;
+dato nuevo): la matriz inversa **interior** de Leontief da la producción española que genera cada euro de demanda, y el
+empleo (puestos equivalentes a tiempo completo) y el VAB por euro producido de cada rama la pasan a empleos y VAB.
+Es el método estándar de la contabilidad nacional para efectos indirectos (recomendación, no viene de clase). Código:
+`src/cpd/modelos/socioeconomico.py`.
+
+- **Construcción (una vez):** el CAPEX del CPD de referencia (400 M€) repartido por productos
+  (construcciones y trabajos de construcción 35 %, equipo eléctrico 30 %, maquinaria y equipo n.c.o.p. 20 %, servicios técnicos de arquitectura e ingeniería 8 %, servicios de reparación e instalación de maquinaria y equipos 7 %; **supuesto a calibrar** en `config/settings.yaml`). A cada producto se le quita su cuota de importación
+  real: de los 400 M€ se quedan en España **295 M€** (la mitad del equipo eléctrico y de la maquinaria se importa).
+  Genera **3.402 empleos-año**, 562 M€ de producción (**inversión inducida**, E40) y 217 M€ de VAB.
+- **Operación (cada año):** **60 empleos directos** (plantilla del simulador) y **217 indirectos** en los
+  proveedores de electricidad, agua y mantenimiento: **277 empleos** (multiplicador ×4,6). VAB directo
+  45,2 M€ (ingresos 91,9 M€ − compras 46,7 M€, con las fórmulas del VAN) e indirecto 33,0 M€: **78,2 M€ al año**.
+- **PIB (E41):** no hay PIB municipal; el VAB directo se compara con el PIB de cada provincia (INE, Contabilidad
+  Regional, 2024). Pesa más en las provincias pequeñas: Melilla (2,46 %), Ceuta (2,32 %), Soria (1,54 %), Ávila (1,15 %); menos en Madrid (0,01 %), Barcelona (0,02 %), Valencia/València (0,06 %).
+
+![Impacto socioeconómico](../../docs/figuras/previsiones/18_impacto_socioeconomico.png)
+
+**Figura 18.** (a) Empleo de la construcción por producto (empleos-año). (b) Empleo de un año de operación: plantilla
+del CPD (azul) y proveedores (naranja). (c) VAB directo del CPD sobre el PIB de las 15 provincias donde más pesa.
+
+**Límites.** Es un cálculo con coeficientes medios nacionales de 2022, no una previsión: no tiene acierto que medir
+con backtesting. Tipo I (no incluye el gasto de los salarios, tipo II). El empleo indirecto y el de la obra se reparten
+por toda España (proveedores), así que no se comparan con el paro de la provincia; solo los 60 empleos directos
+(en Soria serían el 2,2 % de su paro registrado, 2026-10).
 
 
 ## Errores por horizonte y comparación de modelos
