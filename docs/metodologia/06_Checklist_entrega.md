@@ -30,7 +30,7 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 | F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
-| I. Técnicas de clase y de calidad de datos | 44 | 11 | 15 | 70 |
+| I. Técnicas de clase y de calidad de datos | 47 | 11 | 12 | 70 |
 | **Total** | **69** | **61** | **54** | **184** |
 
 Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si se añaden filas, recalcular.
@@ -55,7 +55,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | B4 | Diseñar un Data Lake y un Data Warehouse | 🟡 | `data/raw/`, `data/almacen/p3_cpd.duckdb`, `src/cpd/almacen.py` | | Completar estrella y escribir documento de almacenamiento (fase 5) |
 | B5 | Realizar análisis exploratorio de datos | 🟡 | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` (histogramas, box plots, series, barras, dispersión, correlaciones, pair plot; `python -m cpd.modelos`) | | Notebook `notebooks/01_eda_panel.ipynb` que llame a `cpd.modelos.eda` (la fase 4 lo pide) |
 | B6 | Detectar correlaciones entre variables territoriales y la viabilidad | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5: Pearson y Spearman frente a nº de CPD, score y VAN simulados | | — |
-| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` ; 18/11/2026: probados PIB provincial (INE) y población + renta: mejoran el log-loss (0,377 → 0,342) pero bajan el acierto con umbral (90,4 % → 84,6 %); con 52 provincias no es una mejora clara y se mantiene el modelo | | Más datos de CPD (fechas de apertura) para validar en el tiempo |
+| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` ; 18/11/2026: PIB provincial y población + renta probados y descartados (bajan el acierto con umbral a 84,6 %); la población con **target encoding de la comunidad** mejora todo (log-loss 0,316, ROC-AUC 0,925, acierto 92,3 %) y es el nuevo elegido | | Más datos de CPD (fechas de apertura) para validar en el tiempo |
 | B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Añadir parámetros del CPD que faltan (ver D) |
 | B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Informe de cuadro de mandos (fase 10) |
 | B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda, el precio, las reservas de agua, la temperatura por provincia y el % renovable por comunidad, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md`; control de acierto D8 (`data/curated/modelos/control_acierto.csv`) | | El precio de la luz a 1 año no llega al 85 % (D8): se enseña como escenario orientativo, fuera del VAN, con el motivo en el informe. Mejora posible: futuros de OMIP |
@@ -319,10 +319,10 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 | I56 | Normalización min-max (MAX-MIN) (C4 p.23) | ✅ | `src/cpd/scoring.py` (`normalizar_min_max`) | | Verificar que no altera la columna original (R-7) |
 | I57 | Estandarización z-score (C4 p.23) | ✅ | `StandardScaler` (z-score) en los pipelines de `src/cpd/modelos/` | | — |
 | I58 | Winsorizing (C4 p.8) | ✅ | `prob_cpd.Winsorizador` (percentiles 1 y 99 calculados solo con el entrenamiento de cada pliegue) y candidato `logistica_winsor`: log-loss 0,394 → 0,393, sin cambio de elegido; `tests/test_modelos.py` | | — |
-| I59 | Transformaciones polinómicas (C4 p.8) | ❌ | — | | Solo si se justifica |
+| I59 | Transformaciones polinómicas (C4 p.8) | ✅ | `prob_cpd`, candidato `poblacion_polinomica` (población y población², `PolynomialFeatures`): log-loss 0,371 frente a 0,377, sin ganar al elegido; `docs/modelos/prob_cpd.md` | | — |
 | I60 | One-hot encoding (C4 p.9, 20) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (mes del año `f_mes_02`…`f_mes_12`) | | — |
-| I61 | Frequency encoding (C4 p.9, 21) | ❌ | — | | Para categorías muchas (fase 3) |
-| I62 | Target encoding (C4 p.9) | ❌ | — | | Solo dentro de partición de entrenamiento |
+| I61 | Frequency encoding (C4 p.9, 21) | ✅ | `prob_cpd.anadir_codificaciones` (`ccaa_frecuencia`: fracción de provincias de la comunidad) y candidato `poblacion_frecuencia_ccaa`: log-loss 0,387, sin ganar; `tests/test_modelos.py` | | — |
+| I62 | Target encoding (C4 p.9) | ✅ | `prob_cpd`, candidato `poblacion_target_ccaa` (`TargetEncoder` de la comunidad dentro de cada pliegue, con validación cruzada interna): **elegido** por log-loss (0,377 → 0,316); ROC-AUC 0,882 → 0,925; acierto con umbral 90,4 % → 92,3 %; `tests/test_modelos.py` (se ajusta solo con el entrenamiento) | | — |
 | I63 | Embeddings (C4 p.9) | ❌ | — (opcional, "super-ultra-advanced") | | No prioritario |
 | I64 | Variables semánticas: zona climática, región, ranking, extracciones (C4 p.10, 27-28) | 🟡 | `ccaa`, `ambito_hidrografico`, `extrapeninsular` (`src/cpd/features/provincia.py`), ranking en `scoring.evaluar` | | Añadir zona climática y extracciones |
 | I65 | Rankings como variable (C4 p.10) | ✅ | `src/cpd/scoring.py` (ranking) | | — |
