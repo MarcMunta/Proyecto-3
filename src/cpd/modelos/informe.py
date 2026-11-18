@@ -736,6 +736,47 @@ Menos emisiones previstas: {lista(menos)}. Más: {lista(mas)}.
 """
 
 
+def _seccion_impacto(impacto: dict[str, Any], figura: str) -> str:
+    """Impacto previsto del CPD sobre los recursos locales (P2): electricidad, red y agua de su comunidad."""
+    j, tabla = impacto["resumen"], impacto["tabla"].copy()
+    tabla["nombre"] = tabla["codigo_provincia"].map(lambda c: impacto["nombres"].get(c, {}).get("nombre", c))
+    mayor = tabla.nlargest(4, "pct_demanda_ccaa")
+    red = tabla[tabla["pct_capacidad_disponible"] >= 50].sort_values("pct_capacidad_disponible", ascending=False)
+    sin_red = tabla[tabla["sin_capacidad_libre"]]
+    lista = lambda d, col, dec: ", ".join(f"{f.nombre} ({_n(getattr(f, col), dec)} %)" for f in d.itertuples())  # noqa: E731
+    test = f" y **{_n(j['acierto_test'], 1)} %** en test" if j.get("acierto_test") is not None else ""
+    med = tabla[["pct_demanda_ccaa", "habitantes_eq_electricidad", "pct_agua_ccaa", "habitantes_eq_agua"]].median()
+    return f"""## Impacto del CPD sobre los recursos locales (pregunta P2)
+
+No hay consumo eléctrico ni de agua abierto por municipio o provincia, así que el impacto del CPD de referencia se mide
+frente a lo que sí se publica por **comunidad**. Código: `src/cpd/modelos/impacto_local.py`.
+
+- **Electricidad:** consumo previsto del CPD en los próximos 12 meses (temperatura prevista → PUE) frente a la demanda
+  prevista de su comunidad (modelo de demanda).
+- **Red:** potencia máxima del CPD (potencia TI × PUE) frente a la capacidad de acceso **libre** para nueva demanda en su
+  comunidad (Red Eléctrica).
+- **Agua:** agua anual del CPD frente al agua registrada y distribuida por la red pública de su comunidad (INE,
+  «Estadística sobre el suministro y saneamiento del agua», {j['anio_agua']}; dato nuevo, tabla 53447). Ceuta y Melilla se
+  publican juntas.
+- **Habitantes equivalentes:** consumo del CPD entre el consumo por habitante de su comunidad (todos los usos: hogares,
+  industria y servicios). Es una comparación de escala, no un número de hogares.
+
+**Validación de punta a punta** del % eléctrico ({j['origenes']} orígenes de validación comunes a los modelos de temperatura y
+demanda): acierto **{_n(j['acierto_validacion'], 1)} %** en validación{test}.
+
+![Impacto local]({figura})
+
+**Figura 17.** Impacto previsto del CPD de referencia por comunidad (media de sus provincias). Las barras que se salen
+de la escala llevan «▸».
+
+En la provincia mediana el CPD supondría el **{_n(med['pct_demanda_ccaa'], 1)} %** de la electricidad de su comunidad (como
+{_n(med['habitantes_eq_electricidad'], 0)} habitantes) y el **{_n(med['pct_agua_ccaa'], 2)} %** de su agua (como {_n(med['habitantes_eq_agua'], 0)} habitantes): el recurso que más
+pesa es la electricidad, no el agua. Mayor peso eléctrico: {lista(mayor, 'pct_demanda_ccaa', 1)} (sistemas pequeños o aislados).
+Red casi llena (≥ 50 % de la capacidad libre): {lista(red, 'pct_capacidad_disponible', 0) or 'ninguna'}. Sin capacidad libre (0 MW):
+{', '.join(sin_red['nombre']) or 'ninguna'}; ahí el CPD no cabe hoy en la red de acceso de su comunidad.
+"""
+
+
 def _seccion_medio_plazo(medio: dict[str, Any], figura: str) -> str:
     """Medio plazo (10 años, A3): temperatura → PUE → consumo del CPD y reserva de agua del ámbito."""
     j = medio["json"]
@@ -969,6 +1010,8 @@ def informe_anual(anual: dict[str, Any], fecha: str, diez: dict[str, Any] | None
     )
     seccion_cobertura = _seccion_cobertura(anual["cobertura"], fig["cobertura"]) if "cobertura" in anual and "cobertura" in fig else ""
     seccion_operacion = _seccion_operacion(anual["operacion"], fig["operacion"]) if "operacion" in anual and "operacion" in fig else ""
+    if anual.get("impacto") and "impacto" in fig:
+        seccion_operacion += "\n" + _seccion_impacto(anual["impacto"], fig["impacto"])
     seccion_sismico = _seccion_sismico(anual["sismico"]) if "sismico" in anual else ""
     seccion_gas_tiempo = (
         _seccion_gas_tiempo(anual["gas_tiempo"], fig["gas_tiempo"], anual["precio"]) if anual.get("gas_tiempo") and "gas_tiempo" in fig else ""

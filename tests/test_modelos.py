@@ -713,3 +713,38 @@ def test_acierto_media_decada_es_100_con_prevision_perfecta():
     filas = [{"modelo": "m", "serie": "S", "origen": 2000, "anio": 2000 + h, "horizonte_anios": h, "prevision": 10.0 + h, "real": 10.0 + h, "particion": p} for h in range(1, 11) for p in ("validacion", "test")]
     res = {"predicciones": pd.DataFrame(filas), "elegido": "m"}
     assert medio_plazo.acierto_media_decada(res) == {"acierto_decada_validacion": 100.0, "acierto_decada_test": 100.0}
+
+
+# --- Impacto local (P2) ----------------------------------------------------------------------------------------------
+
+
+def test_impacto_local_calcula_porcentajes_y_marca_red_sin_capacidad():
+    from cpd import simulator as sim
+    from cpd.modelos import impacto_local
+
+    # Datos SINTÉTICOS (solo para el test).
+    params = sim.CPDParams()
+    operacion = {"50": {"consumo_previsto_mwh": 500_000.0, "pue_previsto": 1.4, "agua_m3": 175_000.0}, "28": {"consumo_previsto_mwh": 510_000.0, "pue_previsto": 1.45, "agua_m3": 175_000.0}}
+    demanda = {"02": {"prevision_12m": 10_000_000.0, "ultimos_12m": 10_000_000.0}, "13": {"prevision_12m": 30_000_000.0, "ultimos_12m": 30_000_000.0}}
+    capacidad = pd.DataFrame({"codigo_ccaa": ["02", "13"], "capacidad_demanda_rdt_disponible_mw": [140.0, 0.0]})
+    agua = pd.DataFrame({"codigo_ccaa": ["02", "02", "13"], "anio": [2022, 2024, 2024], "agua_registrada_miles_m3": [1.0, 100_000.0, 400_000.0]})
+    poblacion = pd.Series({"02": 1_000_000.0, "13": 7_000_000.0})
+    t = impacto_local.impacto_provincias(operacion, demanda, capacidad, agua, poblacion, {"50": "02", "28": "13"}, params).set_index("codigo_provincia")
+    assert t.loc["50", "pct_demanda_ccaa"] == pytest.approx(5.0)
+    assert t.loc["50", "pct_capacidad_disponible"] == pytest.approx(100 * params.potencia_ti_mw * 1.4 / 140.0)
+    assert t.loc["50", "pct_agua_ccaa"] == pytest.approx(100 * 175_000 / 100_000_000)  # usa el último año (2024)
+    assert t.loc["50", "habitantes_eq_electricidad"] == pytest.approx(50_000.0)
+    assert bool(t.loc["28", "sin_capacidad_libre"]) and pd.isna(t.loc["28", "pct_capacidad_disponible"])
+
+
+def test_agua_del_ine_lee_comunidades_con_coma_en_el_nombre():
+    from cpd.fuentes import ine
+
+    series = [
+        {"Nombre": "Asturias, Principado de, 1. Volumen total de agua registrada y distribuida por tipo de usuario", "Data": [{"NombrePeriodo": "2024", "Valor": 82738.0}]},
+        {"Nombre": "España, 1. Volumen total de agua registrada y distribuida por tipo de usuario", "Data": [{"NombrePeriodo": "2024", "Valor": 3283072.0}]},
+        {"Nombre": "Ceuta y Melilla, Volumen de agua suministrada a la red de abastecimiento público", "Data": [{"NombrePeriodo": "2024", "Valor": 18057.0}]},
+    ]
+    t = ine.agua_desde_series(series).set_index("codigo_ccaa")
+    assert list(t.index) == ["03", "18-19"]
+    assert t.loc["03", "agua_registrada_miles_m3"] == 82738.0 and t.loc["03", "anio"] == 2024

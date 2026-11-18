@@ -797,6 +797,38 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     bt_op["detalle"].to_csv(RUTA_SALIDAS / "operacion_backtesting.csv", index=False)
     tabla_op.to_csv(RUTA_SALIDAS / "operacion_cpd_provincia.csv", index=False)
 
+    # Impacto previsto del CPD sobre los recursos locales (P2): electricidad, red y agua de su comunidad.
+    from cpd.modelos import impacto_local
+
+    pob = pd.read_csv(CARPETA_TABLAS / "poblacion.csv", dtype={"codigo_provincia": str})
+    pob = pob[pob["anio"] == pob["anio"].max()].assign(ccaa=lambda d: d["codigo_provincia"].map(ccaa_de)).groupby("ccaa")["poblacion"].sum()
+    pob.loc[impacto_local.CODIGO_CEUTA_MELILLA] = pob.get("18", 0.0) + pob.get("19", 0.0)
+    tabla_imp = impacto_local.impacto_provincias(
+        salida["operacion"]["provincias"], salida["demanda"]["ccaa"],
+        pd.read_csv(CARPETA_TABLAS / "capacidad_ccaa.csv", dtype={"codigo_ccaa": str}),
+        pd.read_csv(CARPETA_TABLAS / "agua_ccaa.csv", dtype={"codigo_ccaa": str}), pob, ccaa_de, params,
+    )
+    val_imp = impacto_local.validar_impacto_electrico(res_t, res_d, ccaa_de, params, "validacion")
+    test_imp = impacto_local.validar_impacto_electrico(res_t, res_d, ccaa_de, params, "test")
+    print(f"  impacto local (P2): acierto del % eléctrico {val_imp['acierto']:.1f} % validación ({val_imp['origenes']} orígenes)"
+          + (f", {test_imp['acierto']:.1f} % test" if test_imp["acierto"] is not None else ", sin test común"))
+    salida["impacto_local"] = {
+        "acierto_validacion": round(val_imp["acierto"], 1), "acierto_test": round(test_imp["acierto"], 1) if test_imp["acierto"] is not None else None,
+        "origenes": val_imp["origenes"], "anio_agua": int(tabla_imp["anio_agua"].max()),
+        "provincias": {
+            f.codigo_provincia: {
+                "pct_demanda_ccaa": round(f.pct_demanda_ccaa, 2), "habitantes_eq_electricidad": round(f.habitantes_eq_electricidad, -2),
+                "potencia_pico_mw": round(f.potencia_pico_mw, 1),
+                "pct_capacidad_disponible": None if pd.isna(f.pct_capacidad_disponible) else round(f.pct_capacidad_disponible, 0),
+                "sin_capacidad_libre": bool(f.sin_capacidad_libre),
+                "capacidad_disponible_mw": None if pd.isna(f.capacidad_disponible_mw) else round(f.capacidad_disponible_mw, 0),
+                "pct_agua_ccaa": round(f.pct_agua_ccaa, 3), "habitantes_eq_agua": round(f.habitantes_eq_agua, -1),
+            }
+            for f in tabla_imp.itertuples()
+        },
+    }
+    tabla_imp.to_csv(RUTA_SALIDAS / "impacto_local_provincia.csv", index=False)
+
     # Control de acierto de los modelos de la previsión a 1 año (100 − WAPE, ver cpd.modelos.metricas).
     for clave, res in (("precio", res_p), ("demanda", res_d), ("reservas", res_r), ("temperatura", res_t), ("renovables", res_v), ("cobertura_renovable", res_g)):
         m = res["metricas"].query("modelo == @res['elegido']").set_index("particion")
@@ -825,6 +857,8 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     renovables = {"resultado": res_v, "prevision": prev_v, "reales": reales_v, "resumen": salida["renovables"]}
     cobertura = {"resultado": res_g, "prevision": prev_g, "resumen": salida["cobertura_renovable"]}
     operacion_res = {"backtesting": bt_op, "tabla": tabla_op, "resumen": salida["operacion"], "nombres": salida["temperatura"]["provincias"]}
+    nombres_ccaa = pd.read_csv(CARPETA_TABLAS / "provincias.csv", dtype={"codigo_ccaa": str}).drop_duplicates("codigo_ccaa").set_index("codigo_ccaa")["ccaa"].to_dict()
+    impacto_res = {"tabla": tabla_imp, "resumen": salida["impacto_local"], "validacion": val_imp, "test": test_imp, "nombres_ccaa": nombres_ccaa, "nombres": salida["temperatura"]["provincias"]}
     gas_tiempo_res = None if gas_tiempo_res is None else {**gas_tiempo_res, "resumen": salida.get("gas_tiempo")}
     figuras = _figuras_anual(precio, demanda, mensual, serie)
     figuras.update(_figuras_reservas(reservas))
@@ -832,6 +866,7 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     figuras.update(_figuras_renovables(renovables))
     figuras.update(_figura_cobertura(cobertura))
     figuras.update(_figura_operacion(operacion_res))
+    figuras["impacto"] = _figura_impacto(impacto_res)
     if gas_tiempo_res is not None:
         figuras.update(_figura_gas_tiempo(gas_tiempo_res))
     # MAE de la generación renovable en GWh para que el eje sea legible.
@@ -850,8 +885,56 @@ def ejecutar_anual(panel: pd.DataFrame) -> dict:
     )
     return {
         "precio": precio, "demanda": demanda, "reservas": reservas, "temperatura": temperatura, "renovables": renovables,
-        "cobertura": cobertura, "operacion": operacion_res, "gas_tiempo": gas_tiempo_res, "figuras": figuras, "json": salida,
+        "cobertura": cobertura, "operacion": operacion_res, "impacto": impacto_res, "gas_tiempo": gas_tiempo_res, "figuras": figuras, "json": salida,
     }
+
+
+@_con_estilo
+def _figura_impacto(impacto_res: dict) -> str:
+    """Figura 17: impacto previsto del CPD de referencia por comunidad (media de sus provincias): % de la demanda
+    eléctrica, % de la capacidad de acceso libre de la red y % del agua distribuida."""
+    tabla = impacto_res["tabla"].copy()
+    por_ccaa = tabla.groupby("codigo_ccaa").agg(
+        demanda=("pct_demanda_ccaa", "mean"), red=("pct_capacidad_disponible", "mean"), agua=("pct_agua_ccaa", "mean"),
+        sin_red=("sin_capacidad_libre", "any"), disponible=("capacidad_disponible_mw", "first"),
+    )
+    por_ccaa["nombre"] = por_ccaa.index.map(lambda c: impacto_res["nombres_ccaa"].get(c, c))
+    por_ccaa = por_ccaa.sort_values("demanda")
+    y = np.arange(len(por_ccaa))
+    coma = lambda v, d=1: f"{v:.{d}f}".replace(".", ",")  # noqa: E731
+    figura, ejes = plt.subplots(1, 3, figsize=(16, 0.42 * len(por_ccaa) + 2.4), sharey=True)
+    paneles = (
+        ("demanda", "(a) % de la demanda eléctrica prevista de su comunidad", 20, 1),
+        ("red", "(b) % de la capacidad de acceso libre de la red (REE)", 100, 0),
+        ("agua", "(c) % del agua distribuida en su comunidad (INE)", 2, 2),
+    )
+    for eje, (col, titulo, tope, dec) in zip(ejes, paneles):
+        valores = por_ccaa[col]
+        eje.barh(y, valores.clip(upper=tope).fillna(0), 0.62, color=COLOR_PREVISTO, edgecolor=FONDO, lw=1)
+        for yi, (v, sin_red, disp) in enumerate(zip(valores, por_ccaa["sin_red"], por_ccaa["disponible"])):
+            if col == "red" and sin_red:
+                texto = "0 MW libres: no cabe"
+            elif col == "red" and pd.isna(disp):
+                texto = "sin dato"
+            elif pd.isna(v):
+                texto = "sin dato"
+            else:
+                texto = coma(v, dec) + " %" + (" ▸" if v > tope else "")
+            eje.annotate(texto, (min(v, tope) if pd.notna(v) else 0, yi), xytext=(4, 0), textcoords="offset points", va="center", fontsize=7.5, color=TINTA_2)
+        eje.set_xlim(0, tope * 1.32)
+        eje.xaxis.set_major_formatter(lambda x, _: f"{x:g}".replace(".", ","))
+        eje.set_title(titulo, fontsize=9.5, loc="left")
+        eje.grid(False)
+        eje.grid(axis="x")
+    ejes[0].set_yticks(y, por_ccaa["nombre"], fontsize=8.5)
+    ejes[0].annotate("▸ se sale de la escala", (0, -0.06), xycoords="axes fraction", fontsize=7.5, color=TINTA_3)
+    cpd = impacto_res["resumen"]
+    figura.suptitle(
+        f"Impacto previsto del CPD de referencia sobre los recursos de su comunidad (próximos 12 meses; agua: INE {cpd['anio_agua']})",
+        x=0.01, ha="left",
+    )
+    figura.tight_layout(rect=(0, 0, 1, 0.95))
+    return _guardar_figura(figura, "17_impacto_local.png")
 
 
 @_con_estilo
@@ -1268,6 +1351,10 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict, medio: dict | No
         ("Operación del CPD a 1 año: consumo", j["operacion"]["acierto_consumo"], None, f"100 − WAPE del total anual ({j['operacion']['origenes']} orígenes comunes)"),
         ("Operación del CPD a 1 año: emisiones", j["operacion"]["acierto_emisiones"], None, f"100 − WAPE del total anual ({j['operacion']['origenes']} orígenes comunes)"),
     ]
+    if "impacto_local" in j:
+        filas.append(
+            ("Impacto eléctrico local a 1 año (P2)", j["impacto_local"]["acierto_validacion"], j["impacto_local"]["acierto_test"], "100 − WAPE del % del CPD sobre la demanda de su comunidad")
+        )
     nombres_gt = {"gas": "Gas natural (MIBGAS)", "eolica": "Eólica de España (tiempo)", "solar": "Solar de España (tiempo)", "hidraulica": "Hidráulica de España (tiempo)"}
     for clave, m in (j.get("gas_tiempo") or {}).get("modelos", {}).items():
         filas.append((f"{nombres_gt.get(clave, clave)} a 1 año · entrada del precio, inestable", m["acierto_validacion"], m["acierto_test"], "100 − WAPE"))
