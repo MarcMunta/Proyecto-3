@@ -187,6 +187,7 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
 
     _paso(acta, "poblacion", poblacion)
     _paso(acta, "renta", lambda: ine.renta_provincias())
+    _paso(acta, "agua_ccaa", lambda: ine.agua_ccaa())
     _paso(acta, "paro", lambda: sepe.paro_provincias_mensual(ANIO_INICIO, anio_fin))
 
     def conectividad() -> pd.DataFrame:

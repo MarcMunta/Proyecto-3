@@ -1297,3 +1297,5 @@ fecha_descarga,fuente,descripcion,url,archivo,tam_kb
 2026-11-18T13:37:06,NASA POWER,Mensual 50 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/50_1981_2025.json,10
 2026-11-18T13:37:07,NASA POWER,Mensual 51 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/51_1981_2025.json,10
 2026-11-18T13:37:07,NASA POWER,Mensual 52 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/52_1981_2025.json,10
+2026-11-18T15:01:09,INE (Tempus3 API),Tabla 53447,https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/53447,data/raw/api/ine/tabla_53447.json,43
+2026-11-18T15:01:25,INE (Tempus3 API),Tabla 53447,https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/53447,data/raw/api/ine/tabla_53447.json,43
