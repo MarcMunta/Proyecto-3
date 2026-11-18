@@ -126,3 +126,22 @@ describe("medio plazo (10 años)", () => {
     expect(p.medioPlazo.get("50")).toMatchObject({ anioFinal: 2035, tempFinal: 15.7, pueFinal: 1.31, reservaDecadaPct: 61.2, ambito: "Ebro", aciertoTemperaturaTest: 94.8, aciertoReservaDecadaTest: 86.6 });
   });
 });
+
+describe("impacto local (P2)", () => {
+  it("lee el impacto por provincia y marca la red sin capacidad libre", () => {
+    // Datos de PRUEBA (valores inventados solo para el test).
+    const p = normalizarPrevisiones({
+      impacto_local: {
+        acierto_validacion: 96.1, anio_agua: 2024,
+        provincias: {
+          "50": { pct_demanda_ccaa: 4.4, habitantes_eq_electricidad: 61300, pct_capacidad_disponible: 82, capacidad_disponible_mw: 89, sin_capacidad_libre: false, pct_agua_ccaa: 0.18, habitantes_eq_agua: 2470 },
+          "28": { pct_demanda_ccaa: 1.7, pct_capacidad_disponible: null, capacidad_disponible_mw: 0, sin_capacidad_libre: true, pct_agua_ccaa: 0.04 },
+          XX: { pct_demanda_ccaa: 1 },
+        },
+      },
+    })!;
+    expect(p.impacto.size).toBe(2);
+    expect(p.impacto.get("50")).toMatchObject({ pctDemanda: 4.4, pctCapacidad: 82, capacidadLibreMw: 89, sinCapacidadLibre: false, pctAgua: 0.18, anioAgua: 2024, acierto: 96.1 });
+    expect(p.impacto.get("28")).toMatchObject({ sinCapacidadLibre: true, pctCapacidad: null, capacidadLibreMw: 0 });
+  });
+});

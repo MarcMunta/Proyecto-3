@@ -57,6 +57,22 @@ export interface OperacionPrevista {
   aciertoEmisiones: number | null;
 }
 
+export interface ImpactoLocal {
+  /** % del consumo previsto del CPD sobre la demanda eléctrica prevista de su comunidad, y habitantes equivalentes. */
+  pctDemanda: number | null;
+  habitantesElectricidad: number | null;
+  /** % de la capacidad de acceso libre de la red de su comunidad que ocuparía la potencia máxima del CPD. */
+  pctCapacidad: number | null;
+  capacidadLibreMw: number | null;
+  sinCapacidadLibre: boolean;
+  /** % del agua distribuida por la red pública de su comunidad (INE) y habitantes equivalentes. */
+  pctAgua: number | null;
+  habitantesAgua: number | null;
+  anioAgua: number | null;
+  /** Acierto de punta a punta (100 − WAPE, %) del % eléctrico. */
+  acierto: number | null;
+}
+
 export interface MedioPlazo {
   /** Año de la previsión (el décimo tras el último año completo). */
   anioFinal: number;
@@ -94,6 +110,8 @@ export interface Previsiones {
   demanda10: (SeriePrevista & { acierto: number | null }) | null;
   /** Clima y agua a 10 años para la operación del CPD, por código INE de provincia (objetivo A3, medio plazo). */
   medioPlazo: Map<string, MedioPlazo>;
+  /** Impacto previsto del CPD sobre la electricidad, la red y el agua de su comunidad, por provincia (P2). */
+  impacto: Map<string, ImpactoLocal>;
   /** Requisito de acierto por modelo. */
   control: { modelo: string; estado: string }[];
 }
@@ -245,14 +263,27 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
       });
     }
   }
+  const impacto = new Map<string, ImpactoLocal>();
+  const il = raiz.impacto_local;
+  if (il && il.provincias && typeof il.provincias === "object") {
+    for (const [codigo, f] of Object.entries(il.provincias as Record<string, Record<string, unknown>>)) {
+      if (!/^\d{2}$/.test(codigo) || !f) continue;
+      impacto.set(codigo, {
+        pctDemanda: numero(f.pct_demanda_ccaa), habitantesElectricidad: numero(f.habitantes_eq_electricidad),
+        pctCapacidad: numero(f.pct_capacidad_disponible), capacidadLibreMw: numero(f.capacidad_disponible_mw),
+        sinCapacidadLibre: f.sin_capacidad_libre === true, pctAgua: numero(f.pct_agua_ccaa), habitantesAgua: numero(f.habitantes_eq_agua),
+        anioAgua: numero(il.anio_agua), acierto: numero(il.acierto_validacion),
+      });
+    }
+  }
   const control = Array.isArray((json as Record<string, unknown>).control_acierto)
     ? ((json as Record<string, unknown>).control_acierto as Record<string, unknown>[]).flatMap((c) =>
         texto(c?.modelo) && texto(c?.estado) ? [{ modelo: texto(c.modelo)!, estado: texto(c.estado)! }] : [],
       )
     : [];
-  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size) return null;
+  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size && !impacto.size) return null;
   return {
     generado: texto((json as Record<string, unknown>).generado), precio, demanda, demandaModelo, reservas, temperatura, renovables, operacion,
-    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, control,
+    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, impacto, control,
   };
 }

@@ -11,7 +11,7 @@ import { Flap } from "./Flap";
 import { IconoClase } from "./IconoClase";
 import { Barra, Comparativa, Flecha, GraficoPrecio, Vivo, type ItemComparativa } from "./Piezas";
 import { GraficoPrevision } from "./GraficoPrevision";
-import { ACIERTO_MINIMO, type MedioPlazo, type OperacionPrevista, type Previsiones, type RenovablePrevista, type SeriePrevista, type TemperaturaPrevista } from "../data/previsiones";
+import { ACIERTO_MINIMO, type ImpactoLocal, type MedioPlazo, type OperacionPrevista, type Previsiones, type RenovablePrevista, type SeriePrevista, type TemperaturaPrevista } from "../data/previsiones";
 
 interface Props {
   meta: ProvinciaMeta;
@@ -180,6 +180,7 @@ export function Ficha(p: Props) {
             temperatura={p.previsiones?.temperatura.get(meta.codigo)}
             operacion={p.previsiones?.operacion.get(meta.codigo)}
             medio={p.previsiones?.medioPlazo.get(meta.codigo)}
+            impacto={p.previsiones?.impacto.get(meta.codigo)}
           />
 
           {(d.capex_eur != null || d.opex_eur_anual != null || d.prob_cpd != null || d.cpd_existentes != null) && (
@@ -566,7 +567,7 @@ function BloqueDemanda({ d, prediccion, previsiones }: { d: ProvinciaPrediccion;
 }
 
 function BloqueClima({
-  d, tiempo, vivo, capital, reservas, ambito, temperatura, operacion, medio,
+  d, tiempo, vivo, capital, reservas, ambito, temperatura, operacion, medio, impacto,
 }: {
   d: ProvinciaPrediccion;
   tiempo: TiempoActual | undefined;
@@ -577,9 +578,10 @@ function BloqueClima({
   temperatura?: TemperaturaPrevista;
   operacion?: OperacionPrevista;
   medio?: MedioPlazo;
+  impacto?: ImpactoLocal;
 }) {
   const hayModelo =
-    d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null || operacion != null || medio != null;
+    d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null || operacion != null || medio != null || impacto != null;
   const notaTemperatura = temperatura
     ? [textoAcierto(temperatura), temperatura.errorTest != null ? `error medio ${num(temperatura.errorTest, 1)} °C al mes` : null].filter(Boolean).join(" · ")
     : undefined;
@@ -646,6 +648,38 @@ function BloqueClima({
                 </>
               )}
               {operacion.aciertoEmisiones != null && <>. Acierto de las emisiones: {num(operacion.aciertoEmisiones, 1)} %.</>}
+            </p>
+          )}
+          {impacto && (impacto.pctDemanda != null || impacto.pctAgua != null) && (
+            <p className="dato-linea">
+              Impacto en su comunidad (12 meses):
+              {impacto.pctDemanda != null && (
+                <>
+                  {" "}
+                  <strong>{num(impacto.pctDemanda, 1)} %</strong> de la electricidad
+                  {impacto.habitantesElectricidad != null && <> (como {num(impacto.habitantesElectricidad)} habitantes)</>}
+                </>
+              )}
+              {impacto.sinCapacidadLibre ? (
+                <> · <strong>0 MW libres</strong> en la red de acceso: hoy no cabe</>
+              ) : (
+                impacto.pctCapacidad != null && (
+                  <>
+                    {" "}
+                    · <strong>{num(impacto.pctCapacidad)} %</strong> de la capacidad libre de la red
+                    {impacto.capacidadLibreMw != null && <> ({num(impacto.capacidadLibreMw)} MW)</>}
+                  </>
+                )
+              )}
+              {impacto.pctAgua != null && (
+                <>
+                  {" "}
+                  · <strong>{num(impacto.pctAgua, 2)} %</strong> del agua
+                  {impacto.habitantesAgua != null && <> (como {num(impacto.habitantesAgua)} habitantes)</>}
+                  {impacto.anioAgua != null && <>, INE {impacto.anioAgua}</>}
+                </>
+              )}
+              {impacto.acierto != null && <>. Acierto del % eléctrico: {num(impacto.acierto, 1)} %.</>}
             </p>
           )}
           {medio && medio.tempFinal != null && (
