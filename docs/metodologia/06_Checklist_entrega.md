@@ -30,7 +30,7 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 | F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
-| I. Técnicas de clase y de calidad de datos | 41 | 13 | 16 | 70 |
+| I. Técnicas de clase y de calidad de datos | 44 | 11 | 15 | 70 |
 | **Total** | **69** | **61** | **54** | **184** |
 
 Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si se añaden filas, recalcular.
@@ -311,14 +311,14 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 |---|---|---|---|---|---|
 | I49 | Lags (retardos) (C4 p.7, 12-14) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` | | — |
 | I50 | Ventanas móviles: media, máximo, mínimo, desviación (C4 p.7, 15) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (medias de 3, 6 y 12 meses y desviación de 12) | | — |
-| I51 | Estacionariedad y estacionalidad (C4 p.16) | 🟡 | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (objetivo relativo al nivel de 12 meses, en log) | | Comprobar estacionariedad con media y varianza por año |
-| I52 | Diferencias (C4 p.7, 17) | 🟡 | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`f_desv_12m` sobre diferencias de log) | | Probar un modelo sobre diferencias |
+| I51 | Estacionariedad y estacionalidad (C4 p.16) | ✅ | `src/cpd/modelos/estacionariedad.py`: media y desviación por año y test ADF de la demanda de las 19 comunidades (2015-2025) en nivel, log, diferencia estacional y doble diferencia: 0/19, 0/19, 3/19 y 19/19 estacionarias; figura 21 y sección del informe; `tests/test_modelos.py` | | — |
+| I52 | Diferencias (C4 p.7, 17) | ✅ | `f_desv_12m` (Ridge) y `estacional_tendencia` sobre la diferencia estacional; modelo sobre diferencias `anual._ar_diferencias` (AR(1) sobre Δ₁₂ log): 96,1 % / 95,0 %, como el estacional, pero no mejora la combinación de la demanda y no se usa (documentado) | | — |
 | I53 | Transformación logarítmica (log, log1p) (C4 p.8, 25-26) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py`; `src/cpd/features/provincia.py` (`log_poblacion`) | | — |
 | I54 | Eventos puntuales (DANA, Black Friday) (C4 p.18) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`f_confinamiento`) | | Añadir más eventos si se conocen |
 | I55 | Escalado (scaling) (C4 p.8, 23) | ✅ | `StandardScaler` dentro del pipeline en `src/cpd/modelos/demanda.py` y `prob_cpd.py` (solo con entrenamiento) | | — |
 | I56 | Normalización min-max (MAX-MIN) (C4 p.23) | ✅ | `src/cpd/scoring.py` (`normalizar_min_max`) | | Verificar que no altera la columna original (R-7) |
 | I57 | Estandarización z-score (C4 p.23) | ✅ | `StandardScaler` (z-score) en los pipelines de `src/cpd/modelos/` | | — |
-| I58 | Winsorizing (C4 p.8) | ❌ | — | | Recorte de percentiles 1 y 99 (fase 2-3) |
+| I58 | Winsorizing (C4 p.8) | ✅ | `prob_cpd.Winsorizador` (percentiles 1 y 99 calculados solo con el entrenamiento de cada pliegue) y candidato `logistica_winsor`: log-loss 0,394 → 0,393, sin cambio de elegido; `tests/test_modelos.py` | | — |
 | I59 | Transformaciones polinómicas (C4 p.8) | ❌ | — | | Solo si se justifica |
 | I60 | One-hot encoding (C4 p.9, 20) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (mes del año `f_mes_02`…`f_mes_12`) | | — |
 | I61 | Frequency encoding (C4 p.9, 21) | ❌ | — | | Para categorías muchas (fase 3) |
