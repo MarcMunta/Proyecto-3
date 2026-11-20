@@ -178,6 +178,44 @@ def _motivos(fila: pd.Series, extra: pd.Series, faltan: list[str]) -> list[str]:
     return motivos
 
 
+def salidas_modelos(curado: Path, panel: pd.DataFrame) -> tuple[pd.DataFrame | None, pd.DataFrame | None, dict[str, Any]]:
+    """Lee las salidas de `python -m cpd.modelos` si existen (probabilidad de CPD y demanda por comunidad).
+
+    Returns:
+        (prob_cpd por provincia, demanda por provincia vía su comunidad, resumen de los modelos para la ficha).
+        Si no se han ejecutado los modelos, devuelve None y el mapa sigue funcionando sin esos campos.
+    """
+    carpeta = curado / "modelos"
+    prob = demanda = None
+    resumen: dict[str, Any] = {}
+    ruta_prob = carpeta / "prob_cpd_provincia.csv"
+    if ruta_prob.exists():
+        prob = pd.read_csv(ruta_prob, dtype={"codigo_provincia": str}).set_index("codigo_provincia")
+        metricas = pd.read_csv(carpeta / "metricas_prob_cpd.csv").set_index("modelo")
+        elegido = str(prob["modelo"].iloc[0])
+        resumen["prob_cpd"] = {
+            "modelo": elegido,
+            "roc_auc": round(float(metricas.loc[elegido, "roc_auc"]), 3),
+            "provincias_con_cpd": int(prob["tiene_cpd"].sum()),
+            "generado": str(prob["generado_en"].iloc[0]),
+        }
+    ruta_dem = carpeta / "resumen_demanda_ccaa.csv"
+    if ruta_dem.exists():
+        por_ccaa = pd.read_csv(ruta_dem, dtype={"codigo_ccaa": str})
+        mapa_ccaa = panel.drop_duplicates("codigo_provincia").set_index("codigo_provincia")["codigo_ccaa"].astype(str).str.zfill(2)
+        demanda = mapa_ccaa.rename("codigo_ccaa").reset_index().merge(por_ccaa, on="codigo_ccaa", how="left").set_index("codigo_provincia")
+        metricas = pd.read_csv(carpeta / "metricas_demanda.csv")
+        prevision = pd.read_csv(carpeta / "prevision_demanda_ccaa.csv")
+        modelo_12 = str(prevision["modelo"].iloc[0])
+        fila = metricas[(metricas["horizonte_meses"] == 12) & (metricas["modelo"] == modelo_12) & (metricas["particion"] == "test")]
+        resumen["demanda"] = {
+            "modelo": modelo_12,
+            "mape_test_pct": round(float(fila["mape_pct"].iloc[0]), 2) if not fila.empty else None,
+            "generado": str(prevision["generado_en"].iloc[0]),
+        }
+    return prob, demanda, resumen
+
+
 def simular(curado: Path = CURADO) -> dict[str, Any]:
     """Ejecuta la simulación para las 52 provincias y devuelve el JSON del mapa."""
     actual = _leer("provincias_actual", curado)
@@ -187,6 +225,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
     params = CPDParams(**{k: v for k, v in settings.get("cpd_por_defecto", {}).items() if k in validos})
 
     df, meta = entradas(actual, panel)
+    prob, demanda, resumen_modelos = salidas_modelos(curado, panel)
     ajustes = copy.deepcopy(settings)
     ajustes["precios"]["precio_electricidad_eur_mwh"] = meta["precio_12m"]
     r = evaluar(df, params, ajustes).set_index("codigo_provincia", drop=False)
@@ -200,6 +239,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
         fila = r.loc[codigo]
         extra = a.loc[codigo]
         faltan = [nombre for col, nombre in NOMBRE_ENTRADA.items() if _num(fila.get(col)) is None]
+        dem = demanda.loc[codigo] if demanda is not None and codigo in demanda.index else None
         provincias.append(
             {
                 "codigo_provincia": codigo,
@@ -220,7 +260,12 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
                 "horas_free_cooling_anual": _redondeo(fila["horas_free_cooling_anual"], 0),
                 "reserva_hidrica_pct": _redondeo(fila["reserva_hidrica_pct"], 1),
                 "estres_hidrico": _redondeo(fila["estres_hidrico_idx"], 3),
-                "prob_cpd": None,
+                "prob_cpd": _redondeo(prob.loc[codigo, "prob_cpd"], 4) if prob is not None and codigo in prob.index else None,
+                "demanda_ccaa_ultimos_12m_mwh": _redondeo(dem["ultimos_12m_mwh"], 0) if dem is not None else None,
+                "demanda_ccaa_prevision_12m_mwh": _redondeo(dem["prevision_12m_mwh"], 0) if dem is not None else None,
+                "demanda_ccaa_prevision_inferior_mwh": _redondeo(dem["prevision_12m_inferior_mwh"], 0) if dem is not None else None,
+                "demanda_ccaa_prevision_superior_mwh": _redondeo(dem["prevision_12m_superior_mwh"], 0) if dem is not None else None,
+                "demanda_ccaa_hasta": str(dem["ultimos_12m_hasta"]) if dem is not None and pd.notna(dem["ultimos_12m_hasta"]) else None,
                 "cpd_existentes": _redondeo(extra.get("cpd_existentes"), 0),
                 "pue": _redondeo(fila["pue_aplicado"], 3),
                 "latencia_rtt_ms": _redondeo(fila["latencia_rtt_ms"], 2),
@@ -241,6 +286,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
             "precio de la luz = media spot de 12 meses; clase relativa (tercios del VAN; no viable = no rentable)."
         ),
         "no_evaluado_a_escala_provincial": NO_PROVINCIALES,
+        "modelos": resumen_modelos,
         "provincias": provincias,
     }
 

@@ -15,3 +15,5 @@ data/almacen/
 build/
 dist/
 .streamlit/secrets.toml
+# Modelos entrenados (se regeneran con python -m cpd.modelos)
+models/

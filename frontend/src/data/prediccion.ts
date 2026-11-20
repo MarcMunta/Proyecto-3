@@ -32,10 +32,22 @@ export interface ProvinciaPrediccion {
   precio_luz_usado_eur_mwh?: number | null;
   pue?: number | null;
   latencia_rtt_ms?: number | null;
+  /** Demanda eléctrica de la comunidad (MWh): 12 últimos meses válidos y previsión de los 12 siguientes (cpd.modelos). */
+  demanda_ccaa_ultimos_12m_mwh?: number | null;
+  demanda_ccaa_prevision_12m_mwh?: number | null;
+  demanda_ccaa_prevision_inferior_mwh?: number | null;
+  demanda_ccaa_prevision_superior_mwh?: number | null;
+  /** Último mes (AAAA-MM) de los 12 meses de demanda. */
+  demanda_ccaa_hasta?: string | null;
   /** Entradas que faltan para esta provincia (se dice en la ficha). */
   faltan?: string[];
   /** Solo en la demostración: municipios analizados de la provincia (el mejor primero). */
   municipios?: string[];
+}
+
+export interface ResumenModelos {
+  prob_cpd?: { modelo: string; roc_auc: number | null; provincias_con_cpd: number | null };
+  demanda?: { modelo: string; mape_test_pct: number | null };
 }
 
 export interface Prediccion {
@@ -52,6 +64,8 @@ export interface Prediccion {
   mesReferencia?: string | null;
   /** Lo que el modelo no puede evaluar a escala provincial. */
   noEvaluado?: string[];
+  /** Resumen de los modelos de predicción (python -m cpd.modelos) usados en los datos. */
+  modelos?: ResumenModelos;
   provincias: Map<string, ProvinciaPrediccion>;
   /** Solo en la demostración: clase de cada municipio analizado. */
   clasesMunicipio: Map<string, ClaseRentabilidad>;
@@ -111,6 +125,11 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       precio_luz_usado_eur_mwh: numero(fila.precio_luz_usado_eur_mwh),
       pue: numero(fila.pue),
       latencia_rtt_ms: numero(fila.latencia_rtt_ms),
+      demanda_ccaa_ultimos_12m_mwh: numero(fila.demanda_ccaa_ultimos_12m_mwh),
+      demanda_ccaa_prevision_12m_mwh: numero(fila.demanda_ccaa_prevision_12m_mwh),
+      demanda_ccaa_prevision_inferior_mwh: numero(fila.demanda_ccaa_prevision_inferior_mwh),
+      demanda_ccaa_prevision_superior_mwh: numero(fila.demanda_ccaa_prevision_superior_mwh),
+      demanda_ccaa_hasta: texto(fila.demanda_ccaa_hasta),
       faltan: Array.isArray(fila.faltan) ? fila.faltan.filter((m): m is string => typeof m === "string") : [],
     });
   }
@@ -123,9 +142,22 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
     noEvaluado: Array.isArray(cabecera?.no_evaluado_a_escala_provincial)
       ? (cabecera!.no_evaluado_a_escala_provincial as unknown[]).filter((m): m is string => typeof m === "string")
       : [],
+    modelos: leerModelos(cabecera?.modelos),
     provincias,
     clasesMunicipio: new Map(),
   };
+}
+
+/** Valida el bloque `modelos` de la cabecera (lo que falte queda sin definir o en null). */
+function leerModelos(v: unknown): ResumenModelos | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const m = v as Record<string, Record<string, unknown> | undefined>;
+  const salida: ResumenModelos = {};
+  const p = m.prob_cpd;
+  if (p && texto(p.modelo)) salida.prob_cpd = { modelo: texto(p.modelo)!, roc_auc: numero(p.roc_auc), provincias_con_cpd: numero(p.provincias_con_cpd) };
+  const d = m.demanda;
+  if (d && texto(d.modelo)) salida.demanda = { modelo: texto(d.modelo)!, mape_test_pct: numero(d.mape_test_pct) };
+  return salida.prob_cpd || salida.demanda ? salida : undefined;
 }
 
 /**

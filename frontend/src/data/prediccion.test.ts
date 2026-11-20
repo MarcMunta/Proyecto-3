@@ -94,3 +94,23 @@ describe("rangoVanClasificadas y nombreClaseDe", () => {
     expect(nombreClaseDe("alta", "Viable")).toBe("Alta");
   });
 });
+
+describe("salidas de los modelos en la simulación", () => {
+  it("lee prob_cpd, la demanda de la comunidad y el resumen de modelos; descarta lo inválido", () => {
+    // Datos de PRUEBA (valores inventados solo para el test).
+    const json = {
+      modelos: { prob_cpd: { modelo: "solo_poblacion", roc_auc: 0.88, provincias_con_cpd: 14 }, demanda: { modelo: "", mape_test_pct: 4.9 } },
+      provincias: [
+        { codigo_provincia: "28", prob_cpd: 0.95, demanda_ccaa_ultimos_12m_mwh: 2.9e7, demanda_ccaa_prevision_12m_mwh: "x", demanda_ccaa_hasta: "2026-06" },
+      ],
+    };
+    const p = normalizarReal(json, META, "simulacion")!;
+    const mad = p.provincias.get("28")!;
+    expect(mad.prob_cpd).toBe(0.95);
+    expect(mad.demanda_ccaa_ultimos_12m_mwh).toBe(2.9e7);
+    expect(mad.demanda_ccaa_prevision_12m_mwh).toBeNull();
+    expect(mad.demanda_ccaa_hasta).toBe("2026-06");
+    expect(p.modelos?.prob_cpd).toEqual({ modelo: "solo_poblacion", roc_auc: 0.88, provincias_con_cpd: 14 });
+    expect(p.modelos?.demanda).toBeUndefined();
+  });
+});

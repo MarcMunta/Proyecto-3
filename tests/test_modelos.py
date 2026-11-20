@@ -1,0 +1,216 @@
+"""Tests de features, particiones, métricas y modelos (fases 6 a 8).
+
+Usan series y tablas SINTÉTICAS generadas aquí (solo para el test): no dependen de `data/curated/`.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from cpd.features.demanda import (
+    columnas_features,
+    construir_features_demanda,
+    marcar_atipicos_demanda,
+    preparar_serie_modelo,
+)
+from cpd.features.provincia import EXCLUIDAS_POR_FUGA, FEATURES_PROVINCIA
+from cpd.modelos import prob_cpd
+from cpd.modelos.demanda import (
+    Periodos,
+    asignar_particion,
+    comprobar_particiones,
+    definir_periodos,
+    evaluar_horizonte,
+    prevision_baseline,
+)
+from cpd.modelos.metricas import mae, mape, matriz_confusion, metricas_clasificacion, rmse, umbral_youden
+
+
+def serie_sintetica(meses: int = 72, comunidades: tuple[str, ...] = ("01", "13"), semilla: int = 0) -> pd.DataFrame:
+    """Demanda SINTÉTICA con nivel, estacionalidad y ruido (MWh). Solo para tests."""
+    rng = np.random.default_rng(semilla)
+    fechas = pd.date_range("2018-01-01", periods=meses, freq="MS")
+    filas = []
+    for i, codigo in enumerate(comunidades):
+        nivel = 1e6 * (i + 1)
+        estacional = 1 + 0.1 * np.sin(2 * np.pi * fechas.month / 12)
+        valores = nivel * estacional * (1 + 0.02 * rng.standard_normal(meses))
+        filas.append(pd.DataFrame({"codigo_ccaa": codigo, "ccaa": f"Comunidad {codigo}", "mes": fechas, "demanda_mwh": valores}))
+    return pd.concat(filas, ignore_index=True)
+
+
+# ---------- Features sin fuga (R-8) ----------
+
+
+@pytest.mark.parametrize("horizonte", [1, 12])
+def test_features_no_usan_datos_posteriores_a_t_menos_h(horizonte):
+    serie = serie_sintetica()
+    corte = pd.Timestamp("2021-06-01")
+    original = construir_features_demanda(serie, horizonte)
+    alterada = serie.copy()
+    alterada.loc[alterada["mes"] > corte, "demanda_mwh"] *= 3.0  # cambio enorme en el "futuro"
+    cambiada = construir_features_demanda(alterada, horizonte)
+    columnas = [*columnas_features(original), "nivel_mwh"]
+    # Las filas cuyo mes de referencia (t − h) es anterior o igual al corte no pueden cambiar.
+    claves = ["codigo_ccaa", "mes"]
+    a = original[original["mes_referencia"] <= corte].set_index(claves)[columnas]
+    b = cambiada.set_index(claves).loc[a.index, columnas]
+    pd.testing.assert_frame_equal(a, b)
+
+
+def test_features_solo_usan_lags_iguales_o_mayores_que_el_horizonte():
+    tabla = construir_features_demanda(serie_sintetica(), 12)
+    lags = [int(c.split("_")[-1]) for c in columnas_features(tabla) if c.startswith("f_lag_")]
+    assert lags and min(lags) >= 12
+    assert "objetivo_log_ratio" not in columnas_features(tabla)
+
+
+def test_objetivo_reconstruye_la_demanda():
+    tabla = construir_features_demanda(serie_sintetica(), 1)
+    reconstruida = np.exp(tabla["objetivo_log_ratio"]) * tabla["nivel_mwh"]
+    np.testing.assert_allclose(reconstruida, tabla["demanda_mwh"], rtol=1e-9)
+
+
+# ---------- Atípicos (R-10) ----------
+
+
+def test_marca_negativos_y_saltos_pero_no_la_estacionalidad():
+    serie = serie_sintetica(meses=48)
+    i_negativo = serie.index[(serie["codigo_ccaa"] == "01") & (serie["mes"] == "2020-03-01")][0]
+    i_salto = serie.index[(serie["codigo_ccaa"] == "13") & (serie["mes"] == "2021-02-01")][0]
+    serie.loc[i_negativo, "demanda_mwh"] = -5.0
+    serie.loc[i_salto, "demanda_mwh"] *= 5
+    marcada = marcar_atipicos_demanda(serie)
+    assert set(marcada.index[marcada["atipico"]]) == {i_negativo, i_salto}
+
+
+def test_preparar_serie_recorta_el_final_e_imputa_solo_huecos_intermedios():
+    serie = serie_sintetica(meses=48)
+    ultimo = serie["mes"].max()
+    serie.loc[(serie["codigo_ccaa"] == "01") & (serie["mes"] == ultimo), "demanda_mwh"] = -1.0
+    serie.loc[(serie["codigo_ccaa"] == "01") & (serie["mes"] == "2020-06-01"), "demanda_mwh"] = -1.0
+    preparada = preparar_serie_modelo(serie)
+    c01 = preparada[preparada["codigo_ccaa"] == "01"]
+    assert c01["mes"].max() == ultimo - pd.DateOffset(months=1)
+    imputada = c01[c01["mes"] == "2020-06-01"].iloc[0]
+    assert imputada["imputado"]
+    anterior = serie[(serie["codigo_ccaa"] == "01") & (serie["mes"] == "2019-06-01")]["demanda_mwh"].iloc[0]
+    assert imputada["demanda_mwh"] == pytest.approx(anterior)
+    # Un mes imputado nunca es objetivo.
+    tabla = construir_features_demanda(preparada, 1)
+    fila = tabla[(tabla["codigo_ccaa"] == "01") & (tabla["mes"] == "2020-06-01")]
+    assert fila.empty or fila["objetivo_log_ratio"].isna().all()
+
+
+# ---------- Particiones temporales (R-6) ----------
+
+
+def test_particiones_son_temporales_y_no_se_solapan():
+    serie = serie_sintetica(meses=84).assign(imputado=False)
+    periodos = definir_periodos(serie)
+    assert periodos.inicio_validacion < periodos.inicio_test <= periodos.fin_test
+    tabla = construir_features_demanda(serie, 1)
+    tabla["particion"] = asignar_particion(tabla["mes"], periodos)
+    comprobar_particiones(tabla)
+    rango = tabla.groupby("particion")["mes"].agg(["min", "max"])
+    assert rango.loc["entrenamiento", "max"] < rango.loc["validacion", "min"]
+    assert rango.loc["validacion", "max"] < rango.loc["test", "min"]
+    assert tabla[tabla["particion"] == "test"]["mes"].nunique() == 12
+
+
+def test_comprobar_particiones_detecta_solapes():
+    tabla = pd.DataFrame(
+        {"mes": pd.to_datetime(["2020-01-01", "2020-03-01", "2020-02-01", "2020-04-01"]), "particion": ["entrenamiento", "entrenamiento", "validacion", "test"]}
+    )
+    with pytest.raises(AssertionError):
+        comprobar_particiones(tabla)
+
+
+def test_baseline_estacional_es_el_mismo_mes_del_anio_anterior():
+    serie = serie_sintetica()
+    tabla = construir_features_demanda(serie, 1)
+    prevision = prevision_baseline("estacional", tabla, serie, 1)
+    indice = serie.set_index(["codigo_ccaa", "mes"])["demanda_mwh"]
+    esperado = [indice[(c, m - pd.DateOffset(months=12))] for c, m in zip(tabla["codigo_ccaa"], tabla["mes"])]
+    np.testing.assert_allclose(prevision, esperado, rtol=1e-9)
+
+
+def test_evaluar_horizonte_compara_todos_los_modelos_con_las_mismas_filas():
+    serie = serie_sintetica(meses=84).assign(imputado=False)
+    resultado = evaluar_horizonte(serie, 1, definir_periodos(serie))
+    metricas = resultado["metricas"]
+    assert set(metricas["modelo"]) == {"naive", "estacional", "tendencia_estacionalidad", "ridge", "gradient_boosting"}
+    assert metricas.groupby("particion")["n"].nunique().max() == 1  # mismas filas para todos
+    assert resultado["elegido"]["modelo"] in set(metricas["modelo"])
+
+
+# ---------- Métricas (fase 8) ----------
+
+
+def test_metricas_de_regresion():
+    real, prevision = [100.0, 200.0, 300.0], [110.0, 190.0, 330.0]
+    assert mae(real, prevision) == pytest.approx(50 / 3)
+    assert rmse(real, prevision) == pytest.approx(np.sqrt((100 + 100 + 900) / 3))
+    assert mape(real, prevision) == pytest.approx((10 + 5 + 10) / 3)
+    with pytest.raises(ValueError):
+        mape([0.0, 1.0], [1.0, 1.0])
+
+
+def test_metricas_de_clasificacion_y_paradoja_de_la_exactitud():
+    real = np.array([0] * 8 + [1] * 2)
+    siempre_cero = np.full(10, 0.1)
+    m = metricas_clasificacion(real, siempre_cero)
+    assert m["accuracy"] == pytest.approx(0.8)  # acierta mucho...
+    assert m["recall"] == 0.0  # ...pero no detecta ningún positivo
+    assert matriz_confusion(real, siempre_cero >= 0.5) == {"vp": 0, "fp": 0, "fn": 2, "vn": 8}
+    separable = np.array([0.1] * 8 + [0.9] * 2)
+    assert metricas_clasificacion(real, separable)["roc_auc"] == pytest.approx(1.0)
+    assert 0.1 < umbral_youden(real, separable) <= 0.9
+
+
+# ---------- prob_cpd ----------
+
+
+def tabla_provincias_sintetica(n: int = 30, semilla: int = 1) -> pd.DataFrame:
+    """Provincias SINTÉTICAS (solo para el test): la etiqueta depende de la población."""
+    rng = np.random.default_rng(semilla)
+    datos = {c: rng.normal(size=n) for c in FEATURES_PROVINCIA}
+    datos["log_poblacion"] = np.sort(rng.normal(13, 1, size=n))
+    tabla = pd.DataFrame(datos, index=pd.Index([f"{i:02d}" for i in range(n)], name="codigo_provincia"))
+    tabla["tiene_cpd"] = (np.arange(n) >= n * 0.7).astype(int)
+    tabla["provincia"] = [f"P{i}" for i in range(n)]
+    tabla["ccaa"] = "X"
+    tabla["n_centros_datos"] = tabla["tiene_cpd"] * 2
+    return tabla
+
+
+def test_features_de_provincia_no_incluyen_columnas_con_fuga():
+    assert not set(EXCLUIDAS_POR_FUGA) & set(FEATURES_PROVINCIA)
+
+
+def test_probabilidades_fuera_de_pliegue(monkeypatch):
+    monkeypatch.setattr(prob_cpd, "REPETICIONES", 2)
+    tabla = tabla_provincias_sintetica()
+    modelo, columnas = prob_cpd.modelos_candidatos()["solo_poblacion"]
+    prob = prob_cpd.probabilidades_fuera_de_pliegue(tabla, modelo, columnas)
+    assert prob.between(0, 1).all() and prob.index.equals(tabla.index)
+    # La etiqueta depende de la población: las provincias con CPD reciben más probabilidad de media.
+    assert prob[tabla["tiene_cpd"] == 1].mean() > prob[tabla["tiene_cpd"] == 0].mean()
+
+
+def test_periodos_como_texto():
+    p = Periodos(pd.Timestamp("2024-07-01"), pd.Timestamp("2025-07-01"), pd.Timestamp("2026-06-01"))
+    assert p.como_texto() == {"entrenamiento_hasta": "2024-06", "validacion": "2024-07 a 2025-06", "test": "2025-07 a 2026-06"}
+
+
+def test_preparar_serie_rellena_meses_sin_fila():
+    serie = serie_sintetica(meses=48)
+    hueco = (serie["codigo_ccaa"] == "13") & (serie["mes"] == "2020-10-01")
+    preparada = preparar_serie_modelo(serie[~hueco])  # el curado ya dejó ese mes sin dato
+    fila = preparada[(preparada["codigo_ccaa"] == "13") & (preparada["mes"] == "2020-10-01")].iloc[0]
+    assert fila["imputado"] and fila["sin_dato_valido"]
+    anterior = serie[(serie["codigo_ccaa"] == "13") & (serie["mes"] == "2019-10-01")]["demanda_mwh"].iloc[0]
+    assert fila["demanda_mwh"] == pytest.approx(anterior)
+    assert preparada.groupby("codigo_ccaa")["mes"].apply(lambda m: m.diff().dropna().dt.days.max() <= 31).all()

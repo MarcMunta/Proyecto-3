@@ -1,14 +1,21 @@
 ---
 tags: [metodologia, estado, auditoria, plan, p3]
 estado: borrador
-actualizado: 2026-11-14
+actualizado: 2026-11-17
 ---
 
 # 07 · Estado actual (auditoría y plan)
 
 Volver a [[00_Indice]]. Filas detalladas en [[06_Checklist_entrega]]. Fecha de auditoría: **14/11/2026**, commit `90b91e4` de `main` (árbol de trabajo limpio).
 
-## Resumen en una frase
+## Novedades del 17/11/2026 (rama `fix/mapa-revision`, sin commit)
+
+- **EDA** con figuras e informe (`docs/analisis/eda_panel.md`), correlaciones de Pearson y Spearman con el score y el VAN (B5 🟡, B6 ✅).
+- **Modelos entrenados y evaluados** (B7 ✅, B10 ✅): demanda eléctrica por comunidad a 1 mes (Ridge, MAPE de test 4,40 % frente a 4,88 % del mejor baseline) y a 12 meses (gana el baseline "mismo mes del año anterior"); `prob_cpd` por provincia (gana la logística con la población, ROC-AUC 0,88). Fichas en `docs/modelos/`, métricas en `docs/analisis/metricas.md`. Todo se regenera con `python -m cpd.modelos`.
+- **Mapa:** muestra `prob_cpd` y la demanda de la comunidad; la clase roja se llama «No viable»; aviso de que el VAN de las viables solo varía entre 20,3 y 25,7 M€; recuadro de Canarias sin tapar Huelva ni Cádiz en pantallas estrechas.
+- **Hallazgos:** (1) REData publica la demanda de jul-ago de 2026 sin el saldo de intercambios (su "demanda" es solo la generación: Madrid 123 GWh, Cantabria negativa). **Corregido en el curado:** `cpd.fuentes.calidad` la deja en NaN con registro en `data/curated/calidad_demanda_ccaa.csv`, y la demanda de un año se vuelve a pedir durante 12 meses, así que las correcciones de REData entrarán solas; (2) el VAN simulado depende casi solo de la temperatura (Spearman −0,99) y va en sentido contrario al número real de CPD: revisar el simulador.
+
+## Resumen en una frase (auditoría del 14/11/2026)
 
 El equipo tiene una **ingesta amplia y bien documentada, un almacén DuckDB, un simulador con tests y dos interfaces**,
 pero **no tiene análisis exploratorio, ni correlaciones, ni modelos de Machine Learning evaluados, ni informes, ni vídeo ni manuales**,
@@ -37,7 +44,7 @@ y los pocos datos demo que siguen en la aplicación pueden confundirse con datos
 | Informe de origen de datos | `docs/datos/README.md` es borrador; falta la lista de todas las fuentes del enunciado y sus licencias |
 | Limpieza y validación | Criterio de NaN en `curado.py`; falta informe de calidad, atípicos y política de imputación |
 | Modelado de datos | Dimensiones y vista de hechos en DuckDB; falta documento, diagrama y granularidad declarada |
-| Previsión | Baseline de tendencia + estacionalidad; **sin validación temporal, sin backtesting, sin métricas de error** |
+| Previsión | Validada a 1 y 12 meses con backtesting (17/11/2026); falta la previsión a 10 años validada (P5) |
 | Simulador | Faltan parámetros del CPD: superficie, salas, racks, servidores, almacenamiento PB, TFLOPS, tráfico Gbps, operadores; tier solo informativo |
 | Escenarios y dashboards | Datos demo sintéticos en la app; sin manual de usuario |
 | Variables territoriales | Muchas variables del brief no están en el panel (densidad, envejecimiento, nivel educativo, distancia a autopistas/puertos/aeropuertos, fibra, 5G…) |
@@ -47,11 +54,7 @@ y los pocos datos demo que siguen en la aplicación pueden confundirse con datos
 
 ## Qué falta (❌)
 
-- **Análisis exploratorio:** no hay notebook, ni histogramas, ni box plots, ni pair plot.
-- **Correlaciones:** ni Pearson, ni Spearman, ni matriz, ni análisis de relación territorio–viabilidad.
-- **Modelos de Machine Learning:** ninguno entrenado (decisión de aplazar; ver D3 en [[01_Objetivo_y_alcance]]).
-- **Métricas:** ni de regresión (MAE, RMSE) ni de clasificación; sin matriz de confusión; sin paradoja de la exactitud comprobada.
-- **Feature engineering para modelos:** sin lags, sin diferencias, sin logaritmos, sin codificación de categóricas.
+- ~~Análisis exploratorio, correlaciones, modelos ML, métricas y features~~: hechos el 17/11/2026 (ver novedades). Falta el notebook de EDA.
 - **Informes:** análisis de datos, cuadro de mandos, visualización.
 - **Manual de usuario**, **vídeo** con casos de uso.
 - **Fuentes del enunciado no integradas:** AEMET (solo como variable de entorno), Confederaciones Hidrográficas, CNMC, Secretaría de Estado de Telecomunicaciones.
@@ -62,7 +65,7 @@ y los pocos datos demo que siguen en la aplicación pueden confundirse con datos
 
 | # | Riesgo | Impacto | Mitigación propuesta |
 |---|---|---|---|
-| R1 | **No hay modelos ML evaluados** y faltan 4 semanas | Suspenso en el objetivo 7 y en la evidencia de código | Entrenar un modelo simple esta misma semana (fase 7) y ampliar después |
+| R1 | ~~No hay modelos ML evaluados~~ **Cerrado el 17/11/2026** | — | Mantener `python -m cpd.modelos` en verde y repetir tras cada actualización de datos |
 | R2 | **Datos demo sintéticos** pueden confundirse con datos reales en la app o en el vídeo | Credibilidad y ética; R-1 | Etiqueta visible "DEMO sintético" en toda vista con datos demo; retirar demo de la entrega o usarlo solo como ejemplo |
 | R3 | **Granularidad distinta a la del enunciado** (provincia frente a municipio) | Discrepancia con "cualquier municipio" | Decidir D1 en la semana 1 y redactar la justificación |
 | R4 | **Fuentes sin integrar** (AEMET, CCHH, CNMC) | Pérdida de puntos en B1 y en variables | Integrar al menos una fuente de cada bloque o justificar la sustitución |
@@ -75,9 +78,9 @@ y los pocos datos demo que siguen en la aplicación pueden confundirse con datos
 
 ## Las 8 faltas más importantes por prioridad
 
-1. **Entrenar y evaluar al menos un modelo de previsión frente al baseline** (B7, B10, P5; fases 7-8).
-2. **EDA con histogramas, box plots, matriz de correlación Pearson y Spearman, y pair plot** (B5, B6; fase 4).
-3. **Métricas de error y validación temporal** (I30, I33; fase 8).
+1. ~~Modelos frente al baseline, EDA, métricas y validación temporal~~ (hecho el 17/11/2026). Queda: **previsión a 10 años validada** (P5) y **notebook de EDA** (B5).
+2. **Revisar el simulador**, que hoy solo distingue provincias por el clima (la demanda errónea de REData ya se filtra en el curado).
+3. **Informe de análisis final** que integre `eda_panel.md` y `metricas.md` (F3).
 4. **Informe de origen y calidad** con todas las fuentes, licencias, nulos y atípicos (F1, B3; fases 1-2).
 5. **Vídeo con al menos tres casos de uso** y **manual de usuario** (F7, F9, G3).
 6. **Documento de almacenamiento y diagrama del esquema en estrella** (F5, B4; fase 5).

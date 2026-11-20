@@ -206,7 +206,7 @@ con la viabilidad. Produce el **informe de análisis de los datos** (M4RA2) y el
 
 **Errores frecuentes.** Interpretar correlación como causa; usar Pearson con outliers sin mirar Spearman; gráficos sin unidades; escalas que exageran diferencias; pie charts con muchas categorías; no guardar el notebook con su salida.
 
-**Estado actual.** Pendiente: no hay notebook de EDA, ni pair plot, ni matriz de correlación, ni informe (ver [[07_Estado_actual]]).
+**Estado actual.** Parcial (17/11/2026): informe `docs/analisis/eda_panel.md` con histogramas, box plots, series, dispersión, matrices de Pearson y Spearman y pair plot, generado con `python -m cpd.modelos` (`src/cpd/modelos/eda.py`). Falta el notebook de `notebooks/` (ver [[07_Estado_actual]]).
 
 ---
 
@@ -269,7 +269,7 @@ con la viabilidad. Produce el **informe de análisis de los datos** (M4RA2) y el
 
 **Errores frecuentes.** Lags que miran al futuro; rolling calculado con la fila actual incluida cuando el objetivo es esa fila; one-hot con miles de columnas; target encoding sin partición; features duplicadas (correlación 1).
 
-**Estado actual.** Pendiente: no hay lags ni features para ML; solo hay una suma móvil y el factor estacional del baseline (ver [[07_Estado_actual]]).
+**Estado actual.** Hecho para los dos modelos (17/11/2026): `src/cpd/features/demanda.py` (lags, ventanas, estacionalidad, eventos, atípicos) y `src/cpd/features/provincia.py`; diccionario en `data/curated/modelos/diccionario_features.csv`; test de fuga en `tests/test_modelos.py`.
 
 ---
 
@@ -302,7 +302,7 @@ temporal honesta. Responde a los objetivos 7 y 10 y a las preguntas P5.
 
 **Errores frecuentes.** Dividir al azar; escalar o imputar con datos del test; elegir el modelo por el test; no comparar con un baseline; prever a 10 años sin decir que la incertidumbre es enorme; usar una feature que contiene el objetivo.
 
-**Estado actual.** Parcial: solo existe el baseline de tendencia + estacionalidad, sin validación ni backtesting. **No hay modelos ML entrenados** (decisión de aplazar, ver D3 en [[01_Objetivo_y_alcance]]).
+**Estado actual.** Hecho (17/11/2026): demanda por comunidad a 1 y 12 meses (3 baselines, Ridge y gradient boosting, validación temporal, test usado una vez, backtesting) y `prob_cpd` por provincia (validación cruzada repetida). Model cards en `docs/modelos/`. Falta la previsión a 10 años validada (P5).
 
 ---
 
@@ -336,7 +336,7 @@ temporal honesta. Responde a los objetivos 7 y 10 y a las preguntas P5.
 
 **Errores frecuentes.** Dar solo accuracy; comparar métricas calculadas sobre conjuntos distintos; mirar el test varias veces; no decir el umbral; no comparar con baseline; interpretar un RMSE sin unidades.
 
-**Estado actual.** Pendiente: no hay métricas de error de la previsión ni de clasificación. Ver [[07_Estado_actual]].
+**Estado actual.** Hecho (17/11/2026): `docs/analisis/metricas.md` (MAE, RMSE, MAPE; log-loss, ROC-AUC, Brier, matriz de confusión, umbral, paradoja de la exactitud y sesgos por subgrupo). Ver [[07_Estado_actual]].
 
 ---
 
