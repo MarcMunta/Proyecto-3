@@ -58,7 +58,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` | | Mejorar features de `prob_cpd` si hay más datos (n = 52) |
 | B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Añadir parámetros del CPD que faltan (ver D) |
 | B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Informe de cuadro de mandos (fase 10) |
-| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (1 y 12 meses, backtesting en `docs/analisis/metricas.md`) | | Previsión a 10 años validada para P5 |
+| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (1 y 12 meses); `docs/modelos/precio_luz.md`, `src/cpd/modelos/precio.py` (precio de la luz a 1-12 meses); backtesting en `docs/analisis/metricas.md` | | Previsión a 10 años validada para P5 |
 
 ## C. Preguntas funcionales (enunciado, p. 3; ver [[01_Objetivo_y_alcance]])
 
@@ -69,8 +69,8 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Análisis por nudo o CCAA; decisión de nivel |
 | P4 | ¿Existe riesgo hídrico? | 🟡 | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m` | | Informe con interpretación y limitación |
 | P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (validación temporal e intervalo a 12 meses); `src/cpd/forecast.py` (120 meses) | | Previsión a 10 años con incertidumbre creciente y explicación |
-| P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py` | | Calibrar precios en `config/settings.yaml` y documentar |
-| P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests | | Documentar tasa de descuento y supuestos |
+| P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md` | | Calibrar precios en `config/settings.yaml` y documentar |
+| P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests; sensibilidad del VAN al precio de la luz en la ficha del mapa (`frontend/scripts/simular_provincias.py`) | | Documentar tasa de descuento y supuestos |
 | P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico) | | Verificar fuentes de inundación y sísmico y sus unidades |
 
 ## D. Variables del CPD (enunciado, p. 2-4)
@@ -284,7 +284,7 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 |---|---|---|---|---|---|
 | I27 | Causas de fallo de previsión: checklist (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (fuga, estacionalidad, atípicos, horizonte) | | Lista explícita de las causas de C3 p.4 en el informe |
 | I28 | Evitar fuga de información (C3 p.4) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`test_features_no_usan_datos_posteriores_a_t_menos_h`); `n_ixp` excluida en `src/cpd/features/provincia.py` | | — |
-| I29 | Horizonte de previsión justificado (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (1 y 12 meses justificados) | | Justificar el horizonte de 10 años de P5 |
+| I29 | Horizonte de previsión justificado (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md` y `docs/modelos/precio_luz.md` (1 a 12 meses justificados: el simulador usa el precio del año siguiente) | | Justificar el horizonte de 10 años de P5 |
 | I30 | Ventana temporal de entrenamiento y validación (C3 p.4) | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `tests/test_modelos.py` (`test_particiones_son_temporales_y_no_se_solapan`) | | — |
 | I31 | Estacionalidad (C3 p.4) | ✅ | Baseline estacional y features de mes en `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/figuras/eda/02_boxplots.png` | | — |
 | I32 | Calidad de la previsión frente a baseline (C3 p.5-6) | ✅ | `docs/analisis/metricas.md` | | — |

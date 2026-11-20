@@ -34,6 +34,7 @@ NOMBRES_MODELO = {
     "naive": "Último valor (naive)",
     "estacional": "Mismo mes del año anterior (estacional)",
     "tendencia_estacionalidad": "Tendencia + estacionalidad (`forecast.py`)",
+    "media_12m": "Media de los últimos 12 meses (la del simulador)",
     "ridge": "Ridge (ML)",
     "gradient_boosting": "Gradient boosting (ML)",
     "mayoritaria": "Clase mayoritaria (baseline)",
@@ -249,7 +250,55 @@ actualización (`python -m cpd.fuentes.actualizar`) recogerá las correcciones c
 """
 
 
-def informe_metricas(demanda: dict[str, Any], prob: dict[str, Any], fecha: str) -> str:
+def _tabla_metricas_precio(metricas: pd.DataFrame) -> str:
+    """Tabla de MAE por modelo: todos los horizontes en validación y test, y por horizonte en test (€/MWh)."""
+    filas = []
+    for modelo, grupo in metricas.groupby("modelo", sort=False):
+        g = grupo.set_index(["particion", "horizonte"])
+        fila = {
+            "Modelo": NOMBRES_MODELO.get(modelo, modelo),
+            "Configuración": grupo["configuracion"].iloc[0],
+            "MAE validación": _n(g.loc[("validacion", "todos"), "mae"], 1),
+            "MAE test": _n(g.loc[("test", "todos"), "mae"], 1),
+            "RMSE test": _n(g.loc[("test", "todos"), "rmse"], 1),
+        }
+        for h in ("1", "3", "6", "12"):
+            fila[f"MAE test h={h}"] = _n(g.loc[("test", h), "mae"], 1)
+        filas.append(fila)
+    return _tabla(pd.DataFrame(filas))
+
+
+def _seccion_precio(precio: dict[str, Any]) -> str:
+    """Sección de métricas del precio de la luz para `metricas.md`."""
+    r = precio["resultado"]
+    e = r["elegido"]
+    bt = precio["backtest"].assign(abs=lambda d: d["error_eur_mwh"].abs())
+    resumen_bt = bt.groupby("modelo")["abs"].agg(["mean", "max"]).sort_values("mean").reset_index()
+    tabla_bt = pd.DataFrame(
+        {
+            "Modelo": resumen_bt["modelo"].map(lambda m: NOMBRES_MODELO.get(m, m)),
+            "Error medio de la media anual (€/MWh)": resumen_bt["mean"].map(lambda v: _n(v, 1)),
+            "Peor origen (€/MWh)": resumen_bt["max"].map(lambda v: _n(v, 1)),
+        }
+    )
+    return f"""## Regresión: precio medio mensual de la electricidad (spot, €/MWh)
+
+Un solo modelo para los horizontes de 1 a 12 meses. Métrica principal: **MAE en €/MWh** (cada €/MWh de error es
+coste de energía mal estimado; el MAPE se dispara en los meses con precios muy bajos). Validación
+{precio['periodos']['validacion']}; test {precio['periodos']['test']}, usado una vez.
+
+{_tabla_metricas_precio(r['metricas'])}
+
+Modelo elegido con la validación: **{NOMBRES_MODELO.get(e['modelo'], e['modelo'])}** ({e['configuracion']}).
+
+### Backtesting de la media de los 12 meses siguientes (orígenes trimestrales 2020-2023)
+
+{_tabla(tabla_bt)}
+
+Es lo que usa el simulador: el precio medio del año siguiente. Detalle en la [ficha del modelo](../modelos/precio_luz.md)."""
+
+
+def informe_metricas(demanda: dict[str, Any], prob: dict[str, Any], fecha: str, precio: dict[str, Any] | None = None) -> str:
     """Tabla de métricas de todos los modelos y baselines (`docs/analisis/metricas.md`)."""
     secciones = []
     for h, resultado in demanda["resultados"].items():
@@ -290,7 +339,8 @@ def informe_metricas(demanda: dict[str, Any], prob: dict[str, Any], fecha: str) 
 {AVISO.format(fecha=fecha)}
 
 Fase 8 de [la metodología](../metodologia/03_Flujo_de_trabajo.md). Fichas de modelo:
-[demanda por comunidad](../modelos/demanda_ccaa.md) y [probabilidad de CPD](../modelos/prob_cpd.md).
+[demanda por comunidad](../modelos/demanda_ccaa.md), [probabilidad de CPD](../modelos/prob_cpd.md) y
+[precio de la luz](../modelos/precio_luz.md).
 
 ## Regresión: demanda eléctrica mensual por comunidad (MWh)
 
@@ -322,6 +372,138 @@ Validación cruzada estratificada repetida (5 × 20); cada provincia se evalúa 
   {_n(100 * (1 - prob['prevalencia']), 1)} % sin servir para nada. Por eso no se elige el modelo por accuracy.
 
 Modelo elegido (menor log-loss): **{NOMBRES_MODELO.get(prob['elegido'], prob['elegido'])}**.
+
+{_seccion_precio(precio) if precio else ""}
+"""
+
+
+def ficha_precio(precio: dict[str, Any], fecha: str) -> str:
+    """Model card del precio de la luz (`docs/modelos/precio_luz.md`)."""
+    r = precio["resultado"]
+    e = r["elegido"]
+    res = precio["resumen"]
+    m = r["metricas"]
+    val = m.query("particion == 'validacion' and horizonte == 'todos'").set_index("modelo")["mae"]
+    tst = m.query("particion == 'test' and horizonte == 'todos'").set_index("modelo")["mae"]
+    h1 = m.query("particion == 'test' and horizonte == '1'").set_index("modelo")["mae"]
+    bt = precio["backtest"].assign(abs=lambda d: d["error_eur_mwh"].abs()).groupby("modelo")["abs"].mean()
+    mejor_bt = str(bt.idxmin())
+    ta = precio["test_anual"].set_index("modelo")
+    filas = "\n".join(
+        f"| {NOMBRES_MODELO.get(n, n)} | {_n(val[n], 1)} | {_n(tst[n], 1)} | {_n(h1[n], 1)} | {_n(bt.get(n), 1)} | {_n(ta['error_eur_mwh'].get(n), 1)} |"
+        for n in val.sort_values().index
+    )
+    mejor_test = str(tst.idxmin())
+    nota_test = (
+        f"En test, {NOMBRES_MODELO.get(mejor_test, mejor_test)} habría sido algo mejor ({_n(tst[mejor_test], 1)} frente a "
+        f"{_n(tst[e['modelo']], 1)} €/MWh), pero el modelo se elige con la validación y el test solo se mira una vez."
+        if mejor_test != e["modelo"]
+        else "El modelo elegido es también el mejor en test."
+    )
+    sel = r["seleccion"].assign(mae_validacion_eur_mwh=lambda d: d["mae_validacion_eur_mwh"].map(lambda v: _n(v, 1)))
+    sel.columns = ["Familia", "Configuración", "MAE validación (€/MWh)"]
+    figura = "../../" + precio["figura"]
+    gana_ml = e["familia"] == "ml"
+    return f"""# Model card · Precio medio mensual de la electricidad (`precio_luz`)
+
+{AVISO.format(fecha=fecha)}
+
+## Datos
+
+- Fuente y tablas: `data/curated/tablas/precios_diarios` (spot diario REData/OMIE, €/MWh → media mensual),
+  `reservas_ambito_mensual` (MITECO, 16 ámbitos → reserva nacional) y `co2` (REData, emisiones del sistema).
+- Granularidad: nacional (sistema peninsular) × mes. Solo meses completos (se quita el mes en curso).
+- Periodo de entrenamiento: meses objetivo de 2017 a {precio['periodos']['entrenamiento_hasta']} (incluye la crisis de 2021-2022).
+- Periodo de validación: {precio['periodos']['validacion']}.
+- Periodo de test: {precio['periodos']['test']} (usado una vez).
+- Features (`cpd.features.precio`, origen `r = t − h`): último precio, penúltimo, media de 3 meses, mismo mes del año
+  anterior, tendencia anual, volatilidad, reserva hídrica nacional y su variación anual, CO2 relativo, mes del
+  año (seno y coseno) y horizonte. Todas relativas al nivel de 12 meses y en logaritmo. Diccionario en
+  `data/curated/modelos/diccionario_features.csv`.
+- Escalado: `StandardScaler` dentro del pipeline de Ridge, ajustado solo con entrenamiento (R-7).
+
+## Objetivo
+
+Precio spot medio de cada uno de los 12 meses siguientes (€/MWh) y su media, que es el dato que entra en el OPEX
+del simulador. Un solo modelo para los horizontes de 1 a 12 meses (previsión directa; el horizonte es una feature).
+
+## Baselines
+
+- Último mes (naive): el precio del mes de origen.
+- **Media de los últimos 12 meses: es lo que usa hoy el simulador.**
+- Mismo mes del año anterior (estacional).
+- Tendencia + estacionalidad (`cpd.forecast.prever_mensual`).
+
+## Métrica principal
+
+**MAE (€/MWh)** = media de |real − previsión|. Se elige porque el error del precio pasa directamente al coste de
+la energía: con un CPD de 50 MW de TI (unos 455 GWh al año con PUE 1,3), 10 €/MWh de error son unos 4,5 M€ al año de
+OPEX. El MAPE no sirve como métrica principal: se dispara en los meses con precios muy bajos. Coste del error:
+infraestimar el precio es más peligroso que sobreestimarlo (hace parecer rentable un CPD que no lo es).
+
+## Resultados
+
+| Modelo | MAE validación | MAE test | MAE test a 1 mes | Error de la media anual (backtesting) | Error de la media anual (test) |
+|---|---|---|---|---|---|
+{filas}
+
+Todos los valores están en €/MWh. Backtesting: {res['origenes_backtesting']} orígenes trimestrales de 2020 a 2023, con
+reentrenamiento en cada origen. Test anual: origen {precio['test_anual']['origen'].iloc[0] if not precio['test_anual'].empty else '—'}
+(error = previsión − real).
+
+**Modelo elegido con la validación: {NOMBRES_MODELO.get(e['modelo'], e['modelo'])}.**
+{"El modelo de ML mejora a todos los baselines en validación." if gana_ml else
+"Ningún modelo de ML supera en validación a la media de los últimos 12 meses: es decir, **el supuesto que ya usaba el simulador es la mejor previsión disponible del precio anual**. La explicación más probable: sin el precio del gas (que no está entre las fuentes) no se pueden anticipar los cambios de régimen, y el entrenamiento está dominado por la crisis de 2021-2022. Se documenta en lugar de forzar un modelo peor."}
+{nota_test}
+
+Matiz importante: en el backtesting de 2020-2023, el que mejor acierta la media del año siguiente es
+**{NOMBRES_MODELO.get(mejor_bt, mejor_bt)}** ({_n(bt[mejor_bt], 1)} €/MWh de error medio), porque en esos años el precio cambió de
+nivel varias veces y el último mes recoge antes el cambio. Con el criterio fijado de antemano (MAE mensual en
+validación) se mantiene el modelo elegido.
+
+![Previsión del precio]({figura})
+
+**Figura.** Precio real, previsión de los 12 meses siguientes con su intervalo y el escenario «el precio se queda
+como el último mes».
+
+Selección de configuraciones de ML (validación):
+
+{_tabla(sel)}
+
+## Previsión actual
+
+- Precio medio previsto para los 12 meses siguientes a {res['ultimo_mes']}: **{_n(res['media_prevista_eur_mwh'], 1)} €/MWh**
+  (rango probable {_n(res['inferior_eur_mwh'], 0)}-{_n(res['superior_eur_mwh'], 0)} €/MWh, cuantiles del 10 % y el 90 % del error
+  de la media anual en el backtesting).
+- Escenario «se mantiene el último mes»: **{_n(res['ultimo_mes_eur_mwh'], 1)} €/MWh** ({res['ultimo_mes']}).
+- **Aviso:** el precio sube desde julio de 2026 (en {res['ultimo_mes']}, {_n(res['ultimo_mes_eur_mwh'], 0)} €/MWh frente a
+  {_n(res['media_12m_actual_eur_mwh'], 0)} de media en 12 meses). Si es un cambio de régimen como el de 2021, la media de 12 meses
+  lo infraestima. El mapa enseña el VAN con los dos extremos del rango.
+
+## Sesgos y comprobaciones
+
+- Paradoja de la exactitud: no aplica (regresión).
+- Por horizonte: el error a 1 mes es menor que a 12 (tabla de [metricas.md](../analisis/metricas.md)).
+- Fuga: `tests/test_modelos.py` comprueba que cambiar los datos posteriores al origen no cambia las features.
+- Particiones: entrenamiento < validación < test por mes objetivo (R-6).
+
+## Limitaciones
+
+- No hay precio del gas (MIBGAS o TTF) ni precios de futuros (OMIP), que son lo que de verdad anticipa el precio
+  del año siguiente. Es la mejora más clara (recomendación, no viene de clase).
+- Una sola serie nacional con unos 120 meses útiles: pocos datos para un modelo con muchas features.
+- El precio que paga un CPD depende de su contrato (PPA, tarifas de acceso), no solo del spot.
+
+## Uso previsto y uso no previsto
+
+- Previsto: dar el precio de referencia y su rango al simulador y enseñar la sensibilidad del VAN en el mapa.
+- No previsto: comprar energía o cerrar un contrato con esta previsión.
+
+## Reproducción
+
+`.\\.venv\\Scripts\\python.exe -m cpd.modelos` (semilla {precio['semilla']}; versiones en `requirements.txt`). Salidas en
+`data/curated/modelos/` (`prevision_precio_luz.csv`, `resumen_precio_luz.json`, `metricas_precio.csv`,
+`media_anual_precio.csv`). Entrenado el {fecha}.
 """
 
 

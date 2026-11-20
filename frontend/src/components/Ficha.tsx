@@ -304,6 +304,7 @@ function BloqueLuz(p: Props & { d: ProvinciaPrediccion; municipio: Municipio | u
           </div>
         </dl>
       )}
+      {simulacion && <SensibilidadPrecio d={d} prediccion={prediccion} />}
       {(demanda.datos?.ahora || mix.datos?.renovableAyer) && (
         <p className="linea-vivo">
           {demanda.datos?.ahora && <>Demanda {num(demanda.datos.ahora.v)} MW</>}
@@ -321,6 +322,7 @@ const NOMBRE_MODELO: Record<string, string> = {
   logistica: "regresión logística",
   bosque: "random forest",
   estacional: "mismo mes del año anterior",
+  media_12m: "media de los últimos 12 meses",
   naive: "último valor",
   tendencia_estacionalidad: "tendencia + estacionalidad",
   ridge: "regresión Ridge",
@@ -338,6 +340,46 @@ function notaProbCpd(p: Prediccion): string {
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+/**
+ * Cuánto cambia el VAN con el precio de la luz (modelo precio_luz): con el precio del último mes y con los extremos
+ * del rango probable del precio medio de los 12 meses siguientes. Los VAN los calcula simular_provincias.py.
+ */
+function SensibilidadPrecio({ d, prediccion }: { d: ProvinciaPrediccion; prediccion: Prediccion }) {
+  const m = prediccion.modelos?.precio_luz;
+  if (!m || (d.van_eur_precio_ultimo_mes == null && d.van_eur_precio_inferior == null)) return null;
+  const eur = (v: number | null | undefined) => `${num(v, 0)} €/MWh`;
+  return (
+    <>
+      <dl className="pares">
+        {d.van_eur_precio_ultimo_mes != null && (
+          <div>
+            <dt>
+              VAN si la luz sigue como {m.ultimo_mes ? `en ${mesLegible(m.ultimo_mes)}` : "el último mes"} ({eur(m.ultimo_mes_eur_mwh)})
+            </dt>
+            <dd>{millones(d.van_eur_precio_ultimo_mes)}</dd>
+          </div>
+        )}
+        {d.van_eur_precio_inferior != null && d.van_eur_precio_superior != null && (
+          <div>
+            <dt>
+              VAN en el rango probable del precio ({num(m.inferior_eur_mwh, 0)}-{eur(m.superior_eur_mwh)})
+            </dt>
+            <dd>
+              {millones(d.van_eur_precio_superior)} a {millones(d.van_eur_precio_inferior)}
+            </dd>
+          </div>
+        )}
+      </dl>
+      <p className="dato-linea">
+        Precio medio previsto para los próximos 12 meses: <strong>{eur(m.media_prevista_eur_mwh)}</strong> (modelo:{" "}
+        {NOMBRE_MODELO[m.modelo] ?? m.modelo}
+        {m.mae_test_eur_mwh != null ? `; error medio en test ${num(m.mae_test_eur_mwh, 0)} €/MWh` : ""}). El precio de la luz pesa más en
+        el VAN que la ubicación.
+      </p>
+    </>
+  );
 }
 
 /** Demanda eléctrica de la comunidad: último año con datos válidos y previsión de los 12 meses siguientes. */

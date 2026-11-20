@@ -199,6 +199,19 @@ def salidas_modelos(curado: Path, panel: pd.DataFrame) -> tuple[pd.DataFrame | N
             "provincias_con_cpd": int(prob["tiene_cpd"].sum()),
             "generado": str(prob["generado_en"].iloc[0]),
         }
+    ruta_precio = carpeta / "resumen_precio_luz.json"
+    if ruta_precio.exists():
+        p = json.loads(ruta_precio.read_text(encoding="utf-8"))
+        resumen["precio_luz"] = {
+            "modelo": p["modelo"],
+            "media_prevista_eur_mwh": round(p["media_prevista_eur_mwh"], 2),
+            "inferior_eur_mwh": round(p["inferior_eur_mwh"], 2),
+            "superior_eur_mwh": round(p["superior_eur_mwh"], 2),
+            "ultimo_mes": p["ultimo_mes"],
+            "ultimo_mes_eur_mwh": round(p["ultimo_mes_eur_mwh"], 2),
+            "mae_test_eur_mwh": round(p["mae_test_eur_mwh"], 2),
+            "generado": p["generado_en"],
+        }
     ruta_dem = carpeta / "resumen_demanda_ccaa.csv"
     if ruta_dem.exists():
         por_ccaa = pd.read_csv(ruta_dem, dtype={"codigo_ccaa": str})
@@ -230,6 +243,14 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
     ajustes["precios"]["precio_electricidad_eur_mwh"] = meta["precio_12m"]
     r = evaluar(df, params, ajustes).set_index("codigo_provincia", drop=False)
     a = actual.set_index("codigo_provincia")
+    # Sensibilidad del VAN al precio de la luz (modelo precio_luz): extremos del rango probable y «último mes».
+    van_con_precio: dict[str, pd.Series] = {}
+    precio_luz = resumen_modelos.get("precio_luz")
+    if precio_luz:
+        for clave, precio in (("inferior", precio_luz["inferior_eur_mwh"]), ("superior", precio_luz["superior_eur_mwh"]), ("ultimo_mes", precio_luz["ultimo_mes_eur_mwh"])):
+            escenario = copy.deepcopy(settings)
+            escenario["precios"]["precio_electricidad_eur_mwh"] = precio
+            van_con_precio[clave] = evaluar(df, params, escenario).set_index("codigo_provincia")["van_eur"]
 
     orden = list(r.index)
     clase = dict(zip(orden, clases_rentabilidad(list(r["estado"]), [_num(v) for v in r["van_eur"]])))
@@ -266,6 +287,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
                 "demanda_ccaa_prevision_inferior_mwh": _redondeo(dem["prevision_12m_inferior_mwh"], 0) if dem is not None else None,
                 "demanda_ccaa_prevision_superior_mwh": _redondeo(dem["prevision_12m_superior_mwh"], 0) if dem is not None else None,
                 "demanda_ccaa_hasta": str(dem["ultimos_12m_hasta"]) if dem is not None and pd.notna(dem["ultimos_12m_hasta"]) else None,
+                **{f"van_eur_precio_{clave}": _redondeo(serie.get(codigo), 0) for clave, serie in van_con_precio.items()},
                 "cpd_existentes": _redondeo(extra.get("cpd_existentes"), 0),
                 "pue": _redondeo(fila["pue_aplicado"], 3),
                 "latencia_rtt_ms": _redondeo(fila["latencia_rtt_ms"], 2),
