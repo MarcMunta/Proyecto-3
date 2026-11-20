@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import metaJson from "./provincias.json";
 import type { GeoContexto, GeoProvincias, ProvinciaMeta, Viabilidad } from "./types";
 import { desdeDemo, normalizarReal, type Prediccion } from "./prediccion";
+import { normalizarPrevisiones, type Previsiones } from "./previsiones";
 
 const BASE = import.meta.env.BASE_URL;
 const META = metaJson as ProvinciaMeta[];
@@ -13,6 +14,8 @@ export interface Datos {
   prediccion: Prediccion;
   geo: GeoProvincias;
   contexto: GeoContexto | null;
+  /** Previsión a 1 año del precio y de la demanda (opcional: sin ella la ficha no enseña los gráficos). */
+  previsiones: Previsiones | null;
 }
 
 async function json<T>(ruta: string): Promise<T> {
@@ -53,9 +56,10 @@ export function useDatos(): { datos: Datos | null; error: string | null } {
       json<GeoProvincias>("data/provincias.geojson"),
       json<GeoContexto>("data/contexto.geojson").catch(() => null),
       prediccionReal(),
+      json<unknown>("data/previsiones.json").then(normalizarPrevisiones).catch(() => null),
     ])
-      .then(([viabilidad, geo, contexto, real]) => {
-        if (vivo) setDatos({ viabilidad, geo, contexto, prediccion: real ?? desdeDemo(viabilidad, META) });
+      .then(([viabilidad, geo, contexto, real, previsiones]) => {
+        if (vivo) setDatos({ viabilidad, geo, contexto, prediccion: real ?? desdeDemo(viabilidad, META), previsiones });
       })
       .catch((e: unknown) => vivo && setError(e instanceof Error ? e.message : String(e)));
     return () => {

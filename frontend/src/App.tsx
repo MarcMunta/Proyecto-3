@@ -124,6 +124,7 @@ export function App() {
               meta={meta}
               geoProps={datos.geo.features.find((f) => f.properties.codigo === meta.codigo)?.properties}
               prediccion={datos.prediccion}
+              previsiones={datos.previsiones}
               viabilidad={datos.viabilidad}
               sitio={ruta.sitio}
               onSitio={elegirSitio}

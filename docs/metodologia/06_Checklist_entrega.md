@@ -49,7 +49,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Requisito | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| B1 | Identificar y recopilar fuentes de datos relevantes | 🟡 | `docs/datos/README.md`, `docs/datos/tablas_api.md`, `src/cpd/fuentes/` | | Integrar AEMET, Confederaciones Hidrográficas y CNMC o justificar sustitución (D2) |
+| B1 | Identificar y recopilar fuentes de datos relevantes | 🟡 | `docs/datos/README.md`, `docs/datos/tablas_api.md`, `src/cpd/fuentes/`; MIBGAS (gas, `src/cpd/fuentes/mibgas.py`) | | Integrar AEMET, Confederaciones Hidrográficas y CNMC o justificar sustitución (D2) |
 | B2 | Diseñar procesos ETL para integrar datos heterogéneos | 🟡 | `src/ingesta/01_…04_*.py`, `src/cpd/fuentes/actualizar.py`, `src/cpd/etl/ree.py` | | Documentar el ETL como diagrama y tabla (fases 1-3) |
 | B3 | Limpiar, transformar y validar los datos obtenidos | 🟡 | `src/cpd/fuentes/curado.py` (criterio NaN), `src/cpd/fuentes/calidad.py` (control de calidad de la demanda), `tests/test_datos_nuevos.py`, `tests/test_fuentes.py` | | Informe de calidad: nulos, duplicados, atípicos por variable (fase 2) |
 | B4 | Diseñar un Data Lake y un Data Warehouse | 🟡 | `data/raw/`, `data/almacen/p3_cpd.duckdb`, `src/cpd/almacen.py` | | Completar estrella y escribir documento de almacenamiento (fase 5) |
@@ -58,7 +58,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` | | Mejorar features de `prob_cpd` si hay más datos (n = 52) |
 | B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Añadir parámetros del CPD que faltan (ver D) |
 | B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Informe de cuadro de mandos (fase 10) |
-| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (1 y 12 meses); `docs/modelos/precio_luz.md`, `src/cpd/modelos/precio.py` (precio de la luz a 1-12 meses); backtesting en `docs/analisis/metricas.md` | | Previsión a 10 años validada para P5 |
+| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda y del precio, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md` | | Previsión a 10 años validada para P5 |
 
 ## C. Preguntas funcionales (enunciado, p. 3; ver [[01_Objetivo_y_alcance]])
 
@@ -284,10 +284,10 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 |---|---|---|---|---|---|
 | I27 | Causas de fallo de previsión: checklist (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (fuga, estacionalidad, atípicos, horizonte) | | Lista explícita de las causas de C3 p.4 en el informe |
 | I28 | Evitar fuga de información (C3 p.4) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`test_features_no_usan_datos_posteriores_a_t_menos_h`); `n_ixp` excluida en `src/cpd/features/provincia.py` | | — |
-| I29 | Horizonte de previsión justificado (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md` y `docs/modelos/precio_luz.md` (1 a 12 meses justificados: el simulador usa el precio del año siguiente) | | Justificar el horizonte de 10 años de P5 |
+| I29 | Horizonte de previsión justificado (C3 p.4) | 🟡 | `docs/analisis/previsiones_1_anio.md` (1 año: el simulador necesita el precio y la demanda del año siguiente) | | Justificar el horizonte de 10 años de P5 |
 | I30 | Ventana temporal de entrenamiento y validación (C3 p.4) | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `tests/test_modelos.py` (`test_particiones_son_temporales_y_no_se_solapan`) | | — |
 | I31 | Estacionalidad (C3 p.4) | ✅ | Baseline estacional y features de mes en `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/figuras/eda/02_boxplots.png` | | — |
-| I32 | Calidad de la previsión frente a baseline (C3 p.5-6) | ✅ | `docs/analisis/metricas.md` | | — |
+| I32 | Calidad de la previsión frente a baseline (C3 p.5-6) | ✅ | `docs/analisis/metricas.md`, `docs/analisis/previsiones_1_anio.md` (figuras 4 y 5) | | — |
 | I33 | Métricas de regresión: distancia al valor real (C3 p.9-11) | ✅ | `docs/analisis/metricas.md` (MAE, RMSE, MAPE); `src/cpd/modelos/metricas.py` | | — |
 | I34 | Métricas de clasificación (C3 p.13) | ✅ | `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py` | | — |
 | I35 | Accuracy (C3 p.14) | ✅ | `docs/analisis/metricas.md` (con clase mayoritaria) | | — |

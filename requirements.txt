@@ -58,3 +58,5 @@ pyparsing==3.3.3
 scikit-learn==1.9.1
 scipy==1.18.1
 threadpoolctl==3.8.0
+patsy==1.0.3
+statsmodels==0.15.0

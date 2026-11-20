@@ -161,6 +161,10 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     _paso(acta, "ccaa_generacion", lambda: ree.resumen_renovable(ree.generacion_ccaa_mensual(ANIO_INICIO, anio_fin)))
     _paso(acta, "co2", lambda: ree.co2_nacional_mensual(ANIO_INICIO, anio_fin))
     _paso(acta, "precios_diarios", lambda: ree.precios_diarios_historicos(ANIO_INICIO, anio_fin))
+    from cpd.fuentes import mibgas
+
+    _paso(acta, "gas_diario", lambda: mibgas.gas_diario(mibgas.ANIO_INICIO, anio_fin))
+    _paso(acta, "gas_futuros", lambda: mibgas.gas_futuros(mibgas.ANIO_INICIO, anio_fin))
     def poblacion() -> pd.DataFrame:
         try:
             tempus = ine.poblacion_provincias()

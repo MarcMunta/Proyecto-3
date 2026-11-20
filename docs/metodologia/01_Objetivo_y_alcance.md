@@ -61,6 +61,7 @@ Del enunciado (sección "Análisis requerimientos funcionales"):
 | D4 | **Análisis exploratorio** | Objetivo 5 y entregable "Informe de análisis de los datos" | Informe EDA en `docs/analisis/eda_panel.md` (17/11/2026); sin notebook | Añadir el notebook en `notebooks/` que llame a `cpd.modelos.eda`. Ver fase 4. |
 | D5 | **Data Lake y Data Warehouse** | Objetivo 4 | Capa raw en `data/raw/` (no versionada salvo registro), DuckDB con esquemas `fuentes`, `dw` (dimensiones y vista de hechos) y `meta` | Completar el esquema en estrella y documentarlo (fase 5). |
 | D6 | **Dashboards** | Objetivo 9 e "Informe de cuadro de mandos" | Streamlit (6 pestañas) y mapa web (Vite + React + MapLibre) | Decidir cuál es el cuadro de mandos oficial o justificar los dos. |
+| D7 | **Precio de la luz del simulador** | El VAN y el OPEX dependen del precio de la energía | Media spot de los últimos 12 meses (80 €/MWh); la previsión a 1 año (`docs/analisis/previsiones_1_anio.md`) da 153 €/MWh y, con ella, el VAN es negativo en las 52 provincias | **Decidida el 17/11/2026:** se mantiene la media de 12 meses como precio base (supuesto conocido y estable para comparar provincias). La previsión a 1 año y su rango se enseñan en la ficha como escenarios del VAN. Revisar si el precio se mantiene alto. |
 
 ## Entregables y fechas
 

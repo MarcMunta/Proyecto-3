@@ -10,6 +10,8 @@ export interface ProvinciaPrediccion {
   codigo: string;
   nombre: string;
   ccaa: string | null;
+  /** Código INE de la comunidad (dos dígitos), para cruzar con la previsión de demanda. */
+  codigo_ccaa?: string | null;
   clase: ClaseRentabilidad | null;
   score: number | null;
   estado: Estado | null;
@@ -40,6 +42,7 @@ export interface ProvinciaPrediccion {
   /** Último mes (AAAA-MM) de los 12 meses de demanda. */
   demanda_ccaa_hasta?: string | null;
   /** VAN (€) con el precio de la luz en el extremo bajo y alto de su rango probable y con el del último mes. */
+  van_eur_precio_previsto?: number | null;
   van_eur_precio_inferior?: number | null;
   van_eur_precio_superior?: number | null;
   van_eur_precio_ultimo_mes?: number | null;
@@ -60,6 +63,7 @@ export interface ResumenModelos {
     ultimo_mes: string | null;
     ultimo_mes_eur_mwh: number | null;
     mae_test_eur_mwh: number | null;
+    futuro_gas_anio_eur_mwh?: number | null;
   };
 }
 
@@ -117,6 +121,7 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       codigo,
       nombre: texto(fila.provincia) ?? nombres.get(codigo)!,
       ccaa: texto(fila.ccaa),
+      codigo_ccaa: texto(fila.codigo_ccaa),
       clase,
       score: numero(fila.score_viabilidad),
       estado,
@@ -143,6 +148,7 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       demanda_ccaa_prevision_inferior_mwh: numero(fila.demanda_ccaa_prevision_inferior_mwh),
       demanda_ccaa_prevision_superior_mwh: numero(fila.demanda_ccaa_prevision_superior_mwh),
       demanda_ccaa_hasta: texto(fila.demanda_ccaa_hasta),
+      van_eur_precio_previsto: numero(fila.van_eur_precio_previsto),
       van_eur_precio_inferior: numero(fila.van_eur_precio_inferior),
       van_eur_precio_superior: numero(fila.van_eur_precio_superior),
       van_eur_precio_ultimo_mes: numero(fila.van_eur_precio_ultimo_mes),
@@ -183,6 +189,7 @@ function leerModelos(v: unknown): ResumenModelos | undefined {
       ultimo_mes: texto(l.ultimo_mes),
       ultimo_mes_eur_mwh: numero(l.ultimo_mes_eur_mwh),
       mae_test_eur_mwh: numero(l.mae_test_eur_mwh),
+      futuro_gas_anio_eur_mwh: numero(l.futuro_gas_anio_eur_mwh),
     };
   return salida.prob_cpd || salida.demanda || salida.precio_luz ? salida : undefined;
 }

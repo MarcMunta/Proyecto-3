@@ -10,11 +10,14 @@ import { UMBRAL_FREE_COOLING_C, recalcularConPrecio } from "../model/finanzas";
 import { Flap } from "./Flap";
 import { IconoClase } from "./IconoClase";
 import { Barra, Comparativa, Flecha, GraficoPrecio, Vivo, type ItemComparativa } from "./Piezas";
+import { GraficoPrevision } from "./GraficoPrevision";
+import type { Previsiones } from "../data/previsiones";
 
 interface Props {
   meta: ProvinciaMeta;
   geoProps: PropsProvincia | undefined;
   prediccion: Prediccion;
+  previsiones: Previsiones | null;
   viabilidad: Viabilidad;
   sitio: string | null;
   onSitio: (ine: string) => void;
@@ -216,7 +219,7 @@ export function Ficha(p: Props) {
             </section>
           )}
 
-          <BloqueDemanda d={d} prediccion={prediccion} />
+          <BloqueDemanda d={d} prediccion={prediccion} previsiones={p.previsiones} />
 
           {d.motivos.length > 0 && (
             <section className="bloque" aria-labelledby="b-motivos">
@@ -304,6 +307,15 @@ function BloqueLuz(p: Props & { d: ProvinciaPrediccion; municipio: Municipio | u
           </div>
         </dl>
       )}
+      {simulacion && p.previsiones?.precio && (
+        <GraficoPrevision
+          titulo="Precio de la luz: últimos 3 años y previsión a 1 año"
+          historia={p.previsiones.precio.historia}
+          prevision={p.previsiones.precio.prevision}
+          unidad="€/MWh"
+          nota={`${NOMBRE_MODELO[p.previsiones.precio.modelo] ?? p.previsiones.precio.modelo}${p.previsiones.precio.errorTest != null ? `; error medio a 1 año ${num(p.previsiones.precio.errorTest, 0)} €/MWh` : ""}`}
+        />
+      )}
       {simulacion && <SensibilidadPrecio d={d} prediccion={prediccion} />}
       {(demanda.datos?.ahora || mix.datos?.renovableAyer) && (
         <p className="linea-vivo">
@@ -323,6 +335,8 @@ const NOMBRE_MODELO: Record<string, string> = {
   bosque: "random forest",
   estacional: "mismo mes del año anterior",
   media_12m: "media de los últimos 12 meses",
+  combinacion: "combinación de los 3 mejores modelos",
+  ets: "ETS (Holt-Winters)",
   naive: "último valor",
   tendencia_estacionalidad: "tendencia + estacionalidad",
   ridge: "regresión Ridge",
@@ -353,6 +367,12 @@ function SensibilidadPrecio({ d, prediccion }: { d: ProvinciaPrediccion; predicc
   return (
     <>
       <dl className="pares">
+        {d.van_eur_precio_previsto != null && (
+          <div>
+            <dt>VAN con el precio previsto a 1 año ({eur(m.media_prevista_eur_mwh)})</dt>
+            <dd>{millones(d.van_eur_precio_previsto)}</dd>
+          </div>
+        )}
         {d.van_eur_precio_ultimo_mes != null && (
           <div>
             <dt>
@@ -383,17 +403,28 @@ function SensibilidadPrecio({ d, prediccion }: { d: ProvinciaPrediccion; predicc
 }
 
 /** Demanda eléctrica de la comunidad: último año con datos válidos y previsión de los 12 meses siguientes. */
-function BloqueDemanda({ d, prediccion }: { d: ProvinciaPrediccion; prediccion: Prediccion }) {
+function BloqueDemanda({ d, prediccion, previsiones }: { d: ProvinciaPrediccion; prediccion: Prediccion; previsiones: Previsiones | null }) {
   const ultimos = d.demanda_ccaa_ultimos_12m_mwh;
   const prevision = d.demanda_ccaa_prevision_12m_mwh;
   if (ultimos == null && prevision == null) return null;
   const gwh = (v: number | null | undefined) => (v == null ? "—" : `${num(v / 1e3)} GWh`);
   const modelo = prediccion.modelos?.demanda;
+  const serieDemanda = d.codigo_ccaa ? previsiones?.demanda.get(d.codigo_ccaa) : undefined;
   return (
     <section className="bloque" aria-labelledby="b-demanda">
       <h3 id="b-demanda">
         Demanda eléctrica <span className="h-nota">{d.ccaa ?? "comunidad autónoma"} · 12 meses</span>
       </h3>
+      {serieDemanda && (
+        <GraficoPrevision
+          titulo={`Demanda de ${serieDemanda.nombre}: últimos 3 años y previsión a 1 año`}
+          historia={serieDemanda.historia}
+          prevision={serieDemanda.prevision}
+          unidad="GWh"
+          escala={1000}
+          nota={serieDemanda.errorTest != null ? `error medio a 1 año ${num(serieDemanda.errorTest, 1)} %` : undefined}
+        />
+      )}
       <dl className="pares">
         <div>
           <dt>Último año{d.demanda_ccaa_hasta ? ` (hasta ${mesLegible(d.demanda_ccaa_hasta)})` : ""}</dt>

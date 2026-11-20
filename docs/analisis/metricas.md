@@ -2,7 +2,8 @@
 
 > Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
-Fase 8 de [la metodología](../metodologia/03_Flujo_de_trabajo.md). Fichas de modelo:
+Fase 8 de [la metodología](../metodologia/03_Flujo_de_trabajo.md). **La previsión a 1 año que usa el mapa (con todos los
+gráficos) está en [previsiones_1_anio.md](previsiones_1_anio.md).** Fichas de modelo:
 [demanda por comunidad](../modelos/demanda_ccaa.md), [probabilidad de CPD](../modelos/prob_cpd.md) y
 [precio de la luz](../modelos/precio_luz.md).
 

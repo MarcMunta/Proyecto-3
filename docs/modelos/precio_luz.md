@@ -2,6 +2,10 @@
 
 > Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
+> Esta ficha es la primera evaluación del precio (un solo periodo de validación y sin el precio del gas). **La
+> previsión a 1 año que usa el mapa** (combinación con el gas de MIBGAS, elegida con 24 orígenes de backtesting) está
+> en [previsiones_1_anio.md](../analisis/previsiones_1_anio.md).
+
 ## Datos
 
 - Fuente y tablas: `data/curated/tablas/precios_diarios` (spot diario REData/OMIE, €/MWh → media mensual),

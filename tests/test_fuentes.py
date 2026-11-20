@@ -413,3 +413,31 @@ def test_calidad_quita_el_mes_en_curso():
     limpia, registro = calidad.depurar_demanda_ccaa(tabla, hoy=dt.date(2025, 12, 10))
     assert limpia.loc[limpia["fecha"] == "2025-12-01", "demanda_mwh"].isna().all()
     assert set(registro["motivo"]) == {"mes en curso (incompleto)"} and len(registro) == 5
+
+
+def test_mibgas_lee_las_hojas_de_distintos_anios(tmp_path):
+    import datetime as dt
+
+    from cpd.fuentes import mibgas
+
+    # Ficheros de PRUEBA con el formato de 2016 («Indices», «Trading Data») y de 2025 («MIBGAS Indexes», «Trading Data PVB&VTP»).
+    viejo = tmp_path / "MIBGAS_Data_2016.xlsx"
+    with pd.ExcelWriter(viejo) as w:
+        pd.DataFrame({"Delivery day": [dt.datetime(2016, 1, 1)], "Area": ["ES"], "MIBGAS Index\n[EUR/MWh]": [15.0]}).to_excel(w, sheet_name="Indices", index=False)
+        pd.DataFrame(
+            {"Trading day": [dt.datetime(2016, 1, 4)], "Product": ["GMAES"], "Place of delivery": ["PVB"], "Area": ["ES"],
+             "First Day Delivery": [dt.datetime(2016, 2, 1)], "Last Day Delivery": [dt.datetime(2016, 2, 29)], "Daily Reference Price\n[EUR/MWh]": [16.5]}
+        ).to_excel(w, sheet_name="Trading Data", index=False)
+    nuevo = tmp_path / "MIBGAS_Data_2025.xlsx"
+    with pd.ExcelWriter(nuevo) as w:
+        pd.DataFrame({"Delivery day": [dt.datetime(2025, 12, 31)], "MIBGAS PVB Last Price Index Day-Ahead\n[EUR/MWh]": [27.8], "MIBGAS-ES Index\n[EUR/MWh]": [28.17]}).to_excel(
+            w, sheet_name="MIBGAS Indexes", index=False
+        )
+        pd.DataFrame(
+            {"Trading day": [dt.datetime(2025, 12, 30)], "Product": ["GYES_Y+1"], "Place of delivery": ["PVB"], "Area": ["ES"],
+             "First Day Delivery": [dt.datetime(2026, 1, 1)], "Last Day Delivery": [dt.datetime(2026, 12, 31)], "Reference Price\n[EUR/MWh]": [26.63]}
+        ).to_excel(w, sheet_name="Trading Data PVB&VTP", index=False)
+    assert mibgas._leer_indices(viejo)["gas_mibgas_es_eur_mwh"].tolist() == [15.0]
+    assert mibgas._leer_indices(nuevo)["gas_mibgas_es_eur_mwh"].tolist() == [28.17]
+    assert mibgas._leer_futuros(viejo)[["producto", "precio_eur_mwh"]].values.tolist() == [["M+1", 16.5]]
+    assert mibgas._leer_futuros(nuevo)[["producto", "precio_eur_mwh"]].values.tolist() == [["Y+1", 26.63]]

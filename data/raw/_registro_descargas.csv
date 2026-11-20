@@ -1232,3 +1232,14 @@ fecha_descarga,fuente,descripcion,url,archivo,tam_kb
 2026-11-13T21:33:33,PeeringDB,Listado fac España,https://www.peeringdb.com/api/fac,data/raw/api/peeringdb/fac_ES.json,68
 2026-11-13T21:33:33,PeeringDB,Listado ix España,https://www.peeringdb.com/api/ix,data/raw/api/peeringdb/ix_ES.json,18
 2026-11-13T21:33:35,EMSC (FDSN),Terremotos M>=1.5 2026,https://www.seismicportal.eu/fdsnws/event/1/query,data/raw/api/emsc_v2/2026.json,483
+2026-11-17T19:02:57,MIBGAS,MIBGAS datos 2016,https://www.mibgas.es/es/file-access/MIBGAS_Data_2016.xlsx?path=AGNO_2016/XLS,data/raw/api/mibgas/MIBGAS_Data_2016.xlsx,851
+2026-11-17T19:03:30,MIBGAS,MIBGAS datos 2017,https://www.mibgas.es/es/file-access/MIBGAS_Data_2017.xlsx?path=AGNO_2017/XLS,data/raw/api/mibgas/MIBGAS_Data_2017.xlsx,861
+2026-11-17T19:03:31,MIBGAS,MIBGAS datos 2018,https://www.mibgas.es/es/file-access/MIBGAS_Data_2018.xlsx?path=AGNO_2018/XLS,data/raw/api/mibgas/MIBGAS_Data_2018.xlsx,1175
+2026-11-17T19:03:31,MIBGAS,MIBGAS datos 2019,https://www.mibgas.es/es/file-access/MIBGAS_Data_2019.xlsx?path=AGNO_2019/XLS,data/raw/api/mibgas/MIBGAS_Data_2019.xlsx,1184
+2026-11-17T19:03:32,MIBGAS,MIBGAS datos 2020,https://www.mibgas.es/es/file-access/MIBGAS_Data_2020.xlsx?path=AGNO_2020/XLS,data/raw/api/mibgas/MIBGAS_Data_2020.xlsx,1797
+2026-11-17T19:03:33,MIBGAS,MIBGAS datos 2021,https://www.mibgas.es/es/file-access/MIBGAS_Data_2021.xlsx?path=AGNO_2021/XLS,data/raw/api/mibgas/MIBGAS_Data_2021.xlsx,1929
+2026-11-17T19:03:34,MIBGAS,MIBGAS datos 2022,https://www.mibgas.es/es/file-access/MIBGAS_Data_2022.xlsx?path=AGNO_2022/XLS,data/raw/api/mibgas/MIBGAS_Data_2022.xlsx,2083
+2026-11-17T19:03:35,MIBGAS,MIBGAS datos 2023,https://www.mibgas.es/es/file-access/MIBGAS_Data_2023.xlsx?path=AGNO_2023/XLS,data/raw/api/mibgas/MIBGAS_Data_2023.xlsx,3255
+2026-11-17T19:03:35,MIBGAS,MIBGAS datos 2024,https://www.mibgas.es/es/file-access/MIBGAS_Data_2024.xlsx?path=AGNO_2024/XLS,data/raw/api/mibgas/MIBGAS_Data_2024.xlsx,3305
+2026-11-17T19:03:36,MIBGAS,MIBGAS datos 2025,https://www.mibgas.es/es/file-access/MIBGAS_Data_2025.xlsx?path=AGNO_2025/XLS,data/raw/api/mibgas/MIBGAS_Data_2025.xlsx,3303
+2026-11-17T19:03:37,MIBGAS,MIBGAS datos 2026,https://www.mibgas.es/es/file-access/MIBGAS_Data_2026.xlsx?path=AGNO_2026/XLS,data/raw/api/mibgas/MIBGAS_Data_2026.xlsx,3270
