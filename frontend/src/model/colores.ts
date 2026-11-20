@@ -1,4 +1,5 @@
 import type { ClaseRentabilidad } from "../data/prediccion";
+import type { Estado } from "../data/types";
 
 // Mismos valores que las variables CSS de styles.css (el mapa WebGL no lee CSS).
 export const C = {
@@ -13,7 +14,7 @@ export const C = {
 } as const;
 
 /**
- * Rentabilidad: verde (alta) → amarillo (media) → naranja (baja) → rojo (no rentable).
+ * Rentabilidad: verde (alta) → amarillo (media) → naranja (baja) → rojo (no viable o VAN ≤ 0).
  * Tonos validados con scripts/validate_palette.js de la skill dataviz sobre #111214, todos los pares:
  * daltonismo ΔE ≥ 11 (deutan/protan), visión normal ΔE ≥ 15,2, contraste ≥ 3:1 con el fondo.
  * Nunca va solo: cada clase lleva además su icono de barras y su nombre.
@@ -29,8 +30,19 @@ export const NOMBRE_CLASE: Record<ClaseRentabilidad, string> = {
   alta: "Alta",
   media: "Media",
   baja: "Baja",
-  no_rentable: "No rentable",
+  // La 4.ª clase junta «no pasa un filtro eliminatorio» y «VAN ≤ 0». Con los datos actuales todas las provincias
+  // de esta clase son «No viable» (con VAN positivo), así que el nombre general es ese; la ficha usa nombreClaseDe().
+  no_rentable: "No viable",
 };
+
+/**
+ * Nombre de la clase para una provincia concreta: en la 4.ª clase distingue «No viable» (no pasa un filtro
+ * eliminatorio, aunque su VAN sea positivo) de «No rentable» (pasa los filtros pero su VAN es ≤ 0).
+ */
+export function nombreClaseDe(clase: ClaseRentabilidad, estado: Estado | null | undefined): string {
+  if (clase === "no_rentable" && estado !== "No viable") return "No rentable";
+  return NOMBRE_CLASE[clase];
+}
 
 /** Número de barras encendidas del icono (como la cobertura de un móvil). */
 export const BARRAS_CLASE: Record<ClaseRentabilidad, number> = {
