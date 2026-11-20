@@ -19,6 +19,7 @@ import datetime as dt
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from cpd.fuentes.http import RUTA_API, ErrorFuente, guardar_cache_json, json_de, leer_cache_json, registrar
@@ -194,6 +195,48 @@ def generacion_ccaa_mensual(anio_inicio: int = ANIO_INICIO_HISTORIA, anio_fin: i
             datos = _pedir("generacion/estructura-generacion", params, ruta, _cerrado(anio))
             filas.extend(generacion_desde_respuesta(datos, codigo_ccaa))
     return _con_nombre_ccaa(pd.DataFrame(filas, columns=["codigo_ccaa", "fecha", "tecnologia", "tipo", "generacion_mwh"]))
+
+
+def generacion_por_grupo(generacion: pd.DataFrame) -> pd.DataFrame:
+    """Generación mensual (MWh) por comunidad y grupo de tecnología: `solar` (fotovoltaica y térmica), `eolica`,
+    `hidraulica`, `otras_renovables` y `no_renovable`. Sirve para prever cada tecnología por separado: la solar es
+    estacional y crece, la hidráulica depende del agua y la eólica es casi aleatoria.
+
+    Returns:
+        DataFrame: codigo_ccaa, fecha, grupo, generacion_mwh.
+    """
+    tecnologias = generacion[generacion["tipo"] != "total"]
+    if tecnologias.empty:
+        return pd.DataFrame(columns=["codigo_ccaa", "fecha", "grupo", "generacion_mwh"])
+    tecnologia = tecnologias["tecnologia"].astype(str)
+    grupo = np.select(
+        [tecnologias["tipo"] == "No-Renovable", tecnologia.str.startswith("Solar"), tecnologia == "Eólica", tecnologia == "Hidráulica"],
+        ["no_renovable", "solar", "eolica", "hidraulica"],
+        default="otras_renovables",
+    )
+    return tecnologias.assign(grupo=grupo).groupby(["codigo_ccaa", "fecha", "grupo"], as_index=False)["generacion_mwh"].sum()
+
+
+GRUPOS_DETALLE: dict[str, tuple[str, ...]] = {
+    "eolica": ("Eólica",), "solar": ("Solar fotovoltaica", "Solar térmica"), "hidraulica": ("Hidráulica",),
+    "nuclear": ("Nuclear",), "ciclo_combinado": ("Ciclo combinado",), "carbon": ("Carbón",),
+}
+
+
+def generacion_nacional_detalle(generacion: pd.DataFrame) -> pd.DataFrame:
+    """Generación mensual de España (MWh, suma de comunidades) por tecnología con detalle para el precio de la luz:
+    eólica, solar, hidráulica, nuclear, ciclo combinado (la central de gas que suele marcar el precio), carbón y total.
+
+    Returns:
+        DataFrame: fecha, eolica, solar, hidraulica, nuclear, ciclo_combinado, carbon, total.
+    """
+    tecnologias = generacion[generacion["tipo"] != "total"]
+    if tecnologias.empty:
+        return pd.DataFrame(columns=["fecha", *GRUPOS_DETALLE, "total"])
+    tabla = tecnologias.pivot_table(index="fecha", columns="tecnologia", values="generacion_mwh", aggfunc="sum").fillna(0.0)
+    salida = pd.DataFrame({g: tabla[[c for c in cols if c in tabla.columns]].sum(axis=1) for g, cols in GRUPOS_DETALLE.items()})
+    salida["total"] = tabla.sum(axis=1)
+    return salida.reset_index()
 
 
 def resumen_renovable(generacion: pd.DataFrame) -> pd.DataFrame:

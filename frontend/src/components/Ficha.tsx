@@ -11,7 +11,7 @@ import { Flap } from "./Flap";
 import { IconoClase } from "./IconoClase";
 import { Barra, Comparativa, Flecha, GraficoPrecio, Vivo, type ItemComparativa } from "./Piezas";
 import { GraficoPrevision } from "./GraficoPrevision";
-import type { Previsiones } from "../data/previsiones";
+import { ACIERTO_MINIMO, type ImpactoLocal, type MedioPlazo, type OperacionPrevista, type Previsiones, type RenovablePrevista, type SeriePrevista, type TemperaturaPrevista } from "../data/previsiones";
 
 interface Props {
   meta: ProvinciaMeta;
@@ -61,6 +61,10 @@ export function Ficha(p: Props) {
   const elegido = demo ? (sitios.find((m) => m.codigo_ine === p.sitio) ?? sitios[0]) : undefined;
   const d = base && elegido && elegido !== sitios[0] ? deMunicipio(elegido, base, prediccion.clasesMunicipio.get(elegido.codigo_ine) ?? null) : base;
   const tiempo = p.tiempo.datos?.[meta.codigo];
+  const socio = p.previsiones?.socioeconomico ?? null;
+  const socioProvincia = socio?.provincias.get(meta.codigo);
+  const redCcaa = base?.codigo_ccaa ? p.previsiones?.redOtorgada.get(base.codigo_ccaa) : undefined;
+  const empresaProvincia = p.previsiones?.empresas?.provincias.get(meta.codigo);
   const rango = useMemo(() => rangoVanClasificadas(prediccion), [prediccion]);
   const descartada = d?.clase === "no_rentable" && d.estado === "No viable";
 
@@ -170,7 +174,18 @@ export function Ficha(p: Props) {
 
           <BloqueLuz {...p} d={d} municipio={demo ? elegido : undefined} />
 
-          <BloqueClima d={d} tiempo={tiempo} vivo={p.tiempo} capital={meta.capital} />
+          <BloqueClima
+            d={d}
+            tiempo={tiempo}
+            vivo={p.tiempo}
+            capital={meta.capital}
+            reservas={d.ambito_hidrografico ? p.previsiones?.reservas.get(d.ambito_hidrografico) : undefined}
+            ambito={d.ambito_hidrografico ?? null}
+            temperatura={p.previsiones?.temperatura.get(meta.codigo)}
+            operacion={p.previsiones?.operacion.get(meta.codigo)}
+            medio={p.previsiones?.medioPlazo.get(meta.codigo)}
+            impacto={p.previsiones?.impacto.get(meta.codigo)}
+          />
 
           {(d.capex_eur != null || d.opex_eur_anual != null || d.prob_cpd != null || d.cpd_existentes != null) && (
             <section className="bloque" aria-labelledby="b-inv">
@@ -194,6 +209,56 @@ export function Ficha(p: Props) {
                     <dd>{num(d.cpd_existentes)}</dd>
                   </div>
                 )}
+                {d.capacidad_demanda_otorgada_mw != null && (
+                  <div>
+                    <dt>Red otorgada a nuevos grandes consumos (comunidad)</dt>
+                    <dd>
+                      {num(d.capacidad_demanda_otorgada_mw)} MW
+                      {redCcaa?.pctOtorgada != null && (
+                        <span className="h-nota">
+                          ≈ {num(redCcaa.pctOtorgada)} % de su demanda actual si se usara
+                          {redCcaa.factor != null ? ` al ${num(100 * redCcaa.factor)} %` : ""}
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                )}
+                {d.capacidad_demanda_pendiente_mw != null && (
+                  <div>
+                    <dt>Pedida y en trámite (comunidad)</dt>
+                    <dd>{num(d.capacidad_demanda_pendiente_mw)} MW</dd>
+                  </div>
+                )}
+                {d.capacidad_acceso_disponible_mw != null && (
+                  <div>
+                    <dt>Aún disponible para demanda (comunidad)</dt>
+                    <dd>{num(d.capacidad_acceso_disponible_mw)} MW</dd>
+                  </div>
+                )}
+                {d.precio_suelo_urbano_eur_m2 != null && (
+                  <div>
+                    <dt>Suelo urbano (mediana de 4 trimestres)</dt>
+                    <dd>{num(d.precio_suelo_urbano_eur_m2)} €/m²</dd>
+                  </div>
+                )}
+                {d.latencia_hubs_rtt_ms != null && (
+                  <div>
+                    <dt>Latencia a Madrid y Barcelona (la peor de las dos)</dt>
+                    <dd>{num(d.latencia_hubs_rtt_ms, 1)} ms</dd>
+                  </div>
+                )}
+                {d.aceleracion_sismica_g != null && (
+                  <div>
+                    <dt>Aceleración sísmica básica de la capital (NCSE-02)</dt>
+                    <dd>{d.aceleracion_sismica_g <= 0.04 ? "≤ 0,04" : num(d.aceleracion_sismica_g, 2)} g</dd>
+                  </div>
+                )}
+                {d.cobertura_renovable_pct != null && (
+                  <div>
+                    <dt>Renovable generada / demanda (comunidad, 12 meses previstos)</dt>
+                    <dd>{num(d.cobertura_renovable_pct, 0)} %</dd>
+                  </div>
+                )}
                 {d.pue != null && (
                   <div>
                     <dt>PUE estimado</dt>
@@ -207,6 +272,44 @@ export function Ficha(p: Props) {
                   </div>
                 )}
               </dl>
+              {socio && (socio.empleoObra != null || socio.empleoDirecto != null) && (
+                <p className="dato-linea">
+                  Empleo y economía (INE, tablas input-output):
+                  {socio.empleoObra != null && (
+                    <>
+                      {" "}
+                      obra <strong>{num(socio.empleoObra)} empleos-año</strong>
+                      {socio.inversionEspanaMeur != null && <> ({num(socio.inversionEspanaMeur)} M€ del CAPEX se quedan en España)</>}
+                    </>
+                  )}
+                  {socio.empleoDirecto != null && (
+                    <>
+                      {" "}
+                      · operación <strong>{num(socio.empleoDirecto)} directos</strong>
+                      {socio.empleoIndirecto != null && <> + {num(socio.empleoIndirecto)} en proveedores al año</>}
+                    </>
+                  )}
+                  {socioProvincia?.pctPib != null && (
+                    <>
+                      {" "}
+                      · VAB del CPD = <strong>{num(socioProvincia.pctPib, 2)} %</strong> del PIB de la provincia
+                      {socio.anioPib != null && <> ({socio.anioPib})</>}
+                    </>
+                  )}
+                  .
+                </p>
+              )}
+              {empresaProvincia?.por10000 != null && (
+                <p className="dato-linea">
+                  Atracción empresarial: <strong>{num(empresaProvincia.por10000, 1)} sociedades nuevas</strong> al año por cada 10.000
+                  habitantes previstas para los próximos 12 meses
+                  {empresaProvincia.cambioPct != null && (
+                    <> ({empresaProvincia.cambioPct >= 0 ? "+" : ""}{num(empresaProvincia.cambioPct, 1)} % frente a los 12 anteriores)</>
+                  )}
+                  {p.previsiones?.empresas?.aciertoAnualTest != null && <>. Acierto del total anual en test: {num(p.previsiones.empresas.aciertoAnualTest, 1)} %</>}
+                  {p.previsiones?.empresas?.hasta ? ` (INE, datos hasta ${mesLegible(p.previsiones.empresas.hasta)})` : ""}.
+                </p>
+              )}
               {d.prob_cpd != null && (
                 <Barra
                   etiqueta="Probabilidad de tener un CPD (modelo)"
@@ -314,9 +417,11 @@ function BloqueLuz(p: Props & { d: ProvinciaPrediccion; municipio: Municipio | u
           prevision={p.previsiones.precio.prevision}
           unidad="€/MWh"
           nota={`${NOMBRE_MODELO[p.previsiones.precio.modelo] ?? p.previsiones.precio.modelo}${p.previsiones.precio.errorTest != null ? `; error medio a 1 año ${num(p.previsiones.precio.errorTest, 0)} €/MWh` : ""}`}
+          aviso={avisoAcierto(p.previsiones.precio)}
         />
       )}
       {simulacion && <SensibilidadPrecio d={d} prediccion={prediccion} />}
+      {d.codigo_ccaa && p.previsiones?.renovables.get(d.codigo_ccaa) && <Renovables serie={p.previsiones.renovables.get(d.codigo_ccaa)!} />}
       {(demanda.datos?.ahora || mix.datos?.renovableAyer) && (
         <p className="linea-vivo">
           {demanda.datos?.ahora && <>Demanda {num(demanda.datos.ahora.v)} MW</>}
@@ -329,8 +434,52 @@ function BloqueLuz(p: Props & { d: ProvinciaPrediccion; municipio: Municipio | u
   );
 }
 
+/**
+ * % de generación renovable de la comunidad: gráfico mes a mes (orientativo si no llega al mínimo de acierto) y el %
+ * medio de los próximos 12 meses, que es la cifra útil para un CPD y tiene su propio acierto.
+ */
+function Renovables({ serie }: { serie: RenovablePrevista }) {
+  const anual = [serie.aciertoAnualValidacion, serie.aciertoAnualTest].filter((v): v is number => v != null);
+  return (
+    <>
+      <GraficoPrevision
+        titulo={`Generación renovable de ${serie.nombre}: últimos 3 años y previsión a 1 año`}
+        historia={serie.historia}
+        prevision={serie.prevision}
+        unidad="% renovable"
+        nota={textoAcierto(serie) ? `${textoAcierto(serie)} mes a mes` : undefined}
+        aviso={avisoAcierto(serie)}
+      />
+      {serie.mediaPrevista != null && (
+        <p className="dato-linea">
+          Renovable previsto para los próximos 12 meses: <strong>{num(serie.mediaPrevista, 0)} %</strong>
+          {serie.mediaInferior != null && serie.mediaSuperior != null ? ` (${num(serie.mediaInferior, 0)}-${num(serie.mediaSuperior, 0)} %)` : ""}
+          {serie.media12m != null ? `; último año ${num(serie.media12m, 0)} %` : ""}
+          {anual.length ? `. Acierto de este % anual: ${num(Math.min(...anual), 1)} %.` : "."}
+        </p>
+      )}
+    </>
+  );
+}
+
+/** «acierto 95,6 %» con el peor de validación y test (100 − WAPE). */
+function textoAcierto(s: SeriePrevista): string | undefined {
+  const valores = [s.aciertoValidacion, s.aciertoTest].filter((v): v is number => v != null);
+  return valores.length ? `acierto ${num(Math.min(...valores), 1)} %` : undefined;
+}
+
+/** Aviso si el modelo no llega al mínimo de acierto exigido (85 %). */
+function avisoAcierto(s: SeriePrevista): string | undefined {
+  const valores = [s.aciertoValidacion, s.aciertoTest].filter((v): v is number => v != null);
+  if (!valores.length || Math.min(...valores) >= ACIERTO_MINIMO) return undefined;
+  // Con un decimal: 84,8 % redondeado a «85 %» parecería que llega al mínimo.
+  return `Previsión orientativa: el modelo acierta un ${num(Math.min(...valores), 1)} %, por debajo del mínimo del ${ACIERTO_MINIMO} % exigido. No se usa en el cálculo del VAN.`;
+}
+
 const NOMBRE_MODELO: Record<string, string> = {
   solo_poblacion: "regresión logística con la población",
+  poblacion_target_ccaa: "regresión logística con la población y la comunidad (target encoding)",
+  poblacion_polinomica: "regresión logística con la población (polinómica)",
   logistica: "regresión logística",
   bosque: "random forest",
   estacional: "mismo mes del año anterior",
@@ -341,6 +490,9 @@ const NOMBRE_MODELO: Record<string, string> = {
   tendencia_estacionalidad: "tendencia + estacionalidad",
   ridge: "regresión Ridge",
   gradient_boosting: "gradient boosting",
+  ridge_gas: "regresión Ridge con el gas",
+  climatologia: "climatología",
+  anomalia_persistente: "anomalía persistente",
 };
 
 /** Nota de la barra de prob_cpd: qué modelo es y cuánto acierta (sale de docs/modelos/prob_cpd.md). */
@@ -422,7 +574,19 @@ function BloqueDemanda({ d, prediccion, previsiones }: { d: ProvinciaPrediccion;
           prevision={serieDemanda.prevision}
           unidad="GWh"
           escala={1000}
-          nota={serieDemanda.errorTest != null ? `error medio a 1 año ${num(serieDemanda.errorTest, 1)} %` : undefined}
+          nota={textoAcierto(serieDemanda)}
+          aviso={avisoAcierto(serieDemanda)}
+        />
+      )}
+      {previsiones?.demanda10 && (
+        <GraficoPrevision
+          titulo="Demanda eléctrica de España: desde 2007 y previsión a 10 años"
+          historia={previsiones.demanda10.historia}
+          prevision={previsiones.demanda10.prevision}
+          unidad="TWh al año"
+          anual
+          nota={textoAcierto(previsiones.demanda10)}
+          aviso={avisoAcierto(previsiones.demanda10)}
         />
       )}
       <dl className="pares">
@@ -454,11 +618,49 @@ function BloqueDemanda({ d, prediccion, previsiones }: { d: ProvinciaPrediccion;
   );
 }
 
-function BloqueClima({ d, tiempo, vivo, capital }: { d: ProvinciaPrediccion; tiempo: TiempoActual | undefined; vivo: EnVivo<Record<string, TiempoActual>>; capital: string }) {
-  const hayModelo = d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null;
+function BloqueClima({
+  d, tiempo, vivo, capital, reservas, ambito, temperatura, operacion, medio, impacto,
+}: {
+  d: ProvinciaPrediccion;
+  tiempo: TiempoActual | undefined;
+  vivo: EnVivo<Record<string, TiempoActual>>;
+  capital: string;
+  reservas?: SeriePrevista;
+  ambito: string | null;
+  temperatura?: TemperaturaPrevista;
+  operacion?: OperacionPrevista;
+  medio?: MedioPlazo;
+  impacto?: ImpactoLocal;
+}) {
+  const hayModelo =
+    d.horas_free_cooling_anual != null || d.reserva_hidrica_pct != null || d.estres_hidrico != null || d.temp_media_anual_c != null || operacion != null || medio != null || impacto != null;
+  const notaTemperatura = temperatura
+    ? [textoAcierto(temperatura), temperatura.errorTest != null ? `error medio ${num(temperatura.errorTest, 1)} °C al mes` : null].filter(Boolean).join(" · ")
+    : undefined;
   return (
     <section className="bloque" aria-labelledby="b-clima">
       <h3 id="b-clima">Clima y agua</h3>
+      {temperatura && (
+        <GraficoPrevision
+          titulo={`Temperatura media en ${temperatura.nombre}: últimos 3 años y previsión a 1 año`}
+          historia={temperatura.historia}
+          prevision={temperatura.prevision}
+          unidad="°C"
+          decimales={1}
+          nota={notaTemperatura || undefined}
+          aviso={avisoAcierto(temperatura)}
+        />
+      )}
+      {reservas && (
+        <GraficoPrevision
+          titulo={`Reserva de los embalses (${ambito}): últimos 3 años y previsión a 1 año`}
+          historia={reservas.historia}
+          prevision={reservas.prevision}
+          unidad="% de la capacidad"
+          nota={textoAcierto(reservas)}
+          aviso={avisoAcierto(reservas)}
+        />
+      )}
       {hayModelo && (
         <div className="barras">
           {d.horas_free_cooling_anual != null && (
@@ -472,7 +674,78 @@ function BloqueClima({ d, tiempo, vivo, capital }: { d: ProvinciaPrediccion; tie
           )}
           {d.temp_media_anual_c != null && (
             <p className="dato-linea">
-              Temperatura media anual <strong>{num(d.temp_media_anual_c, 1)} °C</strong>
+              Temperatura media anual <strong>{num(d.temp_media_anual_c, 1)} °C</strong> (la que usa el PUE)
+              {temperatura?.mediaPrevista != null && (
+                <>
+                  {" "}
+                  · próximos 12 meses <strong>{num(temperatura.mediaPrevista, 1)} °C</strong>
+                  {temperatura.mediaInferior != null && temperatura.mediaSuperior != null
+                    ? ` (${num(temperatura.mediaInferior, 1)}-${num(temperatura.mediaSuperior, 1)} °C)`
+                    : ""}
+                </>
+              )}
+            </p>
+          )}
+          {operacion && (
+            <p className="dato-linea">
+              Operación prevista del CPD (12 meses):{" "}
+              {operacion.pue != null && <>PUE <strong>{num(operacion.pue, 2)}</strong></>}
+              {operacion.consumoMwh != null && <> · {num(operacion.consumoMwh / 1e3)} GWh</>}
+              {operacion.emisionesT != null && <> · <strong>{num(operacion.emisionesT)} t CO2</strong> con el mix de su comunidad</>}
+              {operacion.reservaMinimaPct != null && (
+                <>
+                  {" "}
+                  · reserva mínima de los embalses del ámbito {num(operacion.reservaMinimaPct)} %
+                  {operacion.mesReservaMinima ? ` (${mesLegible(operacion.mesReservaMinima)})` : ""}
+                </>
+              )}
+              {operacion.aciertoEmisiones != null && <>. Acierto de las emisiones: {num(operacion.aciertoEmisiones, 1)} %.</>}
+            </p>
+          )}
+          {impacto && (impacto.pctDemanda != null || impacto.pctAgua != null) && (
+            <p className="dato-linea">
+              Impacto en su comunidad (12 meses):
+              {impacto.pctDemanda != null && (
+                <>
+                  {" "}
+                  <strong>{num(impacto.pctDemanda, 1)} %</strong> de la electricidad
+                  {impacto.habitantesElectricidad != null && <> (como {num(impacto.habitantesElectricidad)} habitantes)</>}
+                </>
+              )}
+              {impacto.sinCapacidadLibre ? (
+                <> · <strong>0 MW libres</strong> en la red de acceso: hoy no cabe</>
+              ) : (
+                impacto.pctCapacidad != null && (
+                  <>
+                    {" "}
+                    · <strong>{num(impacto.pctCapacidad)} %</strong> de la capacidad libre de la red
+                    {impacto.capacidadLibreMw != null && <> ({num(impacto.capacidadLibreMw)} MW)</>}
+                  </>
+                )
+              )}
+              {impacto.pctAgua != null && (
+                <>
+                  {" "}
+                  · <strong>{num(impacto.pctAgua, 2)} %</strong> del agua
+                  {impacto.habitantesAgua != null && <> (como {num(impacto.habitantesAgua)} habitantes)</>}
+                  {impacto.anioAgua != null && <>, INE {impacto.anioAgua}</>}
+                </>
+              )}
+              {impacto.acierto != null && <>. Acierto del % eléctrico: {num(impacto.acierto, 1)} %.</>}
+            </p>
+          )}
+          {medio && medio.tempFinal != null && (
+            <p className="dato-linea">
+              A 10 años ({medio.anioFinal}): temperatura media <strong>{num(medio.tempFinal, 1)} °C</strong>
+              {medio.tempInferior != null && medio.tempSuperior != null ? ` (${num(medio.tempInferior, 1)}-${num(medio.tempSuperior, 1)} °C)` : ""}
+              {medio.temp10a != null && <> frente a {num(medio.temp10a, 1)} °C de media en los últimos 10 años</>}
+              {medio.pueFinal != null && <> · PUE <strong>{num(medio.pueFinal, 2)}</strong></>}
+              {medio.reservaDecadaPct != null && (
+                <> · reserva media de los embalses del ámbito en la década <strong>{num(medio.reservaDecadaPct)} %</strong></>
+              )}
+              {medio.aciertoTemperaturaTest != null && <>. Acierto en test: temperatura {num(medio.aciertoTemperaturaTest, 1)} %</>}
+              {medio.aciertoReservaDecadaTest != null && <>, agua media de la década {num(medio.aciertoReservaDecadaTest, 1)} %</>}
+              {medio.aciertoTemperaturaTest != null || medio.aciertoReservaDecadaTest != null ? "." : ""}
             </p>
           )}
         </div>

@@ -5,8 +5,11 @@ Se descarga el CSV mensual más reciente (``*_GRT_demanda.csv``). No tiene coord
 dato es por nudo (subestación) y se agrega a comunidad autónoma. Las provincias heredan el
 valor de su comunidad (nivel ``ccaa``).
 
-Columna usada: "capacidad de acceso disponible para solicitudes, criterio general RdT, demanda"
-(MW). Es la potencia que REE tiene disponible para nueva demanda conectada a la red de transporte.
+Columnas usadas (MW, red de transporte, demanda):
+- "disponible para solicitudes, criterio general": lo que queda libre para nueva demanda.
+- "otorgada demanda RdT": lo que REE ya ha concedido a nuevos consumos (centros de datos, industria, hidrógeno).
+- "solicitada en curso y pendiente resolver demanda RdT": lo que se ha pedido y está en trámite.
+Las dos últimas son la huella real de dónde se están instalando los grandes consumos.
 """
 
 from __future__ import annotations
@@ -82,11 +85,30 @@ def _columna_demanda_rdt(cabecera_grupo: list[str], subcabecera: list[str]) -> i
     raise ErrorFuente(f"{FUENTE}: no se encuentra la columna de capacidad disponible para demanda en RdT")
 
 
+# Subcabeceras (texto exacto de REE) de la capacidad para DEMANDA en la red de transporte ya otorgada y la solicitada
+# que aún está en trámite.
+SUBCABECERA_OTORGADA: str = "Capacidad de acceso otorgada demanda RdT"
+SUBCABECERA_PENDIENTE: str = "Capacidad de acceso solicitada en curso y pendiente resolver demanda RdT"
+
+
+def _columna_por_subcabecera(subcabecera: list[str], texto: str) -> int | None:
+    """Índice de la columna cuya subcabecera es `texto` (sin distinguir espacios ni mayúsculas), o None."""
+    objetivo = " ".join(texto.lower().split())
+    for indice, sub in enumerate(subcabecera):
+        if " ".join(str(sub).lower().split()) == objetivo:
+            return indice
+    return None
+
+
 def leer_capacidad(ruta: Path) -> pd.DataFrame:
-    """Lee el CSV de REE y devuelve, por comunidad, nº de nudos y capacidad disponible para demanda (MW).
+    """Lee el CSV de REE y devuelve, por comunidad, nº de nudos y capacidad para demanda en la red de transporte (MW):
+    disponible para nuevas solicitudes, ya otorgada y solicitada en trámite.
+
+    Si una versión del CSV no trae las columnas de otorgada o pendiente, quedan en NaN (no se inventan).
 
     Returns:
-        DataFrame: codigo_ccaa, ccaa, nudos, capacidad_demanda_rdt_disponible_mw.
+        DataFrame: codigo_ccaa, ccaa, nudos, capacidad_demanda_rdt_disponible_mw, capacidad_demanda_rdt_otorgada_mw,
+        capacidad_demanda_rdt_pendiente_mw.
     """
     contenido = ruta.read_bytes()
     try:
@@ -101,14 +123,24 @@ def leer_capacidad(ruta: Path) -> pd.DataFrame:
     columna = _columna_demanda_rdt(grupos, subcabeceras)
     datos = crudo.iloc[2:].copy()
     datos = datos[datos.iloc[:, 0].str.strip() != ""]
+    numero = lambda indice: pd.to_numeric(datos.iloc[:, indice].str.replace(",", ".", regex=False), errors="coerce")  # noqa: E731
     datos["codigo_ccaa"] = datos.iloc[:, 2].map(codigo_ccaa_de_texto)
-    datos["valor"] = pd.to_numeric(datos.iloc[:, columna].str.replace(",", ".", regex=False), errors="coerce")
+    datos["valor"] = numero(columna)
+    for nombre, subcabecera in (("otorgada", SUBCABECERA_OTORGADA), ("pendiente", SUBCABECERA_PENDIENTE)):
+        indice = _columna_por_subcabecera(subcabeceras, subcabecera)
+        datos[nombre] = numero(indice) if indice is not None else float("nan")
     datos = datos.dropna(subset=["codigo_ccaa"])
     agregado = (
         datos.groupby("codigo_ccaa")
-        .agg(nudos=(datos.columns[0], "size"), capacidad_demanda_rdt_disponible_mw=("valor", "sum"))
+        .agg(
+            nudos=(datos.columns[0], "size"),
+            capacidad_demanda_rdt_disponible_mw=("valor", "sum"),
+            capacidad_demanda_rdt_otorgada_mw=("otorgada", lambda s: s.sum(min_count=1)),
+            capacidad_demanda_rdt_pendiente_mw=("pendiente", lambda s: s.sum(min_count=1)),
+        )
         .reset_index()
     )
     agregado["ccaa"] = agregado["codigo_ccaa"].map(CCAA_INE)
-    agregado["capacidad_demanda_rdt_disponible_mw"] = agregado["capacidad_demanda_rdt_disponible_mw"].round(1)
-    return agregado[["codigo_ccaa", "ccaa", "nudos", "capacidad_demanda_rdt_disponible_mw"]]
+    columnas = ["capacidad_demanda_rdt_disponible_mw", "capacidad_demanda_rdt_otorgada_mw", "capacidad_demanda_rdt_pendiente_mw"]
+    agregado[columnas] = agregado[columnas].round(1)
+    return agregado[["codigo_ccaa", "ccaa", "nudos", *columnas]]

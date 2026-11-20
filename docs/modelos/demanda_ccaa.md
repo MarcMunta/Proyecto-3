@@ -1,6 +1,6 @@
 # Model card · Demanda eléctrica mensual por comunidad autónoma
 
-> Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
+> Generado por `python -m cpd.modelos` el 18/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
 > Esta ficha evalúa la demanda a 1 y a 12 meses vista con un único periodo de test. **La previsión a 1 año que usa el
 > mapa** (combinación de modelos elegida con 24 orígenes de backtesting) está en
@@ -115,4 +115,4 @@ terminan en junio de 2026 porque REData aún no publica el saldo de intercambios
 
 `.\.venv\Scripts\python.exe -m cpd.modelos` (semilla 42; versiones en `requirements.txt`).
 Salidas en `data/curated/modelos/` y modelo guardado en `models/demanda_ccaa_h1.joblib` (fuera de git).
-Entrenado el 17/11/2026.
+Entrenado el 18/11/2026.

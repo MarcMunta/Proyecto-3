@@ -50,6 +50,18 @@ cpd_por_defecto:             # coinciden con los valores por defecto de CPDParam
 terreno:
   superficie_ha_por_mw: 0.1    # ~5 ha para un CPD de 50 MW de TI (supuesto, a calibrar)
 
+escenarios_demanda:            # P5: nuevos grandes consumos sobre la previsión tendencial (cpd.modelos.escenarios)
+  factor_utilizacion: 0.8      # energía = MW de acceso × 8.760 h × factor (factor de carga del CPD de referencia; supuesto, a calibrar)
+  realizaciones: [0.25, 0.5, 1.0]   # parte de la capacidad otorgada que llega a consumir en 10 años (sin dato abierto)
+
+impacto_socioeconomico:        # modelo input-output (cpd.modelos.socioeconomico), recomendación (no viene de clase)
+  reparto_capex:               # fracción del CAPEX por producto de la TIO del INE (supuesto, a calibrar; suma 1)
+    "27": 0.35                 # construcciones y trabajos de construcción (obra civil y edificio)
+    "18": 0.30                 # equipo eléctrico (subestación, transformadores, SAI, cuadros)
+    "19": 0.20                 # maquinaria y equipo (refrigeración, grupos electrógenos)
+    "46": 0.08                 # servicios técnicos de arquitectura e ingeniería
+    "23": 0.07                 # servicios de reparación e instalación de maquinaria y equipos (montaje)
+
 latencia:
   ms_rtt_por_km: 0.01          # ~5 µs/km por sentido en fibra => ~0.01 ms de RTT por km
   factor_ruta: 1.5             # factor de ruta sobre la distancia en línea recta

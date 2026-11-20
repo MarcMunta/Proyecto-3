@@ -1243,3 +1243,62 @@ fecha_descarga,fuente,descripcion,url,archivo,tam_kb
 2026-11-17T19:03:35,MIBGAS,MIBGAS datos 2024,https://www.mibgas.es/es/file-access/MIBGAS_Data_2024.xlsx?path=AGNO_2024/XLS,data/raw/api/mibgas/MIBGAS_Data_2024.xlsx,3305
 2026-11-17T19:03:36,MIBGAS,MIBGAS datos 2025,https://www.mibgas.es/es/file-access/MIBGAS_Data_2025.xlsx?path=AGNO_2025/XLS,data/raw/api/mibgas/MIBGAS_Data_2025.xlsx,3303
 2026-11-17T19:03:37,MIBGAS,MIBGAS datos 2026,https://www.mibgas.es/es/file-access/MIBGAS_Data_2026.xlsx?path=AGNO_2026/XLS,data/raw/api/mibgas/MIBGAS_Data_2026.xlsx,3270
+2026-11-17T23:09:52,Ministerio de Transportes (precios de suelo),Precio medio del m² de suelo urbano por provincias (tabla 4),https://apps.fomento.gob.es/BoletinOnline2/sedal/36400500.XLS,data/raw/api/suelo/2026_11_36400500.XLS,94
+2026-11-17T23:42:06,"BOE (NCSE-02, anejo 1)",NCSE-02: aceleración sísmica básica por municipio (anejo 1),https://www.boe.es/boe/dias/2002/10/11/pdfs/A35898-35967.pdf,data/raw/api/boe/A35898-35967.pdf,2429
+2026-11-18T13:36:27,NASA POWER,Mensual 01 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/01_1981_2025.json,10
+2026-11-18T13:36:28,NASA POWER,Mensual 02 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/02_1981_2025.json,10
+2026-11-18T13:36:28,NASA POWER,Mensual 03 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/03_1981_2025.json,10
+2026-11-18T13:36:29,NASA POWER,Mensual 04 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/04_1981_2025.json,10
+2026-11-18T13:36:30,NASA POWER,Mensual 05 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/05_1981_2025.json,10
+2026-11-18T13:36:31,NASA POWER,Mensual 06 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/06_1981_2025.json,10
+2026-11-18T13:36:32,NASA POWER,Mensual 07 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/07_1981_2025.json,10
+2026-11-18T13:36:32,NASA POWER,Mensual 08 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/08_1981_2025.json,10
+2026-11-18T13:36:33,NASA POWER,Mensual 09 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/09_1981_2025.json,10
+2026-11-18T13:36:34,NASA POWER,Mensual 10 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/10_1981_2025.json,10
+2026-11-18T13:36:35,NASA POWER,Mensual 11 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/11_1981_2025.json,10
+2026-11-18T13:36:36,NASA POWER,Mensual 12 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/12_1981_2025.json,10
+2026-11-18T13:36:36,NASA POWER,Mensual 13 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/13_1981_2025.json,10
+2026-11-18T13:36:37,NASA POWER,Mensual 14 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/14_1981_2025.json,10
+2026-11-18T13:36:38,NASA POWER,Mensual 15 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/15_1981_2025.json,10
+2026-11-18T13:36:39,NASA POWER,Mensual 16 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/16_1981_2025.json,10
+2026-11-18T13:36:39,NASA POWER,Mensual 17 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/17_1981_2025.json,10
+2026-11-18T13:36:40,NASA POWER,Mensual 18 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/18_1981_2025.json,10
+2026-11-18T13:36:41,NASA POWER,Mensual 19 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/19_1981_2025.json,10
+2026-11-18T13:36:42,NASA POWER,Mensual 20 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/20_1981_2025.json,10
+2026-11-18T13:36:43,NASA POWER,Mensual 21 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/21_1981_2025.json,10
+2026-11-18T13:36:43,NASA POWER,Mensual 22 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/22_1981_2025.json,10
+2026-11-18T13:36:44,NASA POWER,Mensual 23 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/23_1981_2025.json,10
+2026-11-18T13:36:45,NASA POWER,Mensual 24 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/24_1981_2025.json,10
+2026-11-18T13:36:46,NASA POWER,Mensual 25 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/25_1981_2025.json,10
+2026-11-18T13:36:46,NASA POWER,Mensual 26 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/26_1981_2025.json,10
+2026-11-18T13:36:47,NASA POWER,Mensual 27 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/27_1981_2025.json,10
+2026-11-18T13:36:48,NASA POWER,Mensual 28 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/28_1981_2025.json,10
+2026-11-18T13:36:49,NASA POWER,Mensual 29 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/29_1981_2025.json,10
+2026-11-18T13:36:50,NASA POWER,Mensual 30 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/30_1981_2025.json,10
+2026-11-18T13:36:50,NASA POWER,Mensual 31 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/31_1981_2025.json,10
+2026-11-18T13:36:51,NASA POWER,Mensual 32 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/32_1981_2025.json,10
+2026-11-18T13:36:52,NASA POWER,Mensual 33 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/33_1981_2025.json,10
+2026-11-18T13:36:53,NASA POWER,Mensual 34 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/34_1981_2025.json,10
+2026-11-18T13:36:54,NASA POWER,Mensual 35 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/35_1981_2025.json,10
+2026-11-18T13:36:55,NASA POWER,Mensual 36 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/36_1981_2025.json,10
+2026-11-18T13:36:55,NASA POWER,Mensual 37 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/37_1981_2025.json,10
+2026-11-18T13:36:56,NASA POWER,Mensual 38 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/38_1981_2025.json,10
+2026-11-18T13:36:57,NASA POWER,Mensual 39 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/39_1981_2025.json,10
+2026-11-18T13:36:58,NASA POWER,Mensual 40 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/40_1981_2025.json,10
+2026-11-18T13:36:59,NASA POWER,Mensual 41 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/41_1981_2025.json,10
+2026-11-18T13:36:59,NASA POWER,Mensual 42 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/42_1981_2025.json,10
+2026-11-18T13:37:00,NASA POWER,Mensual 43 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/43_1981_2025.json,10
+2026-11-18T13:37:01,NASA POWER,Mensual 44 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/44_1981_2025.json,10
+2026-11-18T13:37:02,NASA POWER,Mensual 45 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/45_1981_2025.json,10
+2026-11-18T13:37:03,NASA POWER,Mensual 46 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/46_1981_2025.json,10
+2026-11-18T13:37:03,NASA POWER,Mensual 47 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/47_1981_2025.json,10
+2026-11-18T13:37:04,NASA POWER,Mensual 48 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/48_1981_2025.json,10
+2026-11-18T13:37:05,NASA POWER,Mensual 49 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/49_1981_2025.json,10
+2026-11-18T13:37:06,NASA POWER,Mensual 50 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/50_1981_2025.json,10
+2026-11-18T13:37:07,NASA POWER,Mensual 51 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/51_1981_2025.json,10
+2026-11-18T13:37:07,NASA POWER,Mensual 52 1981-2025,https://power.larc.nasa.gov/api/temporal/monthly/point,data/raw/api/nasa_power/mensual/52_1981_2025.json,10
+2026-11-18T15:01:09,INE (Tempus3 API),Tabla 53447,https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/53447,data/raw/api/ine/tabla_53447.json,43
+2026-11-18T15:01:25,INE (Tempus3 API),Tabla 53447,https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/53447,data/raw/api/ine/tabla_53447.json,43
+2026-11-18T16:47:11,INE (Tablas Input-Output),Tablas Input-Output 2022,https://www.ine.es/daco/daco42/cne24/cne_tio_22.xlsx,data/raw/api/ine/cne_tio_22.xlsx,374
+2026-11-18T16:47:12,INE (Tempus3 API),Tabla 82284,https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/82284,data/raw/api/ine/tabla_82284.json,102
+2026-11-18T17:43:48,INE (Tempus3 API),Tabla 6295,https://servicios.ine.es/wstempus/js/ES/DATOS_TABLA/6295,data/raw/api/ine/tabla_6295.json,19650

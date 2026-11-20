@@ -139,6 +139,7 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
         agua,
         embalses,
         ine,
+        ine_tio,
         nasa_power,
         natura,
         padron,
@@ -148,6 +149,8 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
         ree,
         sepe,
         sismicidad,
+        norma_sismica,
+        suelo,
         subestaciones,
     )
 
@@ -155,10 +158,20 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     poligonos = provincias.cargar_poligonos()
     _paso(acta, "clima_diario", lambda: nasa_power.clima_diario_power(ANIO_INICIO, anio_fin))
     _paso(acta, "free_cooling", lambda: nasa_power.free_cooling_mensual_power(ANIO_INICIO, anio_fin))
+    _paso(acta, "clima_mensual_largo", lambda: nasa_power.temperatura_mensual_larga())
     _paso(acta, "reservas_ambito_mensual", lambda: embalses.reservas_mensuales_desde_zip())
     _paso(acta, "estres_hidrico_wri", lambda: agua.estres_hidrico_wri())
     _paso(acta, "ccaa_demanda", lambda: ree.demanda_ccaa_mensual(ANIO_INICIO, anio_fin))
-    _paso(acta, "ccaa_generacion", lambda: ree.resumen_renovable(ree.generacion_ccaa_mensual(ANIO_INICIO, anio_fin)))
+    generacion: dict[str, pd.DataFrame] = {}  # una sola descarga para las dos tablas
+
+    def _generacion() -> pd.DataFrame:
+        if "tabla" not in generacion:
+            generacion["tabla"] = ree.generacion_ccaa_mensual(ANIO_INICIO, anio_fin)
+        return generacion["tabla"]
+
+    _paso(acta, "ccaa_generacion", lambda: ree.resumen_renovable(_generacion()))
+    _paso(acta, "ccaa_generacion_tecnologia", lambda: ree.generacion_por_grupo(_generacion()))
+    _paso(acta, "generacion_nacional_detalle", lambda: ree.generacion_nacional_detalle(_generacion()))
     _paso(acta, "co2", lambda: ree.co2_nacional_mensual(ANIO_INICIO, anio_fin))
     _paso(acta, "precios_diarios", lambda: ree.precios_diarios_historicos(ANIO_INICIO, anio_fin))
     from cpd.fuentes import mibgas
@@ -175,6 +188,18 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
 
     _paso(acta, "poblacion", poblacion)
     _paso(acta, "renta", lambda: ine.renta_provincias())
+    _paso(acta, "agua_ccaa", lambda: ine.agua_ccaa())
+    _paso(acta, "pib_provincia", lambda: ine.pib_provincias())
+    _paso(acta, "sociedades_provincia", lambda: ine.sociedades_provincias())
+    tio: dict[str, pd.DataFrame] = {}
+
+    def _tio() -> dict[str, pd.DataFrame]:
+        if not tio:
+            tio.update(ine_tio.leer_tio(ine_tio.descargar()))
+        return tio
+
+    _paso(acta, "tio_ramas", lambda: _tio()["ramas"])
+    _paso(acta, "tio_leontief_interior", lambda: _tio()["leontief"].rename_axis("codigo").reset_index())
     _paso(acta, "paro", lambda: sepe.paro_provincias_mensual(ANIO_INICIO, anio_fin))
 
     def conectividad() -> pd.DataFrame:
@@ -187,6 +212,8 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     _paso(acta, "sismos", lambda: sismicidad.sismos_por_provincia_anual(
         sismicidad.terremotos(ANIO_INICIO, anio_fin), poligonos))
     _paso(acta, "natura", lambda: natura.superficie_natura_por_provincia(poligonos))
+    _paso(acta, "suelo_provincia", lambda: suelo.leer_precio_suelo(suelo.descargar()))
+    _paso(acta, "peligrosidad_sismica", lambda: norma_sismica.leer_peligrosidad(norma_sismica.descargar()))
 
 
 def _construir(acta: Actualizacion) -> None:

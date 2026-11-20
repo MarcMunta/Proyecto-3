@@ -1,6 +1,6 @@
 # Model card · Probabilidad de que una provincia tenga un CPD (`prob_cpd`)
 
-> Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
+> Generado por `python -m cpd.modelos` el 18/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
 ## Datos
 
@@ -40,26 +40,39 @@ lugar de fijarlo en 0,5.
 | Modelo | Log-loss | ROC-AUC | Brier | Accuracy (0,5) |
 |---|---|---|---|---|
 | Clase mayoritaria (baseline) | 0,584 | 0,500 (constante) | 0,197 | 73,1 % |
+| Logística con winsorizing (percentiles 1-99, ML) | 0,393 | 0,859 | 0,119 | 84,6 % |
+| Logística con población y población² (polinómica) | 0,371 | 0,880 | 0,111 | 84,6 % |
+| Logística con población y frequency encoding de la comunidad | 0,387 | 0,874 | 0,116 | 84,6 % |
+| Logística con población y target encoding de la comunidad | 0,316 | 0,925 | 0,090 | 90,4 % |
 | Logística solo con población (baseline) | 0,377 | 0,882 | 0,115 | 86,5 % |
 | Logística con todas las features (ML) | 0,394 | 0,855 | 0,117 | 84,6 % |
 | Random forest (ML) | 0,422 | 0,885 | 0,124 | 84,6 % |
 
-**Modelo elegido: Logística solo con población (baseline).** Con 52 provincias, añadir variables no mejora la log-loss: la
-población explica casi todo y el resto añade ruido (sobreajuste). Se documenta en lugar de elegir un modelo más
-complejo y peor.
+**Modelo elegido: Logística con población y target encoding de la comunidad.** Con 52 provincias, añadir **todas** las variables no mejora la log-loss
+(la logística completa y el random forest sobreajustan). Lo que sí ayuda (18/11/2026) es una sola variable más con
+sentido: la **comunidad autónoma con target encoding** (técnica de clase I62), es decir, la proporción de provincias con
+CPD en la comunidad, aprendida **solo con el entrenamiento** de cada pliegue y con validación cruzada interna (sin
+fuga). Recoge el efecto regional (por ejemplo, las tres provincias del País Vasco tienen CPD). También se probaron la
+población al cuadrado (polinómica, I59), la frecuencia de la comunidad (frequency encoding, I61) y el winsorizing (I58):
+quedan en la tabla, sin ganar. Al elegir entre más candidatos con los mismos pliegues el resultado es algo optimista.
 
 ![Curva ROC](../../docs/figuras/modelos/roc_prob_cpd.png)
 
-**Figura.** Curvas ROC fuera de pliegue de los cuatro modelos.
+**Figura 1.** Curvas ROC fuera de pliegue de los modelos candidatos.
 
-**Umbral elegido** (Youden): 0,40. Matriz de confusión con ese umbral:
+
+![prob_cpd por provincia](../../docs/figuras/modelos/prob_cpd_provincias.png)
+
+**Figura 2.** Matriz de confusión con el umbral elegido, métricas con ese umbral y probabilidad fuera de pliegue de cada provincia (azul: tiene CPD; gris: no tiene; línea discontinua: umbral). Las barras grises a la derecha del umbral son las provincias «parecidas» a las que ya tienen CPD.
+
+**Umbral elegido** (Youden): 0,41. Matriz de confusión con ese umbral:
 
 | | Predice "con CPD" | Predice "sin CPD" |
 |---|---|---|
-| Tiene CPD | 11 (verdaderos positivos) | 3 (falsos negativos) |
+| Tiene CPD | 12 (verdaderos positivos) | 2 (falsos negativos) |
 | No tiene CPD | 2 (falsos positivos) | 36 (verdaderos negativos) |
 
-Accuracy 90,4 %, precision 0,85, recall (TPR) 0,79, FPR 0,05, F1 0,81.
+Accuracy 92,3 %, precision 0,86, recall (TPR) 0,86, FPR 0,05, F1 0,86.
 
 **Coeficientes de la logística con todas las features** (ajustada con las 52 provincias, `C` = 0,30;
 solo para interpretar):
@@ -86,14 +99,14 @@ solo para interpretar):
 
 | Subgrupo | Provincias | Con CPD (real) | Probabilidad media | Falsos positivos | Falsos negativos |
 |---|---|---|---|---|---|
-| Islas, Ceuta y Melilla | 5 | 60 % | 26 % | 0 | 0 |
-| Península | 47 | 23 % | 27 % | 2 | 3 |
-| población baja | 18 | 6 % | 5 % | 0 | 1 |
-| población media | 17 | 12 % | 22 % | 0 | 2 |
-| población alta | 17 | 65 % | 55 % | 2 | 0 |
+| Islas, Ceuta y Melilla | 5 | 60 % | 38 % | 0 | 0 |
+| Península | 47 | 23 % | 25 % | 2 | 2 |
+| población baja | 18 | 6 % | 4 % | 0 | 1 |
+| población media | 17 | 12 % | 23 % | 1 | 1 |
+| población alta | 17 | 65 % | 55 % | 1 | 0 |
 
-- Provincias sin CPD con más probabilidad (candidatas): Cádiz (50 %), Coruña, A (44 %), Asturias (39 %), Zaragoza (38 %), Pontevedra (36 %).
-- Provincias con CPD y poca probabilidad (el modelo no las explica): Araba/Álava (7 %), León (11 %), Gipuzkoa (26 %).
+- Provincias sin CPD con más probabilidad (candidatas): Castellón/Castelló (71 %), Cádiz (47 %), Asturias (37 %), Tarragona (32 %), Granada (32 %).
+- Provincias con CPD y poca probabilidad (el modelo no las explica): León (3 %), Araba/Álava (26 %), Balears, Illes (41 %).
 
 ## Limitaciones
 
@@ -114,4 +127,4 @@ solo para interpretar):
 
 `.\.venv\Scripts\python.exe -m cpd.modelos` (semilla 42; versiones en `requirements.txt`). Salida en
 `data/curated/modelos/prob_cpd_provincia.csv`; modelo final en `models/prob_cpd.joblib` (fuera de git).
-Entrenado el 17/11/2026.
+Entrenado el 18/11/2026.

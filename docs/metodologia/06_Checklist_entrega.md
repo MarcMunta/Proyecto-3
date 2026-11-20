@@ -1,7 +1,7 @@
 ---
 tags: [metodologia, checklist, entrega, p3]
 estado: borrador
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 ---
 
 # 06 · Checklist de entrega
@@ -22,16 +22,16 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 
 | Sección | ✅ | 🟡 | ❌ | Total |
 |---|---|---|---|---|
-| A. Objetivo general | 0 | 3 | 0 | 3 |
+| A. Objetivo general | 1 | 2 | 0 | 3 |
 | B. Objetivos específicos (1-10) | 3 | 7 | 0 | 10 |
-| C. Preguntas funcionales (P1-P8) | 2 | 6 | 0 | 8 |
+| C. Preguntas funcionales (P1-P8) | 5 | 3 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
-| E. Variables del entorno territorial (enunciado) | 8 | 22 | 17 | 47 |
+| E. Variables del entorno territorial (enunciado) | 14 | 22 | 11 | 47 |
 | F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
-| I. Técnicas de clase y de calidad de datos | 40 | 14 | 16 | 70 |
-| **Total** | **66** | **64** | **54** | **184** |
+| I. Técnicas de clase y de calidad de datos | 47 | 11 | 12 | 70 |
+| **Total** | **69** | **61** | **54** | **184** |
 
 Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si se añaden filas, recalcular.
 
@@ -43,7 +43,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 |---|---|---|---|---|---|
 | A1 | Plataforma Big Data para analizar y predecir la viabilidad de instalar un CPD en cualquier municipio español | 🟡 | `src/cpd/`, `app/streamlit_app.py`, `frontend/` | | Decidir granularidad (D1) y documentarla |
 | A2 | Proporcionar una puntuación global de viabilidad | 🟡 | `src/cpd/scoring.py` (`calcular_score_global`) | | Calibrar pesos y umbrales (`config/settings.yaml`) |
-| A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | 🟡 | `src/cpd/forecast.py` | | Añadir validación y métricas (fase 7-8) |
+| A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | ✅ | Corto plazo: `src/cpd/modelos/operacion.py` (PUE, consumo, emisiones, agua y reserva mínima del ámbito a 1 año por provincia, de punta a punta: consumo 99,7 %, emisiones 90,6 %; figura 14). Medio plazo: `src/cpd/modelos/medio_plazo.py` (10 años: temperatura por provincia 97,7 % validación / 94,8 % test con NASA POWER desde 1981 → PUE → consumo 99,8 % / 99,5 %; reserva media de la década por ámbito 91,1 % / 86,6 %; año a año 83,3 % / 81,9 %, orientativo); figura 16 en `docs/analisis/previsiones_1_anio.md`, línea «A 10 años» en la ficha del mapa; `tests/test_modelos.py` (sin fuga, validación antes del test) | | Emisiones a 10 años no validables (mix por comunidad solo desde 2015) |
 
 ## B. Objetivos específicos (enunciado, p. 2-3)
 
@@ -55,23 +55,23 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | B4 | Diseñar un Data Lake y un Data Warehouse | 🟡 | `data/raw/`, `data/almacen/p3_cpd.duckdb`, `src/cpd/almacen.py` | | Completar estrella y escribir documento de almacenamiento (fase 5) |
 | B5 | Realizar análisis exploratorio de datos | 🟡 | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` (histogramas, box plots, series, barras, dispersión, correlaciones, pair plot; `python -m cpd.modelos`) | | Notebook `notebooks/01_eda_panel.ipynb` que llame a `cpd.modelos.eda` (la fase 4 lo pide) |
 | B6 | Detectar correlaciones entre variables territoriales y la viabilidad | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5: Pearson y Spearman frente a nº de CPD, score y VAN simulados | | — |
-| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` | | Mejorar features de `prob_cpd` si hay más datos (n = 52) |
+| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` ; 18/11/2026: PIB provincial y población + renta probados y descartados (bajan el acierto con umbral a 84,6 %); la población con **target encoding de la comunidad** mejora todo (log-loss 0,316, ROC-AUC 0,925, acierto 92,3 %) y es el nuevo elegido | | Más datos de CPD (fechas de apertura) para validar en el tiempo |
 | B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Añadir parámetros del CPD que faltan (ver D) |
 | B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Informe de cuadro de mandos (fase 10) |
-| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda y del precio, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md` | | Previsión a 10 años validada para P5 |
+| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda, el precio, las reservas de agua, la temperatura por provincia y el % renovable por comunidad, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md`; control de acierto D8 (`data/curated/modelos/control_acierto.csv`) | | El precio de la luz a 1 año no llega al 85 % (D8): se enseña como escenario orientativo, fuera del VAN, con el motivo en el informe. Mejora posible: futuros de OMIP |
 
 ## C. Preguntas funcionales (enunciado, p. 3; ver [[01_Objetivo_y_alcance]])
 
 | ID | Pregunta | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
 | P1 | ¿Qué municipios son los más adecuados? | 🟡 | `src/cpd/scoring.py` (`evaluar`, ranking) | | Ranking real a nivel de provincia; municipal con datos reales |
-| P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | 🟡 | `simulator.impacto_local_pct` | | Datos de consumo municipal reales o explicación de límite |
-| P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Análisis por nudo o CCAA; decisión de nivel |
-| P4 | ¿Existe riesgo hídrico? | 🟡 | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m` | | Informe con interpretación y limitación |
-| P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (validación temporal e intervalo a 12 meses); `src/cpd/forecast.py` (120 meses) | | Previsión a 10 años con incertidumbre creciente y explicación |
-| P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md` | | Calibrar precios en `config/settings.yaml` y documentar |
+| P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | ✅ | `src/cpd/modelos/impacto_local.py`: consumo previsto del CPD sobre la demanda prevista de su comunidad (validación de punta a punta 96,1 %, 20 orígenes), potencia máxima sobre la capacidad de acceso libre (REE; 0 MW en Madrid, Navarra y Ceuta: no cabe) y agua sobre la distribuida por la red pública de su comunidad (INE tabla 53447, 2024), con habitantes equivalentes; figura 17, ficha del mapa; `tests/test_modelos.py` | | Escala de comunidad: no hay consumo eléctrico ni de agua abierto por municipio (E8, E14) |
+| P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw`, `capacidad_demanda_rdt_otorgada_mw` y `_pendiente_mw` (REE, por comunidad); cobertura renovable prevista (generación renovable / demanda, `docs/analisis/previsiones_1_anio.md`), en el bloque de energía del score | | Análisis por nudo (hoy por comunidad) |
+| P4 | ¿Existe riesgo hídrico? | ✅ | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m`; previsión de reservas a 1 año por ámbito (acierto 85,3 % en test) en `docs/analisis/previsiones_1_anio.md`; reserva media de la próxima década por ámbito (acierto 86,6 % en test, `src/cpd/modelos/medio_plazo.py`) | | Afinar la asignación provincia → ámbito |
+| P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) ; escenarios con la red otorgada (18.535 MW) y en trámite (23.500 MW) de REE sobre la tendencial (`src/cpd/modelos/escenarios.py`, figura 19): 2035 entre 244 TWh (tendencial) y 374 TWh (100 % de lo otorgado); Aragón tiene otorgado el 243 % de su demanda | | Calibrar la realización de lo otorgado (sin dato abierto) |
+| P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md`; temperatura media por provincia a 1 año (la que usa el PUE; acierto 92,8-93,8 %, error de la media anual 0,5 °C) en `docs/analisis/previsiones_1_anio.md` | | Calibrar precios en `config/settings.yaml` y documentar |
 | P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests; sensibilidad del VAN al precio de la luz en la ficha del mapa (`frontend/scripts/simular_provincias.py`) | | Documentar tasa de descuento y supuestos |
-| P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico) | | Verificar fuentes de inundación y sísmico y sus unidades |
+| P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico); peligrosidad sísmica oficial (NCSE-02) por provincia en el filtro y el score; modelo de riesgo sísmico anual (`src/cpd/modelos/sismico.py`, no cumple, no se usa) | | Verificar la fuente de zonas inundables |
 
 ## D. Variables del CPD (enunciado, p. 2-4)
 
@@ -121,19 +121,19 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E7 | Producción eléctrica disponible | 🟡 | `generacion_total_ccaa_mwh` (CCAA, no provincia) | | Documentar nivel CCAA |
+| E7 | Producción eléctrica disponible | 🟡 | `generacion_total_ccaa_mwh` (CCAA, no provincia); generación de España por tecnología (`generacion_nacional_detalle`, eólica, solar, hidráulica, nuclear, ciclo combinado, carbón) y su previsión a 1 año (`gas_tiempo.py`, inestable); generación renovable prevista a 1 año por comunidad (mes a mes 86,2 % y total de 12 meses 92,3-93,5 %, con la suma de tecnologías y la hidráulica desde los embalses) | | Documentar nivel CCAA |
 | E8 | Consumo eléctrico municipal | 🟡 | `demanda_ccaa_mwh` (CCAA); sin dato municipal abierto (ver `docs/datos/README.md`) | | Documentar la limitación |
 | E9 | Capacidad de la red | 🟡 | `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw` | | Revisar cobertura territorial |
 | E10 | Subestaciones cercanas | 🟡 | `subestaciones_220_400kv`, `subestaciones_400kv` (OSM) | | Distancia a la subestación más cercana, no solo conteo |
 | E11 | Capacidad de transporte | 🟡 | `capacidad_demanda_rdt_disponible_mw` | | Aclarar si es transporte o acceso |
-| E12 | Porcentaje de renovables | ✅ | `pct_renovable_ccaa` | | — |
+| E12 | Porcentaje de renovables | ✅ | `pct_renovable_ccaa`; previsión a 1 año por comunidad en `docs/analisis/previsiones_1_anio.md` (% medio de 12 meses: acierto 89,4-92,2 %; mes a mes 84,8 %, orientativo) | | Mejorar el mes a mes (viento, lluvia y sol del mes no se pueden prever a 1 año) |
 
 ### E.3 Agua (fuentes: Confederaciones Hidrográficas, MITECO, AEMET)
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
 | E13 | Disponibilidad hídrica | 🟡 | `reserva_hidrica_pct`, `reserva_hidrica_hm3` (por ámbito) | | Explicar relación con disponibilidad real |
-| E14 | Consumo hídrico municipal | ❌ | — | | Buscar fuente abierta o documentar que no existe |
+| E14 | Consumo hídrico municipal | 🟡 | Por comunidad: INE «Estadística sobre el suministro y saneamiento del agua» (tabla 53447, bienal 2014-2024: suministrada, registrada y distribuida, pérdidas), `ine.agua_ccaa`, `agua_ccaa.csv` | | No hay dato municipal abierto: documentado |
 | E15 | Embalses cercanos | 🟡 | Reserva por ámbito hidrográfico (MITECO) | | Asociar embalse al municipio o provincia |
 | E16 | Estrés hídrico | ✅ | `estres_hidrico_wri_0_1` (WRI Aqueduct) | | — |
 | E17 | Sequías históricas | 🟡 | `indice_sequia_12m` (suma de 12 meses, no índice oficial) | | Documentar que no es SPI oficial |
@@ -143,7 +143,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E19 | Temperatura media anual | 🟡 | `tmedia_mes_c` (mensual; la anual no está calculada) | | Calcular media anual |
+| E19 | Temperatura media anual | 🟡 | `tmedia_mes_c` (mensual); media de los últimos 12 meses y de los 12 previstos por provincia en `data/curated/modelos/previsiones_1_anio.json` (`temperatura`) | | Añadir la media anual al panel provincial |
 | E20 | Temperatura máxima histórica | 🟡 | `tmax_media_c` (media de máximas, no máximo histórico) | | Añadir máximo histórico |
 | E21 | Humedad relativa | ✅ | `humedad_relativa_media_pct` | | — |
 | E22 | Número de días de calor extremo | ✅ | `dias_mas_35c` (umbral 35 °C) | | Justificar el umbral de "extremo" |
@@ -157,7 +157,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | E25 | Cobertura de fibra óptica | ❌ | — | | Buscar fuente CNMC |
 | E26 | Troncales de comunicaciones | ❌ | — | | Buscar fuente (OSM, Secretaría de Estado) |
 | E27 | Puntos neutros de Internet | 🟡 | `n_ixp`, `distancia_ixp_km` (PeeringDB) | | Documentar fuente alternativa |
-| E28 | Distancia a nodos principales | 🟡 | `distancia_ixp_km` (solo IXP, no nodos) | | Definir "nodo principal" |
+| E28 | Distancia a nodos principales | 🟡 | `distancia_ixp_km` (IXP más cercano) y `distancia_hubs_ixp_km` (al más lejano de los dos grandes nodos: las provincias con más IXP en PeeringDB, hoy Madrid y Barcelona), en el bloque de conectividad del score | | Rutas reales de fibra (hoy, línea recta × 1,5) |
 | E29 | Cobertura 5G | ❌ | — | | Buscar fuente CNMC |
 
 ### E.6 Transporte y logística (fuentes: OSM u otras)
@@ -173,27 +173,27 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E34 | Precio del suelo industrial | ❌ | — | | Buscar fuente abierta |
+| E34 | Precio del suelo industrial | 🟡 | `precio_suelo_urbano_eur_m2` (Ministerio de Transportes, «Precios de suelo», tabla 4; mediana de 4 trimestres; `src/cpd/fuentes/suelo.py`), en el bloque de suelo del score | | Es suelo urbano, no industrial: por eso no entra en el CAPEX. Buscar precio industrial abierto |
 | E35 | Disponibilidad de parcelas | ❌ | — | | Buscar fuente |
 | E36 | Calificación urbanística | ❌ | — | | Buscar fuente (planeamiento municipal) |
 | E37 | Riesgos de inundación | 🟡 | Filtro "zona inundable" en `README.md` (fuente por verificar) | | Confirmar fuente y añadir a panel |
-| E38 | Riesgo sísmico | 🟡 | `n_terremotos`, `magnitud_max`, `n_terremotos_m3_plus` (EMSC); filtro de 0,16 g en README | | Verificar que la unidad (g) y la magnitud son coherentes |
+| E38 | Riesgo sísmico | ✅ | `aceleracion_sismica_capital_g`, `aceleracion_sismica_max_g`, `municipios_ab_008_o_mas` (norma NCSE-02, BOE, anejo 1; `src/cpd/fuentes/norma_sismica.py`) en el filtro de 0,16 g y el bloque de riesgos; `n_terremotos`, `magnitud_max`, `n_terremotos_m3_plus` (EMSC) | | Mapa del IGN 2015 si se publica por municipio |
 
 ### E.8 Impacto socioeconómico (enunciado, p. 7)
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E39 | Empleo generado | ❌ | — | | Definir modelo de cálculo (hipótesis documentada) |
-| E40 | Inversión inducida | ❌ | — | | Igual |
-| E41 | PIB municipal | ❌ | — | | Buscar fuente (INE, Eurostat) |
-| E42 | Atracción empresarial | ❌ | — | | Definir indicador (recomendación) |
+| E39 | Empleo generado | ✅ | `src/cpd/modelos/socioeconomico.py`: modelo input-output de Leontief (tipo I) con las Tablas Input-Output 2022 del INE (`src/cpd/fuentes/ine_tio.py`, inversa interior y empleo ETC por rama): obra 3.402 empleos-año; operación 60 directos + 217 indirectos al año (×4,6); figura 18, ficha del mapa; tests con una economía sintética | | Calibrar el reparto del CAPEX (`config/settings.yaml`, supuesto) |
+| E40 | Inversión inducida | ✅ | Mismo modelo: de 400 M€ de CAPEX se quedan en España 295 M€ (cuota de importación real por producto) y generan 562 M€ de producción y 217 M€ de VAB; operación 78 M€ de VAB al año | | Tipo II (gasto de los salarios), si se pide |
+| E41 | PIB municipal | 🟡 | No hay PIB municipal abierto; PIB por provincia del INE (Contabilidad Regional, tabla 82284, `ine.pib_provincias`, `pib_provincia.csv`): VAB directo del CPD sobre el PIB provincial (de 0,01 % en Madrid a 2,5 % en Melilla) | | Documentado: el dato municipal no existe en abierto |
+| E42 | Atracción empresarial | ✅ | Sociedades mercantiles constituidas por provincia y mes (INE, tabla 6295, 2008-2025; `ine.sociedades_provincias`) y su previsión a 1 año (`src/cpd/modelos/empresas.py`, combinación con candidatos por día hábil, `src/cpd/features/calendario.py`): mes a mes 88,3 % / 85,4 % y total de 12 meses 93,0 % / 92,1 %; indicador por 10.000 habitantes, figura 20 y ficha del mapa | | Indicador de dinamismo (recomendación, no viene de clase), fuera del score |
 
 ### E.9 Impacto ambiental (enunciado, p. 7)
 
 | ID | Variable | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| E43 | Incremento del consumo energético local | 🟡 | `simulator.impacto_local_pct` | | Necesita consumo municipal (E8) |
-| E44 | Incremento del consumo hídrico | 🟡 | `simulator.agua_m3_anual` (sin % sobre consumo local) | | Calcular % sobre consumo local |
+| E43 | Incremento del consumo energético local | ✅ | % del consumo previsto del CPD sobre la demanda prevista de su comunidad y habitantes equivalentes (`src/cpd/modelos/impacto_local.py`, 96,1 % en validación); `simulator.impacto_local_pct` queda para el dato municipal | | Municipal sin fuente abierta (E8) |
+| E44 | Incremento del consumo hídrico | ✅ | % del agua anual del CPD sobre el agua registrada y distribuida de su comunidad (INE, tabla 53447) y habitantes equivalentes (`src/cpd/modelos/impacto_local.py`) | | — |
 | E45 | Huella de carbono | ✅ | `simulator.co2_t` | | Documentar factor de emisión y alcance |
 | E46 | Emisiones indirectas | 🟡 | `co2_t` (solo energía comprada) | | Aclarar alcance 2 y 3 |
 | E47 | Ocupación del suelo | ❌ | — | | Calcular a partir de superficie (D1) |
@@ -284,7 +284,7 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 |---|---|---|---|---|---|
 | I27 | Causas de fallo de previsión: checklist (C3 p.4) | 🟡 | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py` (fuga, estacionalidad, atípicos, horizonte) | | Lista explícita de las causas de C3 p.4 en el informe |
 | I28 | Evitar fuga de información (C3 p.4) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`test_features_no_usan_datos_posteriores_a_t_menos_h`); `n_ixp` excluida en `src/cpd/features/provincia.py` | | — |
-| I29 | Horizonte de previsión justificado (C3 p.4) | 🟡 | `docs/analisis/previsiones_1_anio.md` (1 año: el simulador necesita el precio y la demanda del año siguiente) | | Justificar el horizonte de 10 años de P5 |
+| I29 | Horizonte de previsión justificado (C3 p.4) | ✅ | `docs/analisis/previsiones_1_anio.md` (1 año para el simulador; 10 años para P5, con el intervalo que crece con el plazo) | | — |
 | I30 | Ventana temporal de entrenamiento y validación (C3 p.4) | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `tests/test_modelos.py` (`test_particiones_son_temporales_y_no_se_solapan`) | | — |
 | I31 | Estacionalidad (C3 p.4) | ✅ | Baseline estacional y features de mes en `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/figuras/eda/02_boxplots.png` | | — |
 | I32 | Calidad de la previsión frente a baseline (C3 p.5-6) | ✅ | `docs/analisis/metricas.md`, `docs/analisis/previsiones_1_anio.md` (figuras 4 y 5) | | — |
@@ -311,18 +311,18 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 |---|---|---|---|---|---|
 | I49 | Lags (retardos) (C4 p.7, 12-14) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` | | — |
 | I50 | Ventanas móviles: media, máximo, mínimo, desviación (C4 p.7, 15) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (medias de 3, 6 y 12 meses y desviación de 12) | | — |
-| I51 | Estacionariedad y estacionalidad (C4 p.16) | 🟡 | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (objetivo relativo al nivel de 12 meses, en log) | | Comprobar estacionariedad con media y varianza por año |
-| I52 | Diferencias (C4 p.7, 17) | 🟡 | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`f_desv_12m` sobre diferencias de log) | | Probar un modelo sobre diferencias |
+| I51 | Estacionariedad y estacionalidad (C4 p.16) | ✅ | `src/cpd/modelos/estacionariedad.py`: media y desviación por año y test ADF de la demanda de las 19 comunidades (2015-2025) en nivel, log, diferencia estacional y doble diferencia: 0/19, 0/19, 3/19 y 19/19 estacionarias; figura 21 y sección del informe; `tests/test_modelos.py` | | — |
+| I52 | Diferencias (C4 p.7, 17) | ✅ | `f_desv_12m` (Ridge) y `estacional_tendencia` sobre la diferencia estacional; modelo sobre diferencias `anual._ar_diferencias` (AR(1) sobre Δ₁₂ log): 96,1 % / 95,0 %, como el estacional, pero no mejora la combinación de la demanda y no se usa (documentado) | | — |
 | I53 | Transformación logarítmica (log, log1p) (C4 p.8, 25-26) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py`; `src/cpd/features/provincia.py` (`log_poblacion`) | | — |
 | I54 | Eventos puntuales (DANA, Black Friday) (C4 p.18) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (`f_confinamiento`) | | Añadir más eventos si se conocen |
 | I55 | Escalado (scaling) (C4 p.8, 23) | ✅ | `StandardScaler` dentro del pipeline en `src/cpd/modelos/demanda.py` y `prob_cpd.py` (solo con entrenamiento) | | — |
 | I56 | Normalización min-max (MAX-MIN) (C4 p.23) | ✅ | `src/cpd/scoring.py` (`normalizar_min_max`) | | Verificar que no altera la columna original (R-7) |
 | I57 | Estandarización z-score (C4 p.23) | ✅ | `StandardScaler` (z-score) en los pipelines de `src/cpd/modelos/` | | — |
-| I58 | Winsorizing (C4 p.8) | ❌ | — | | Recorte de percentiles 1 y 99 (fase 2-3) |
-| I59 | Transformaciones polinómicas (C4 p.8) | ❌ | — | | Solo si se justifica |
+| I58 | Winsorizing (C4 p.8) | ✅ | `prob_cpd.Winsorizador` (percentiles 1 y 99 calculados solo con el entrenamiento de cada pliegue) y candidato `logistica_winsor`: log-loss 0,394 → 0,393, sin cambio de elegido; `tests/test_modelos.py` | | — |
+| I59 | Transformaciones polinómicas (C4 p.8) | ✅ | `prob_cpd`, candidato `poblacion_polinomica` (población y población², `PolynomialFeatures`): log-loss 0,371 frente a 0,377, sin ganar al elegido; `docs/modelos/prob_cpd.md` | | — |
 | I60 | One-hot encoding (C4 p.9, 20) | ✅ | `src/cpd/features/demanda.py`, `tests/test_modelos.py` (mes del año `f_mes_02`…`f_mes_12`) | | — |
-| I61 | Frequency encoding (C4 p.9, 21) | ❌ | — | | Para categorías muchas (fase 3) |
-| I62 | Target encoding (C4 p.9) | ❌ | — | | Solo dentro de partición de entrenamiento |
+| I61 | Frequency encoding (C4 p.9, 21) | ✅ | `prob_cpd.anadir_codificaciones` (`ccaa_frecuencia`: fracción de provincias de la comunidad) y candidato `poblacion_frecuencia_ccaa`: log-loss 0,387, sin ganar; `tests/test_modelos.py` | | — |
+| I62 | Target encoding (C4 p.9) | ✅ | `prob_cpd`, candidato `poblacion_target_ccaa` (`TargetEncoder` de la comunidad dentro de cada pliegue, con validación cruzada interna): **elegido** por log-loss (0,377 → 0,316); ROC-AUC 0,882 → 0,925; acierto con umbral 90,4 % → 92,3 %; `tests/test_modelos.py` (se ajusta solo con el entrenamiento) | | — |
 | I63 | Embeddings (C4 p.9) | ❌ | — (opcional, "super-ultra-advanced") | | No prioritario |
 | I64 | Variables semánticas: zona climática, región, ranking, extracciones (C4 p.10, 27-28) | 🟡 | `ccaa`, `ambito_hidrografico`, `extrapeninsular` (`src/cpd/features/provincia.py`), ranking en `scoring.evaluar` | | Añadir zona climática y extracciones |
 | I65 | Rankings como variable (C4 p.10) | ✅ | `src/cpd/scoring.py` (ranking) | | — |

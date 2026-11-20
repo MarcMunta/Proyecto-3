@@ -3,6 +3,7 @@
 Endpoints:
 - Diario:  https://power.larc.nasa.gov/api/temporal/daily/point
 - Horario: https://power.larc.nasa.gov/api/temporal/hourly/point
+- Mensual: https://power.larc.nasa.gov/api/temporal/monthly/point (temperatura desde 1981, para el medio plazo)
 Comunidad "AG" (agroclimatología): incluye temperatura, humedad, precipitación, viento y radiación. La evapotranspiración de referencia se calcula con Hargreaves (FAO-56) desde temperaturas y latitud; EVPTRNS (evapotranspiración real) no se usa por su escala poco fiable en la capital.
 Hora estándar local (time-standard=LST).
 
@@ -34,6 +35,8 @@ from cpd.fuentes.provincias import PROVINCIAS
 FUENTE: str = "NASA POWER"
 URL_DIARIO: str = "https://power.larc.nasa.gov/api/temporal/daily/point"
 URL_HORARIO: str = "https://power.larc.nasa.gov/api/temporal/hourly/point"
+URL_MENSUAL: str = "https://power.larc.nasa.gov/api/temporal/monthly/point"
+ANIO_INICIO_LARGO: int = 1981  # primer año del reanálisis MERRA-2 en POWER
 COMUNIDAD: str = "AG"
 ZONA_HORARIA: str = "LST"  # hora local estándar
 VALOR_AUSENTE: float = -999.0
@@ -187,6 +190,47 @@ def clima_diario_power(anio_inicio: int = 2015, anio_fin: int | None = None) -> 
         [et0_hargreaves_mm(g, latitudes[c]) for c, g in tabla.groupby("codigo_provincia")]
     ).reindex(tabla.index)
     return tabla.sort_values(["codigo_provincia", "fecha"]).reset_index(drop=True)
+
+
+def parsear_mensual(respuesta: dict[str, Any], variable: str = "T2M") -> pd.Series:
+    """Serie mensual de una variable del endpoint mensual de POWER (claves AAAAMM; el mes «13» es la media anual y se
+    descarta). Los valores de relleno (-999) se convierten en NaN."""
+    try:
+        valores = respuesta["properties"]["parameter"][variable]
+    except (KeyError, TypeError) as error:
+        raise ErrorFuente(f"NASA POWER mensual: la respuesta no contiene {variable}") from error
+    serie = pd.Series({pd.Timestamp(int(k[:4]), int(k[4:]), 1): float(v) for k, v in valores.items() if 1 <= int(k[4:]) <= 12})
+    return serie.replace(VALOR_AUSENTE, np.nan).sort_index()
+
+
+def temperatura_mensual_larga(anio_inicio: int = ANIO_INICIO_LARGO, anio_fin: int | None = None) -> pd.DataFrame:
+    """Temperatura media mensual (°C) por provincia (capital) desde 1981 con el endpoint mensual de POWER.
+
+    Sirve para los modelos a medio plazo (10 años), que necesitan décadas de historia; la tabla diaria empieza en 2015.
+    Solo años completos: por defecto hasta el año anterior al actual. Un fichero de caché por provincia y rango.
+
+    Returns:
+        DataFrame largo: mes (primer día), codigo_provincia, tmedia_c.
+    """
+    anio_fin = anio_fin or dt.date.today().year - 1
+    partes = []
+    for provincia in PROVINCIAS:
+        ruta = CARPETA / "mensual" / f"{provincia.codigo}_{anio_inicio}_{anio_fin}.json"
+        datos = leer_cache_json(ruta)
+        if datos is None:
+            parametros = {
+                "parameters": "T2M", "community": COMUNIDAD, "latitude": provincia.lat, "longitude": provincia.lon,
+                "start": anio_inicio, "end": anio_fin, "format": "JSON",
+            }
+            datos = json_de(URL_MENSUAL, params=parametros, etiqueta=f"{FUENTE} mensual {provincia.codigo} {anio_inicio}-{anio_fin}")
+            if not isinstance(datos, dict) or "properties" not in datos:
+                raise ErrorFuente(f"{FUENTE} mensual {provincia.codigo}: respuesta inesperada")
+            guardar_cache_json(ruta, datos)
+            registrar(FUENTE, f"Mensual {provincia.codigo} {anio_inicio}-{anio_fin}", URL_MENSUAL, ruta, ruta.stat().st_size / 1024)
+            time.sleep(0.5)  # cortesía con POWER entre provincias
+        serie = parsear_mensual(datos)
+        partes.append(pd.DataFrame({"mes": serie.index, "codigo_provincia": provincia.codigo, "tmedia_c": serie.to_numpy()}))
+    return pd.concat(partes, ignore_index=True).dropna(subset=["tmedia_c"]).sort_values(["codigo_provincia", "mes"]).reset_index(drop=True)
 
 
 def free_cooling_de_horario(horario: pd.DataFrame, codigo: str) -> pd.DataFrame:

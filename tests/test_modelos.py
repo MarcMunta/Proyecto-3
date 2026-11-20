@@ -353,3 +353,632 @@ def test_series_de_gas_mensuales_y_ultimo_valor_conocido():
     assert gas.loc["2024-01-01", "gas_y1_eur_mwh"] == pytest.approx(41.0)
     assert gas.loc["2024-03-01", "gas_y1_eur_mwh"] == pytest.approx(41.0)  # último valor conocido (hasta 2 meses)
     assert pd.isna(gas.loc["2024-01-01", "gas_q1_eur_mwh"])
+
+
+# ---------- Requisito de acierto, demanda a 10 años y reservas ----------
+
+
+def test_acierto_y_control_del_requisito():
+    from cpd.modelos.metricas import acierto_pct, control_acierto
+
+    assert acierto_pct([100.0, 100.0], [90.0, 110.0]) == pytest.approx(90.0)
+    # Un mes con valor muy bajo no dispara el acierto como haría el MAPE.
+    assert acierto_pct([100.0, 1.0], [100.0, 11.0]) == pytest.approx(100 * (1 - 10 / 101))
+    assert control_acierto(84.9) == "no cumple (< 85 %)"
+    assert control_acierto(85.0) == "cumple"
+    assert control_acierto(92.0) == "cumple (objetivo 90 %)"
+    assert control_acierto(99.9) == "sospechoso (≥ 99,9 %)"
+
+
+def test_10_anios_sin_fuga_e_intervalo_que_no_se_estrecha():
+    from cpd.modelos import largo_plazo as lp
+
+    # Demanda anual SINTÉTICA (solo para el test).
+    rng = np.random.default_rng(5)
+    anual = pd.Series(260 + np.cumsum(rng.normal(0, 3, 19)), index=range(2007, 2026), name="demanda_twh")
+    bt = lp.backtesting(anual)
+    alterada = anual.copy()
+    alterada.loc[2020:] *= 1.5
+    bt2 = lp.backtesting(alterada)
+    # Las previsiones hechas desde un origen anterior a 2020 no pueden cambiar si cambia el futuro.
+    a = bt[bt["origen"] < 2020].set_index(["modelo", "origen", "anio"])["prevision_twh"]
+    b = bt2[bt2["origen"] < 2020].set_index(["modelo", "origen", "anio"])["prevision_twh"]
+    pd.testing.assert_series_equal(a, b)
+    resultado = lp.evaluar(anual)
+    prevision = lp.prevision(anual, resultado)
+    ancho = prevision["superior_twh"] / prevision["prevision_twh"] - prevision["inferior_twh"] / prevision["prevision_twh"]
+    assert len(prevision) == 10 and prevision["anio"].iloc[0] == 2026
+    assert (ancho.diff().dropna() >= -1e-9).all()
+
+
+def test_candidatos_de_reservas_solo_usan_datos_hasta_el_origen():
+    from cpd.modelos import anual
+
+    # Reservas SINTÉTICAS de dos cuencas (solo para el test).
+    meses = pd.date_range("2005-01-01", "2024-12-01", freq="MS")
+    filas = []
+    for i, cuenca in enumerate(("A", "B")):
+        valor = 50 + 20 * np.sin(2 * np.pi * meses.month / 12 + i) + np.random.default_rng(i).normal(0, 3, len(meses))
+        filas.append(pd.DataFrame({"serie": cuenca, "mes": meses, "real": valor}))
+    reales = pd.concat(filas, ignore_index=True)
+    origen = pd.Timestamp("2020-06-01")
+    alterada = reales.copy()
+    alterada.loc[alterada["mes"] > origen, "real"] = 99.0
+    a = {n: f(origen) for n, f in anual.candidatos_reservas(reales).items()}
+    b = {n: f(origen) for n, f in anual.candidatos_reservas(alterada).items()}
+    for nombre in a:
+        np.testing.assert_allclose(a[nombre]["prevision"].to_numpy(), b[nombre]["prevision"].to_numpy(), rtol=1e-6, err_msg=nombre)
+        assert a[nombre]["prevision"].between(0, 100).all()
+
+
+def _resultado_precio_sintetico(error: float) -> dict:
+    """Resultado de `anual.evaluar` SINTÉTICO (solo para el test): precio real 100 €/MWh y previsión 100 + error."""
+    meses = pd.date_range("2023-01-01", periods=12, freq="MS")
+    pred = pd.DataFrame(
+        {"modelo": "ets", "particion": "validacion", "mes": meses, "horizonte_meses": range(1, 13), "real": 100.0, "prevision": 100.0 + error}
+    )
+    acierto = 100 - abs(error)
+    metricas = pd.DataFrame([{"modelo": "ets", "particion": "validacion", "mae": abs(error), "acierto_pct": acierto}])
+    por_h = pred.assign(acierto_pct=acierto)[["modelo", "particion", "horizonte_meses", "acierto_pct"]]
+    return {"elegido": "ets", "metricas": metricas, "por_horizonte": por_h, "predicciones": pred}
+
+
+def test_explicacion_del_precio_solo_si_no_cumple_el_acierto():
+    from cpd.modelos.informe import _por_que_precio
+
+    assert _por_que_precio(_resultado_precio_sintetico(5.0)) == ""
+    texto = _por_que_precio(_resultado_precio_sintetico(40.0))
+    assert "¿Por qué no llega al 85 %?" in texto
+    assert "60 % a 1 mes" in texto and "escenario orientativo" in texto
+
+
+def test_serie_de_temperatura_solo_con_meses_completos():
+    from cpd.modelos import anual
+
+    # Clima diario SINTÉTICO de una provincia (solo para el test): enero completo y febrero a medias.
+    dias = pd.date_range("2024-01-01", "2024-02-10", freq="D")
+    clima = pd.DataFrame({"fecha": dias.strftime("%Y-%m-%d"), "codigo_provincia": 5, "tmedia_c": np.where(dias.month == 1, 2.0, 6.0)})
+    serie = anual.series_temperatura(clima, hoy=pd.Timestamp("2024-06-01").date())
+    assert serie["serie"].tolist() == ["05"]
+    assert serie["mes"].tolist() == [pd.Timestamp("2024-01-01")]
+    assert serie["real"].iloc[0] == pytest.approx(2.0)
+
+
+def test_candidatos_de_temperatura_sin_fuga_y_sin_recortar_bajo_cero():
+    from cpd.modelos import anual
+
+    # Temperaturas mensuales SINTÉTICAS (solo para el test) con inviernos bajo cero.
+    meses = pd.date_range("2015-01-01", "2024-12-01", freq="MS")
+    rng = np.random.default_rng(7)
+    reales = pd.DataFrame({"serie": "42", "mes": meses, "real": 10 - 12 * np.cos(2 * np.pi * (meses.month - 1) / 12) + rng.normal(0, 1, len(meses))})
+    origen = pd.Timestamp("2021-06-01")
+    alterada = reales.copy()
+    alterada.loc[alterada["mes"] > origen, "real"] = 40.0
+    a = {n: f(origen) for n, f in anual.candidatos_temperatura(reales).items()}
+    b = {n: f(origen) for n, f in anual.candidatos_temperatura(alterada).items()}
+    for nombre in a:
+        np.testing.assert_allclose(a[nombre]["prevision"].to_numpy(), b[nombre]["prevision"].to_numpy(), rtol=1e-6, err_msg=nombre)
+    assert (a["climatologia"]["prevision"] < 0).any()  # enero bajo cero: no se recorta a 0
+    assert "anomalia_por_provincia" in a and "anomalia_por_cuenca" not in a
+
+
+def test_serie_de_renovables_sin_mes_en_curso_ni_series_siempre_a_cero():
+    from cpd.modelos import anual
+
+    # Generación SINTÉTICA (solo para el test): una comunidad con renovables y otra siempre a 0 (como Ceuta).
+    meses = pd.date_range("2024-01-01", "2024-04-01", freq="MS")
+    gen = pd.concat(
+        [
+            pd.DataFrame({"codigo_ccaa": 7, "fecha": meses.strftime("%Y-%m-%d"), "pct_renovable": [60.0, 70.0, 80.0, 50.0]}),
+            pd.DataFrame({"codigo_ccaa": 18, "fecha": meses.strftime("%Y-%m-%d"), "pct_renovable": 0.0}),
+        ]
+    )
+    serie = anual.series_renovables(gen, hoy=pd.Timestamp("2024-04-15").date())
+    assert serie["serie"].unique().tolist() == ["07"]
+    assert serie["mes"].max() == pd.Timestamp("2024-03-01")  # abril está en curso
+
+
+def test_candidatos_de_renovables_sin_fuga_y_entre_0_y_100():
+    from cpd.modelos import anual
+
+    # % renovable SINTÉTICO (solo para el test): estacional y creciente.
+    meses = pd.date_range("2015-01-01", "2024-12-01", freq="MS")
+    rng = np.random.default_rng(3)
+    valor = np.clip(40 + 0.25 * np.arange(len(meses)) + 15 * np.sin(2 * np.pi * meses.month / 12) + rng.normal(0, 4, len(meses)), 0, 100)
+    reales = pd.DataFrame({"serie": "07", "mes": meses, "real": valor})
+    origen = pd.Timestamp("2021-06-01")
+    alterada = reales.copy()
+    alterada.loc[alterada["mes"] > origen, "real"] = 5.0
+    a = {n: f(origen) for n, f in anual.candidatos_renovables(reales).items()}
+    b = {n: f(origen) for n, f in anual.candidatos_renovables(alterada).items()}
+    for nombre in a:
+        np.testing.assert_allclose(a[nombre]["prevision"].to_numpy(), b[nombre]["prevision"].to_numpy(), rtol=1e-6, err_msg=nombre)
+        assert a[nombre]["prevision"].between(0, 100).all(), nombre
+    assert {"ets_5_anios", "ets_5_anios_sin_tendencia", "anomalia_por_comunidad"} <= set(a)
+
+
+def test_acierto_de_la_media_anual():
+    from cpd.modelos import anual
+
+    # Predicciones SINTÉTICAS (solo para el test): el error de cada mes se compensa en la media de 12 meses.
+    meses = pd.date_range("2023-01-01", periods=12, freq="MS")
+    pred = pd.DataFrame(
+        {"modelo": "ets", "particion": "validacion", "serie": "07", "origen": pd.Timestamp("2022-12-01"), "mes": meses,
+         "real": 50.0, "prevision": np.where(np.arange(12) % 2 == 0, 40.0, 60.0)}
+    )
+    acierto = anual.acierto_media_anual({"elegido": "ets", "predicciones": pred})
+    assert acierto == {"validacion": pytest.approx(100.0)}
+
+
+def test_metricas_con_un_real_igual_a_cero_dejan_el_mape_vacio():
+    from cpd.modelos.metricas import metricas_regresion
+
+    m = metricas_regresion([0.0, 10.0], [1.0, 9.0])
+    assert np.isnan(m["mape_pct"])
+    assert m["mae"] == pytest.approx(1.0)
+    assert m["acierto_pct"] == pytest.approx(100 * (1 - 2 / 10))
+
+
+def test_operacion_del_cpd_sube_con_el_calor_y_no_emite_con_mix_100_renovable():
+    from cpd import simulator as sim
+    from cpd.modelos.operacion import operacion_anual
+
+    params = sim.CPDParams()
+    frio, calor = operacion_anual(10.0, 50.0, params, 0.1), operacion_anual(20.0, 50.0, params, 0.1)
+    assert calor["pue"] > frio["pue"] and calor["consumo_mwh"] > frio["consumo_mwh"]
+    assert operacion_anual(15.0, 100.0, params, 0.1)["emisiones_t"] == pytest.approx(0.0)
+    assert frio["emisiones_t"] == pytest.approx(frio["consumo_mwh"] * 0.5 * 0.1)
+
+
+def test_riesgo_sismico_solo_usa_anios_anteriores():
+    from cpd.modelos import sismico
+
+    # Terremotos SINTÉTICOS (solo para el test): dos provincias, 2015-2024.
+    filas = [{"codigo_provincia": "18", "anio": a, "n_terremotos": 20, "magnitud_max": 3.5, "n_terremotos_m3_plus": 2} for a in range(2015, 2025)]
+    filas += [{"codigo_provincia": "42", "anio": 2016, "n_terremotos": 1, "magnitud_max": 2.0, "n_terremotos_m3_plus": 0}]
+    panel = sismico.panel_anual(pd.DataFrame(filas), ["18", "42"], hoy=pd.Timestamp("2025-06-01").date())
+    a = sismico.features(panel, 2020)
+    alterado = panel.copy()
+    alterado.loc[alterado["anio"] >= 2020, ["n_terremotos", "n_m3", "magnitud_max"]] = 0
+    b = sismico.features(alterado, 2020)
+    pd.testing.assert_frame_equal(a[sismico.FEATURES], b[sismico.FEATURES])
+    assert a.loc["18", "f_frecuencia"] == 1.0 and a.loc["42", "f_frecuencia"] == 0.0
+    assert panel["anio"].max() == 2024  # el año en curso (2025) no entra
+
+
+def test_suma_de_tecnologias_sin_fuga_y_coherente():
+    from cpd.modelos import anual
+
+    # Generación por tecnología SINTÉTICA (solo para el test): solar creciente de verano, eólica de invierno, gas.
+    meses = pd.date_range("2016-01-01", "2024-12-01", freq="MS")
+    n = np.arange(len(meses))
+    filas = []
+    for grupo, valores in (
+        ("solar", (100 + 2 * n) * (1.3 + np.sin(2 * np.pi * (meses.month - 3) / 12))),
+        ("eolica", 300 * (1.2 + 0.3 * np.cos(2 * np.pi * (meses.month - 1) / 12))),
+        ("no_renovable", np.full(len(meses), 400.0)),
+    ):
+        filas.append(pd.DataFrame({"codigo_ccaa": "07", "fecha": meses, "grupo": grupo, "generacion_mwh": valores}))
+    tecnologias = pd.concat(filas, ignore_index=True)
+    origen = pd.Timestamp("2022-06-01")
+    alterada = tecnologias.copy()
+    alterada.loc[alterada["fecha"] > origen, "generacion_mwh"] = 1.0
+    hoy = pd.Timestamp("2025-06-01").date()
+    a = anual.candidato_suma_tecnologias(tecnologias, "mwh", hoy=hoy)(origen)
+    b = anual.candidato_suma_tecnologias(alterada, "mwh", hoy=hoy)(origen)
+    np.testing.assert_allclose(a["prevision"].to_numpy(), b["prevision"].to_numpy(), rtol=1e-6)
+    assert (a["prevision"] > 0).all() and len(a) == 12
+    pct = anual.candidato_suma_tecnologias(tecnologias, "pct", hoy=hoy)(origen)
+    assert pct["prevision"].between(0, 100).all()
+
+
+def test_ridge_de_anomalias_sin_fuga():
+    from cpd.modelos import anual
+
+    # % renovable y reserva de embalses SINTÉTICOS (solo para el test).
+    meses = pd.date_range("2015-01-01", "2024-12-01", freq="MS")
+    rng = np.random.default_rng(11)
+    reales = pd.concat(
+        [pd.DataFrame({"serie": s, "mes": meses, "real": 50 + 15 * np.sin(2 * np.pi * meses.month / 12 + k) + rng.normal(0, 3, len(meses))}) for k, s in enumerate(("02", "07"))]
+    )
+    reserva = pd.Series(50 + 20 * np.sin(2 * np.pi * meses.month / 12) + rng.normal(0, 5, len(meses)), index=meses)
+    origen = pd.Timestamp("2021-06-01")
+    alterada = reales.copy()
+    alterada.loc[alterada["mes"] > origen, "real"] = 0.0
+    reserva_alterada = reserva.copy()
+    reserva_alterada[reserva_alterada.index > origen] = 0.0
+    a = anual.candidato_ridge_anomalias(reales, reserva)(origen)
+    b = anual.candidato_ridge_anomalias(alterada, reserva_alterada)(origen)
+    np.testing.assert_allclose(a["prevision"].to_numpy(), b["prevision"].to_numpy(), rtol=1e-6)
+    assert a["prevision"].between(0, 100).all() and set(a["serie"]) == {"02", "07"}
+
+
+def test_tecnologias_con_hidraulica_desde_embalses_sin_fuga():
+    from cpd.modelos import anual
+
+    # Generación por tecnología y reserva SINTÉTICAS (solo para el test): la hidráulica sigue a la reserva.
+    meses = pd.date_range("2015-01-01", "2024-12-01", freq="MS")
+    rng = np.random.default_rng(5)
+    reserva = pd.Series(55 + 15 * np.sin(2 * np.pi * meses.month / 12) + rng.normal(0, 4, len(meses)), index=meses)
+    filas = []
+    for codigo in ("07", "12"):
+        for grupo, valores in (
+            ("hidraulica", 10 * reserva.to_numpy() + rng.normal(0, 20, len(meses))),
+            ("solar", 200 + 100 * np.sin(2 * np.pi * (meses.month - 3) / 12) + np.arange(len(meses))),
+            ("no_renovable", np.full(len(meses), 300.0)),
+        ):
+            filas.append(pd.DataFrame({"codigo_ccaa": codigo, "fecha": meses, "grupo": grupo, "generacion_mwh": np.maximum(valores, 1.0)}))
+    tecnologias = pd.concat(filas, ignore_index=True)
+    origen, hoy = pd.Timestamp("2021-06-01"), pd.Timestamp("2025-06-01").date()
+    alterada = tecnologias.copy()
+    alterada.loc[alterada["fecha"] > origen, "generacion_mwh"] = 1.0
+    reserva_alterada = reserva.where(reserva.index <= origen, 0.0)
+    a = anual.candidato_tecnologias_hidro_embalses(tecnologias, reserva, hoy=hoy)(origen)
+    b = anual.candidato_tecnologias_hidro_embalses(alterada, reserva_alterada, hoy=hoy)(origen)
+    np.testing.assert_allclose(a.sort_values(["serie", "mes"])["prevision"].to_numpy(), b.sort_values(["serie", "mes"])["prevision"].to_numpy(), rtol=1e-6)
+    assert (a["prevision"] > 0).all() and set(a["serie"]) == {"07", "12"}
+
+
+def _gas_y_detalle_sinteticos():
+    # Gas, generación por tecnología y precio SINTÉTICOS (solo para los tests).
+    meses = pd.date_range("2016-01-01", "2024-12-01", freq="MS")
+    rng = np.random.default_rng(21)
+    gas = pd.DataFrame(
+        {
+            "gas_spot_eur_mwh": 20 + 5 * np.sin(2 * np.pi * meses.month / 12) + rng.normal(0, 1, len(meses)),
+            "gas_m1_eur_mwh": 21.0, "gas_q1_eur_mwh": 22.0, "gas_y1_eur_mwh": 23.0,
+        },
+        index=meses,
+    )
+    detalle = pd.DataFrame(
+        {
+            "fecha": meses, "eolica": 400 + 50 * np.cos(2 * np.pi * meses.month / 12), "solar": 200 + 100 * np.sin(2 * np.pi * (meses.month - 3) / 12),
+            "hidraulica": 250 + rng.normal(0, 20, len(meses)), "nuclear": 450.0, "ciclo_combinado": 300 + rng.normal(0, 30, len(meses)), "carbon": 50.0,
+        }
+    )
+    detalle["total"] = detalle[["eolica", "solar", "hidraulica", "nuclear", "ciclo_combinado", "carbon"]].sum(axis=1)
+    precio = pd.Series(2.5 * gas["gas_spot_eur_mwh"].to_numpy() * (detalle["ciclo_combinado"] / detalle["total"]).to_numpy() * 4, index=meses)
+    return gas, detalle, precio
+
+
+def test_gas_y_precio_estructural_sin_fuga():
+    from cpd.modelos import gas_tiempo
+
+    gas, detalle, precio = _gas_y_detalle_sinteticos()
+    origen = pd.Timestamp("2021-06-01")
+    gas_b, detalle_b, precio_b = gas.copy(), detalle.copy(), precio.copy()
+    gas_b.loc[gas_b.index > origen] = 999.0
+    detalle_b.loc[detalle_b["fecha"] > origen, ["eolica", "solar", "hidraulica", "ciclo_combinado"]] = 1.0
+    precio_b[precio_b.index > origen] = 999.0
+    for nombre, prever in gas_tiempo.candidatos_gas(gas).items():
+        np.testing.assert_allclose(prever(origen)["prevision"].to_numpy(), gas_tiempo.candidatos_gas(gas_b)[nombre](origen)["prevision"].to_numpy(), rtol=1e-6, err_msg=nombre)
+    a = gas_tiempo.candidato_precio_estructural(gas, detalle, precio)(origen)
+    b = gas_tiempo.candidato_precio_estructural(gas_b, detalle_b, precio_b)(origen)
+    np.testing.assert_allclose(a["prevision"].to_numpy(), b["prevision"].to_numpy(), rtol=1e-6)
+    assert len(a) == 12 and (a["prevision"] > 0).all()
+    futuros = gas_tiempo.candidatos_gas(gas)["futuros_gas"](origen).set_index("horizonte_meses")["prevision"]
+    assert futuros[1] == 21.0 and futuros[3] == 22.0 and futuros[12] == 23.0
+
+
+# --- Medio plazo (10 años, A3) -------------------------------------------------------------------------------------
+
+
+def _anual_sintetico(series: int = 3, desde: int = 1981, hasta: int = 2025, semilla: int = 0) -> pd.DataFrame:
+    """Medias anuales SINTÉTICAS (solo para el test): nivel + tendencia suave + ruido, una columna por serie."""
+    rng = np.random.default_rng(semilla)
+    anios = np.arange(desde, hasta + 1)
+    return pd.DataFrame(
+        {f"S{i}": 12 + i + 0.03 * (anios - desde) + rng.normal(0, 0.4, len(anios)) for i in range(series)}, index=anios
+    )
+
+
+def test_medio_plazo_no_usa_anios_posteriores_al_origen():
+    from cpd.modelos import medio_plazo
+
+    anual = _anual_sintetico()
+    base = medio_plazo.backtesting(anual, [2000])
+    alterado = anual.copy()
+    alterado.loc[2001:] = 999.0  # el futuro del origen 2000 cambia por completo
+    cambiado = medio_plazo.backtesting(alterado, [2000])
+    pd.testing.assert_series_equal(base["prevision"], cambiado["prevision"])
+    assert set(base["horizonte_anios"]) == set(range(1, 11))
+
+
+def test_medio_plazo_validacion_termina_antes_del_test():
+    from cpd.modelos import medio_plazo
+
+    res = medio_plazo.evaluar(_anual_sintetico(), 1995)
+    pred = res["predicciones"]
+    assert res["origen_test"] == 2015
+    assert pred.loc[pred["particion"] == "validacion", "anio"].max() <= res["origen_test"]
+    assert pred.loc[pred["particion"] == "test", "origen"].unique().tolist() == [2015]
+    assert res["elegido"] in set(pred["modelo"])
+
+
+def test_medio_plazo_prevision_e_intervalo_no_se_estrecha():
+    from cpd.modelos import medio_plazo
+
+    anual = _anual_sintetico()
+    res = medio_plazo.evaluar(anual, 1995)
+    prev = medio_plazo.prevision(anual, res, limites=(0.0, 100.0))
+    assert prev["anio"].min() == 2026 and prev["anio"].max() == 2035
+    ancho = (prev["superior"] - prev["inferior"]).groupby(prev["horizonte_anios"]).mean()
+    assert (ancho.diff().dropna() >= -1e-9).all()
+    assert ((prev["inferior"] <= prev["prevision"]) & (prev["prevision"] <= prev["superior"])).all()
+
+
+def test_acierto_media_decada_es_100_con_prevision_perfecta():
+    from cpd.modelos import medio_plazo
+
+    filas = [{"modelo": "m", "serie": "S", "origen": 2000, "anio": 2000 + h, "horizonte_anios": h, "prevision": 10.0 + h, "real": 10.0 + h, "particion": p} for h in range(1, 11) for p in ("validacion", "test")]
+    res = {"predicciones": pd.DataFrame(filas), "elegido": "m"}
+    assert medio_plazo.acierto_media_decada(res) == {"acierto_decada_validacion": 100.0, "acierto_decada_test": 100.0}
+
+
+# --- Impacto local (P2) ----------------------------------------------------------------------------------------------
+
+
+def test_impacto_local_calcula_porcentajes_y_marca_red_sin_capacidad():
+    from cpd import simulator as sim
+    from cpd.modelos import impacto_local
+
+    # Datos SINTÉTICOS (solo para el test).
+    params = sim.CPDParams()
+    operacion = {"50": {"consumo_previsto_mwh": 500_000.0, "pue_previsto": 1.4, "agua_m3": 175_000.0}, "28": {"consumo_previsto_mwh": 510_000.0, "pue_previsto": 1.45, "agua_m3": 175_000.0}}
+    demanda = {"02": {"prevision_12m": 10_000_000.0, "ultimos_12m": 10_000_000.0}, "13": {"prevision_12m": 30_000_000.0, "ultimos_12m": 30_000_000.0}}
+    capacidad = pd.DataFrame({"codigo_ccaa": ["02", "13"], "capacidad_demanda_rdt_disponible_mw": [140.0, 0.0]})
+    agua = pd.DataFrame({"codigo_ccaa": ["02", "02", "13"], "anio": [2022, 2024, 2024], "agua_registrada_miles_m3": [1.0, 100_000.0, 400_000.0]})
+    poblacion = pd.Series({"02": 1_000_000.0, "13": 7_000_000.0})
+    t = impacto_local.impacto_provincias(operacion, demanda, capacidad, agua, poblacion, {"50": "02", "28": "13"}, params).set_index("codigo_provincia")
+    assert t.loc["50", "pct_demanda_ccaa"] == pytest.approx(5.0)
+    assert t.loc["50", "pct_capacidad_disponible"] == pytest.approx(100 * params.potencia_ti_mw * 1.4 / 140.0)
+    assert t.loc["50", "pct_agua_ccaa"] == pytest.approx(100 * 175_000 / 100_000_000)  # usa el último año (2024)
+    assert t.loc["50", "habitantes_eq_electricidad"] == pytest.approx(50_000.0)
+    assert bool(t.loc["28", "sin_capacidad_libre"]) and pd.isna(t.loc["28", "pct_capacidad_disponible"])
+
+
+def test_agua_del_ine_lee_comunidades_con_coma_en_el_nombre():
+    from cpd.fuentes import ine
+
+    series = [
+        {"Nombre": "Asturias, Principado de, 1. Volumen total de agua registrada y distribuida por tipo de usuario", "Data": [{"NombrePeriodo": "2024", "Valor": 82738.0}]},
+        {"Nombre": "España, 1. Volumen total de agua registrada y distribuida por tipo de usuario", "Data": [{"NombrePeriodo": "2024", "Valor": 3283072.0}]},
+        {"Nombre": "Ceuta y Melilla, Volumen de agua suministrada a la red de abastecimiento público", "Data": [{"NombrePeriodo": "2024", "Valor": 18057.0}]},
+    ]
+    t = ine.agua_desde_series(series).set_index("codigo_ccaa")
+    assert list(t.index) == ["03", "18-19"]
+    assert t.loc["03", "agua_registrada_miles_m3"] == 82738.0 and t.loc["03", "anio"] == 2024
+
+
+# --- Impacto socioeconómico (E39-E41) --------------------------------------------------------------------------------
+
+
+def _economia_sintetica() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Economía SINTÉTICA de 4 productos (solo para el test)."""
+    ramas = pd.DataFrame(
+        {
+            "codigo": ["23", "24", "25", "27"], "nombre": ["mantenimiento", "electricidad", "agua", "construcción"],
+            "produccion_meur": [100.0, 200.0, 50.0, 400.0], "vab_meur": [40.0, 90.0, 20.0, 160.0], "importaciones_meur": [0.0, 20.0, 0.0, 100.0],
+            "oferta_meur": [100.0, 220.0, 50.0, 500.0], "empleo_etc_miles": [0.5, 0.2, 0.1, 2.0],
+        }
+    )
+    codigos = ["23", "24", "25", "27"]
+    leontief = pd.DataFrame(np.eye(4), index=codigos, columns=codigos)
+    leontief.loc["24", "27"] = 0.1  # cada € de construcción pide 0,1 € de electricidad
+    return ramas, leontief
+
+
+def test_socioeconomico_efecto_con_leontief_y_cuota_interior():
+    from cpd.modelos import socioeconomico
+
+    ramas, leontief = _economia_sintetica()
+    c = socioeconomico.coeficientes(ramas)
+    assert c.loc["27", "empleo_por_meur"] == pytest.approx(5.0)  # 2.000 ETC / 400 M€
+    assert c.loc["27", "cuota_interior"] == pytest.approx(0.8)  # 1 − 100 / 500
+    e = socioeconomico.efecto({"27": 10.0}, ramas, leontief)
+    assert e["demanda_interior_meur"] == pytest.approx(8.0)
+    assert e["produccion_meur"] == pytest.approx(8.0 + 0.8)  # 8 de construcción + 0,8 de electricidad
+    assert e["empleo_etc"] == pytest.approx(8.0 * 5.0 + 0.8 * 1.0)
+
+
+def test_socioeconomico_reparto_del_capex_debe_sumar_uno():
+    from cpd import simulator as sim
+    from cpd.modelos import socioeconomico
+
+    ramas, leontief = _economia_sintetica()
+    precios = {"precio_electricidad_eur_mwh": 75, "precio_agua_eur_m3": 2, "mantenimiento_pct_inversion": 0.02, "precio_venta_eur_kw_mes": 120, "ocupacion": 0.85}
+    with pytest.raises(ValueError):
+        socioeconomico.impacto(sim.CPDParams(), precios, {"27": 0.5}, 500_000, ramas, leontief)
+    r = socioeconomico.impacto(sim.CPDParams(), precios, {"27": 1.0}, 500_000, ramas, leontief)
+    assert r["operacion"]["directo"]["empleo_etc"] == sim.CPDParams().personal
+    assert r["operacion"]["empleo_total"] > r["operacion"]["directo"]["empleo_etc"]
+
+
+def test_pib_del_ine_descarta_comunidades_y_lee_uniprovinciales():
+    from cpd.fuentes import ine
+
+    series = [
+        {"Nombre": "Aragón. Dato base. Producto interior bruto a precios de mercado. Precios corrientes. ", "Data": [{"Anyo": 2024, "Valor": 50.0}]},
+        {"Nombre": "Zaragoza. Dato base. Producto interior bruto a precios de mercado. Precios corrientes. ", "Data": [{"Anyo": 2024, "Valor": 36.0}]},
+        {"Nombre": "Madrid, Comunidad de. Dato base. Producto interior bruto a precios de mercado. Precios corrientes. ", "Data": [{"Anyo": 2024, "Valor": 318.0}]},
+        {"Nombre": "Zaragoza. Estructura Porcentual. Producto interior bruto a precios de mercado. Precios corrientes. ", "Data": [{"Anyo": 2024, "Valor": 2.3}]},
+    ]
+    t = ine.pib_desde_series(series).set_index("codigo_provincia")
+    assert sorted(t.index) == ["28", "50"] and t.loc["50", "pib_miles_eur"] == 36.0
+
+
+def test_tio_codigo_de_producto_incluye_bis():
+    from cpd.fuentes import ine_tio
+
+    assert ine_tio._codigo("40. Servicios de programación") == "40"
+    assert ine_tio._codigo("44 bis. Alquileres imputados") == "44bis"
+    assert ine_tio._codigo("Total de empleos a precios básicos") is None
+
+
+# --- Escenarios de demanda a 10 años (P5) ----------------------------------------------------------------------------
+
+
+def test_escenarios_suman_la_red_otorgada_con_rampa_lineal():
+    from cpd.modelos import escenarios
+
+    # Datos SINTÉTICOS (solo para el test).
+    prevision = pd.DataFrame({"anio": [2026, 2027], "horizonte_anios": [1, 2], "prevision_twh": [250.0, 248.0]})
+    t = escenarios.escenarios_nacionales(prevision, otorgada_mw=1000.0, pendiente_mw=500.0, factor_utilizacion=0.5, realizaciones=[0.5, 1.0])
+    final = t[t["anio"] == 2027].set_index("escenario")["demanda_twh"]
+    assert final["tendencial"] == pytest.approx(248.0)
+    assert final["otorgada_100"] == pytest.approx(248.0 + 1000 * 8760 * 0.5 / 1e6)  # año 2 de 2: rampa completa
+    assert final["otorgada_50"] == pytest.approx(248.0 + 500 * 8760 * 0.5 / 1e6)
+    assert final["techo"] == pytest.approx(248.0 + 1500 * 8760 * 0.5 / 1e6)
+    primero = t[(t["anio"] == 2026) & (t["escenario"] == "otorgada_100")]["extra_twh"].iloc[0]
+    assert primero == pytest.approx(1000 * 8760 * 0.5 / 1e6 / 2)  # año 1 de 2: la mitad
+
+
+def test_escenarios_por_comunidad_peso_sobre_su_demanda():
+    from cpd.modelos import escenarios
+
+    capacidad = pd.DataFrame({"codigo_ccaa": ["02"], "ccaa": ["Aragón"], "capacidad_demanda_rdt_otorgada_mw": [1000.0], "capacidad_demanda_rdt_pendiente_mw": [0.0]})
+    t = escenarios.por_ccaa(capacidad, pd.Series({"02": 8_760_000.0}), 1.0).iloc[0]
+    assert t["otorgada_twh"] == pytest.approx(8.76) and t["pct_otorgada"] == pytest.approx(100.0)
+
+
+# --- Atracción empresarial (E42) -------------------------------------------------------------------------------------
+
+
+def test_sociedades_del_ine_lee_mercantiles_por_provincia_y_mes():
+    from cpd.fuentes import ine
+
+    series = [
+        {"Nombre": "Zaragoza. Sociedades Constituídas. Mercantiles. Número de Sociedades. ", "Data": [{"Anyo": 2025, "FK_Periodo": 12, "Valor": 171.0}, {"Anyo": 2025, "FK_Periodo": 11, "Valor": 170.0}]},
+        {"Nombre": "Zaragoza. Sociedades Constituídas. Mercantiles. Capital. ", "Data": [{"Anyo": 2025, "FK_Periodo": 12, "Valor": 9.0}]},
+        {"Nombre": "Aragón. Sociedades Constituídas. Mercantiles. Número de Sociedades. ", "Data": [{"Anyo": 2025, "FK_Periodo": 12, "Valor": 300.0}]},
+    ]
+    t = ine.sociedades_desde_series(series)
+    assert t["codigo_provincia"].unique().tolist() == ["50"]
+    assert t["mes"].tolist() == [pd.Timestamp(2025, 11, 1), pd.Timestamp(2025, 12, 1)]
+
+
+def test_atraccion_empresarial_por_10000_habitantes():
+    from cpd.modelos import empresas
+
+    # Datos SINTÉTICOS (solo para el test).
+    meses = pd.date_range("2024-01-01", periods=12, freq="MS")
+    reales = pd.DataFrame({"serie": "50", "mes": meses, "real": 10.0})
+    prevision = pd.DataFrame({"serie": "50", "mes": pd.date_range("2025-01-01", periods=12, freq="MS"), "prevision": 11.0})
+    t = empresas.indicador(reales, prevision, pd.Series({"50": 20_000.0})).iloc[0]
+    assert t["ultimos_12m"] == 120 and t["prevision_12m"] == 132
+    assert t["por_10000_hab"] == pytest.approx(66.0) and t["cambio_pct"] == pytest.approx(10.0)
+
+
+# --- Días hábiles (afinado) ------------------------------------------------------------------------------------------
+
+
+def test_dias_habiles_descuentan_fines_de_semana_y_festivos_nacionales():
+    from cpd.features.calendario import dias_habiles
+
+    assert dias_habiles(pd.Timestamp("2025-04-01")) == 21  # 22 laborables − Viernes Santo (18/04)
+    assert dias_habiles(pd.Timestamp("2025-08-01")) == 20  # 21 laborables − 15 de agosto (viernes)
+    assert dias_habiles(pd.Timestamp("2025-12-01")) == 21  # 23 laborables − 8 y 25 de diciembre (el 6 es sábado)
+
+
+def test_candidato_por_dia_habil_multiplica_por_los_dias_del_mes_previsto():
+    from cpd.features.calendario import dias_habiles
+    from cpd.modelos import anual
+
+    # Serie SINTÉTICA con 10 sociedades por día hábil exactas (solo para el test).
+    meses = pd.date_range("2020-01-01", "2024-12-01", freq="MS")
+    reales = pd.DataFrame({"serie": "50", "mes": meses, "real": [10.0 * dias_habiles(m) for m in meses]})
+
+    def fabrica(r: pd.DataFrame) -> dict:
+        def ultimo(origen):
+            filas = anual._filas_futuras("50", origen)
+            filas["prevision"] = float(r.set_index("mes")["real"].loc[:origen].iloc[-1])
+            return filas
+
+        return {"naive": ultimo}
+
+    c = anual.candidatos_por_dia_habil(fabrica, reales)["naive_dias_habiles"](pd.Timestamp("2023-12-01"))
+    esperado = [10.0 * dias_habiles(m) for m in c["mes"]]
+    assert c["prevision"].tolist() == pytest.approx(esperado)
+
+
+# --- Técnicas de clase: estacionariedad (I51), diferencias (I52) y winsorizing (I58) --------------------------------
+
+
+def test_estacionariedad_distingue_paseo_aleatorio_de_ruido():
+    from cpd.modelos import estacionariedad as est
+
+    # Series SINTÉTICAS (solo para el test): un paseo aleatorio no es estacionario; su diferencia sí.
+    rng = np.random.default_rng(1)
+    paseo = pd.Series(np.cumsum(rng.normal(0, 1, 300)))
+    assert est.adf_pvalor(paseo) > 0.05
+    assert est.adf_pvalor(paseo.diff().dropna()) < 0.05
+    meses = pd.date_range("2010-01-01", periods=144, freq="MS")
+    serie = pd.Series(100 + 0.5 * np.arange(144) + 10 * np.sin(2 * np.pi * meses.month / 12), index=meses)
+    formas = est.transformar(serie)
+    assert list(formas) == ["nivel", "log", "dif_estacional_log", "dif_doble_log"]
+    assert len(formas["dif_estacional_log"]) == 132 and len(formas["dif_doble_log"]) == 131
+
+
+def test_winsorizador_usa_solo_los_percentiles_del_entrenamiento():
+    from cpd.modelos.prob_cpd import Winsorizador
+
+    entrenamiento = np.array([[1.0], [2.0], [3.0], [4.0], [100.0]])
+    w = Winsorizador(inferior=0.0, superior=0.75).fit(entrenamiento)
+    assert w.limite_superior_[0] == pytest.approx(4.0)
+    assert w.transform(np.array([[500.0], [2.5]])).ravel().tolist() == [4.0, 2.5]  # un valor nuevo no mueve los límites
+
+
+def test_modelo_sobre_diferencias_prevee_12_meses_positivos():
+    from cpd.modelos.anual import _ar_diferencias
+
+    meses = pd.date_range("2016-01-01", periods=96, freq="MS")
+    serie = pd.Series(np.log(1000 * (1 + 0.1 * np.sin(2 * np.pi * meses.month / 12)) * 1.01 ** np.arange(96)), index=meses)
+    prevision = _ar_diferencias(serie, 12)
+    assert prevision.shape == (12,) and (prevision > 0).all()
+    assert prevision[0] == pytest.approx(np.exp(serie.iloc[-12]) * 1.01 ** 12, rel=0.05)  # mismo mes del año anterior × crecimiento
+
+
+# --- Técnicas de clase: polinómicas (I59), frequency (I61) y target encoding (I62) ----------------------------------
+
+
+def test_codificaciones_de_la_comunidad():
+    from cpd.modelos.prob_cpd import anadir_codificaciones
+
+    # Tabla SINTÉTICA (solo para el test).
+    t = pd.DataFrame({"ccaa": ["A", "A", "A", "B"], "tiene_cpd": [1, 0, 1, 0]})
+    c = anadir_codificaciones(t)
+    assert c["ccaa_frecuencia"].tolist() == [0.75, 0.75, 0.75, 0.25]  # frequency encoding: no usa la etiqueta
+    assert c["ccaa_codigo"].tolist() == [0.0, 0.0, 0.0, 1.0]
+    assert "ccaa_codigo" not in t.columns  # no modifica la tabla original
+
+
+def test_target_encoding_se_ajusta_solo_con_el_entrenamiento():
+    from cpd.modelos.prob_cpd import modelos_candidatos
+
+    modelo, columnas = modelos_candidatos()["poblacion_target_ccaa"]
+    assert columnas == ["log_poblacion", "ccaa_codigo"]
+    rng = np.random.default_rng(0)
+    x = np.column_stack([rng.normal(12, 1, 40), np.tile([0.0, 1.0, 2.0, 3.0], 10)])
+    y = (x[:, 1] >= 2).astype(int)  # la comunidad decide la etiqueta
+    entrenar = np.arange(40) < 32  # todas las comunidades aparecen en el entrenamiento
+    ajustado = modelo.fit(x[entrenar], y[entrenar])
+    prob = ajustado.predict_proba(x[~entrenar])[:, 1]  # filas no vistas
+    assert (prob[x[~entrenar, 1] >= 2] > 0.5).all() and (prob[x[~entrenar, 1] < 2] < 0.5).all()
+
+
+def test_precio_estructural_con_demanda_sin_fuga():
+    from cpd.modelos import gas_tiempo
+
+    gas, detalle, precio = _gas_y_detalle_sinteticos()
+    meses = gas.index
+    demanda = pd.Series(20_000_000 * (1 + 0.1 * np.cos(2 * np.pi * meses.month / 12)), index=meses)
+    origen = pd.Timestamp("2021-06-01")
+    base = gas_tiempo.candidato_precio_estructural(gas, detalle, precio, demanda)(origen)
+    alterada = demanda.copy()
+    alterada[alterada.index > origen] = 1.0  # la demanda posterior al origen no debe influir
+    otra = gas_tiempo.candidato_precio_estructural(gas, detalle, precio, alterada)(origen)
+    assert len(base) == 12 and base["prevision"].notna().all()
+    pd.testing.assert_series_equal(base["prevision"], otra["prevision"])
+    # Si la demanda acaba antes del origen, se alarga con ETS hasta cubrir los 12 meses previstos.
+    corta = gas_tiempo.candidato_precio_estructural(gas, detalle, precio, demanda.loc[:"2020-12-01"])(origen)
+    assert corta["prevision"].notna().all()

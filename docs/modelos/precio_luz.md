@@ -1,6 +1,6 @@
 # Model card · Precio medio mensual de la electricidad (`precio_luz`)
 
-> Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
+> Generado por `python -m cpd.modelos` el 18/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
 > Esta ficha es la primera evaluación del precio (un solo periodo de validación y sin el precio del gas). **La
 > previsión a 1 año que usa el mapa** (combinación con el gas de MIBGAS, elegida con 24 orígenes de backtesting) está
@@ -114,4 +114,4 @@ Selección de configuraciones de ML (validación):
 
 `.\.venv\Scripts\python.exe -m cpd.modelos` (semilla 42; versiones en `requirements.txt`). Salidas en
 `data/curated/modelos/` (`prevision_precio_luz.csv`, `resumen_precio_luz.json`, `metricas_precio.csv`,
-`media_anual_precio.csv`). Entrenado el 17/11/2026.
+`media_anual_precio.csv`). Entrenado el 18/11/2026.

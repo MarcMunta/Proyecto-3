@@ -1,6 +1,6 @@
 # Métricas de los modelos
 
-> Generado por `python -m cpd.modelos` el 17/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
+> Generado por `python -m cpd.modelos` el 18/11/2026. No editar a mano: se sobrescribe al volver a ejecutar.
 
 Fase 8 de [la metodología](../metodologia/03_Flujo_de_trabajo.md). **La previsión a 1 año que usa el mapa (con todos los
 gráficos) está en [previsiones_1_anio.md](previsiones_1_anio.md).** Fichas de modelo:
@@ -62,6 +62,10 @@ Validación cruzada estratificada repetida (5 × 20); cada provincia se evalúa 
 | Modelo | Log-loss | ROC-AUC | Brier | Accuracy (umbral 0,5) | Precision | Recall | F1 |
 |---|---|---|---|---|---|---|---|
 | Clase mayoritaria (baseline) | 0,584 | 0,500 (constante) | 0,197 | 73,1 % | 0,00 | 0,00 | 0,00 |
+| Logística con winsorizing (percentiles 1-99, ML) | 0,393 | 0,859 | 0,119 | 84,6 % | 0,80 | 0,57 | 0,67 |
+| Logística con población y población² (polinómica) | 0,371 | 0,880 | 0,111 | 84,6 % | 0,88 | 0,50 | 0,64 |
+| Logística con población y frequency encoding de la comunidad | 0,387 | 0,874 | 0,116 | 84,6 % | 1,00 | 0,43 | 0,60 |
+| Logística con población y target encoding de la comunidad | 0,316 | 0,925 | 0,090 | 90,4 % | 0,91 | 0,71 | 0,80 |
 | Logística solo con población (baseline) | 0,377 | 0,882 | 0,115 | 86,5 % | 1,00 | 0,50 | 0,67 |
 | Logística con todas las features (ML) | 0,394 | 0,855 | 0,117 | 84,6 % | 0,80 | 0,57 | 0,67 |
 | Random forest (ML) | 0,422 | 0,885 | 0,124 | 84,6 % | 0,88 | 0,50 | 0,64 |
@@ -73,7 +77,7 @@ Validación cruzada estratificada repetida (5 × 20); cada provincia se evalúa 
 - **Paradoja de la exactitud** [C3 p.23]: predecir siempre "no tiene CPD" acierta el
   73,1 % sin servir para nada. Por eso no se elige el modelo por accuracy.
 
-Modelo elegido (menor log-loss): **Logística solo con población (baseline)**.
+Modelo elegido (menor log-loss): **Logística con población y target encoding de la comunidad**.
 
 ## Regresión: precio medio mensual de la electricidad (spot, €/MWh)
 
