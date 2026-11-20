@@ -340,3 +340,76 @@ def test_actualizar_aisla_los_fallos_de_una_fuente(monkeypatch):
     estados = {r.nombre: r.estado for r in acta.resultados}
     assert estados["fuente_rota"] == "fallo"
     assert estados["fuente_ok"] == "ok"
+
+
+# ---------- Control de calidad de la demanda por CCAA (cpd.fuentes.calidad) ----------
+
+
+def _demanda_sintetica() -> pd.DataFrame:
+    """Demanda SINTÉTICA de 4 comunidades peninsulares y Baleares, 2023-2025 (solo para tests)."""
+    import numpy as np
+
+    fechas = pd.date_range("2023-01-01", "2025-12-01", freq="MS")
+    filas = []
+    for codigo, nivel in (("13", 2.5e6), ("11", 4.5e5), ("06", 3.3e5), ("16", 1.3e6), ("04", 5e5)):
+        estacional = 1 + (0.6 if codigo == "04" else 0.1) * np.sin(2 * np.pi * (fechas.month - 4) / 12)
+        for fecha, factor in zip(fechas, estacional):
+            filas.append({"codigo_ccaa": codigo, "ccaa": f"C{codigo}", "fecha": fecha.strftime("%Y-%m-%d"), "demanda_mwh": nivel * factor})
+    return pd.DataFrame(filas)
+
+
+def test_calidad_deja_en_nan_la_demanda_imposible_y_la_registra():
+    from cpd.fuentes import calidad
+
+    tabla = _demanda_sintetica()
+    # Como en jul-ago de 2026: la "demanda" es solo la generación en 3 de 4 comunidades peninsulares.
+    fallo = tabla["fecha"].isin(["2025-07-01", "2025-08-01"])
+    tabla.loc[fallo & (tabla["codigo_ccaa"] == "13"), "demanda_mwh"] = 1.2e5
+    tabla.loc[fallo & (tabla["codigo_ccaa"] == "11"), "demanda_mwh"] *= 4
+    tabla.loc[fallo & (tabla["codigo_ccaa"] == "06"), "demanda_mwh"] = -7000.0
+    limpia, registro = calidad.depurar_demanda_ccaa(tabla)
+    peninsulares = limpia[fallo & limpia["codigo_ccaa"].isin(["13", "11", "06", "16"])]
+    assert peninsulares["demanda_mwh"].isna().all()  # también la 16, por fallo de la fuente en el mes
+    assert len(registro) == 8 and set(registro["mes"]) == {"2025-07", "2025-08"}
+    assert set(registro.loc[registro["codigo_ccaa"] == "16", "motivo"]) == {"fallo de la fuente en el mes"}
+    # Baleares (estacionalidad turística fuerte) no se toca.
+    assert limpia.loc[limpia["codigo_ccaa"] == "04", "demanda_mwh"].notna().all()
+    # El original se conserva en el registro (R-7) y la tabla de entrada no cambia.
+    assert registro.loc[registro["codigo_ccaa"] == "13", "demanda_mwh_original"].eq(1.2e5).all()
+    assert tabla["demanda_mwh"].notna().all()
+
+
+def test_panel_aplica_el_control_de_calidad_y_escribe_el_registro(tmp_path):
+    tablas = _tablas_sinteticas()
+    demanda = _demanda_sintetica()
+    demanda.loc[(demanda["codigo_ccaa"] == "13") & (demanda["fecha"] == "2025-01-01"), "demanda_mwh"] = -1.0
+    tablas["ccaa_demanda"] = demanda
+    panel = curado.construir_panel(tablas, hasta=pd.Timestamp("2025-02-01"))
+    madrid = panel[panel["codigo_provincia"] == "28"].set_index("mes")["demanda_ccaa_mwh"]
+    assert pd.isna(madrid[pd.Timestamp("2025-01-01")]) and madrid[pd.Timestamp("2025-02-01")] > 0
+    actual = curado.provincias_actual(panel, tablas)
+    rutas = curado.escribir_salidas(panel, actual, carpeta=tmp_path, calidad_demanda=curado.registro_calidad_demanda(tablas))
+    registro = pd.read_csv(rutas["calidad_demanda"], dtype={"codigo_ccaa": str})
+    assert registro[["codigo_ccaa", "mes", "motivo"]].values.tolist() == [["13", "2025-01", "demanda ≤ 0"]]
+
+
+def test_cerrado_respeta_el_margen_de_consolidacion():
+    import datetime as dt
+
+    hoy = dt.date(2026, 11, 17)
+    assert ree._cerrado(2025, hoy=hoy)  # el año terminó
+    assert not ree._cerrado(2025, margen_meses=12, hoy=hoy)  # pero REData aún puede corregirlo
+    assert ree._cerrado(2024, margen_meses=12, hoy=hoy)
+    assert not ree._cerrado(2026, hoy=hoy)
+    assert ree._cerrado(2026, mes=10, hoy=hoy) and not ree._cerrado(2026, mes=11, hoy=hoy)
+
+
+def test_calidad_quita_el_mes_en_curso():
+    import datetime as dt
+
+    from cpd.fuentes import calidad
+
+    tabla = _demanda_sintetica()
+    limpia, registro = calidad.depurar_demanda_ccaa(tabla, hoy=dt.date(2025, 12, 10))
+    assert limpia.loc[limpia["fecha"] == "2025-12-01", "demanda_mwh"].isna().all()
+    assert set(registro["motivo"]) == {"mes en curso (incompleto)"} and len(registro) == 5

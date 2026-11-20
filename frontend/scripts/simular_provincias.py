@@ -109,9 +109,13 @@ def entradas(actual: pd.DataFrame, panel: pd.DataFrame) -> tuple[pd.DataFrame, d
         humedad_media_pct=("humedad_relativa_media_pct", "mean"),
         dias_calor_extremo=("dias_mas_35c", "sum"),
         horas_free_cooling_anual=("horas_free_cooling", "sum"),
-        consumo_electrico_municipal_mwh=("demanda_ccaa_mwh", "sum"),
         meses=("mes", "nunique"),
     )
+    # Demanda anual de la comunidad: suma de los 12 últimos meses con dato válido hasta la referencia. Los meses que
+    # no pasan el control de calidad del curado (NaN, p. ej. jul-ago de 2026) no cuentan; con menos de 12 → sin dato.
+    validos = panel[(panel["mes"] <= ref)].dropna(subset=["demanda_ccaa_mwh"]).sort_values("mes")
+    ultimos = validos.groupby("codigo_provincia").tail(12).groupby("codigo_provincia")["demanda_ccaa_mwh"].agg(["sum", "count"])
+    anual["consumo_electrico_municipal_mwh"] = ultimos["sum"].where(ultimos["count"] == 12)
     precio_12m = float(ventana.groupby("mes")["precio_spot_medio_mes_eur_mwh"].first().mean())
 
     a = actual.set_index("codigo_provincia")

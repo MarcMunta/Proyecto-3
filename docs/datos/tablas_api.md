@@ -171,6 +171,15 @@ diccionarios), `dw` (estrella) y `meta`.
 - **Estáticas** (conectividad, subestaciones, capacidad, Natura 2000, WRI, ámbito): sin histórico.
 - **Subestaciones de OpenStreetMap**: recuento de lo mapeado, cobertura desigual entre provincias.
 - **Capacidad de acceso**: solo nivel CCAA y último mes publicado.
+- **Demanda por CCAA (REData)**: los meses recientes son provisionales. Comprobado el 17/11/2026 con
+  `balance/balance-electrico`: en jul-ago de 2026 falta el *saldo de intercambios* de las comunidades peninsulares y
+  la "demanda en b.c." es solo la generación propia (Madrid 72.822 + 50.297 = 123.120 MWh, frente a unos 2,5 TWh
+  reales); en oct-2025 el saldo de Asturias, Navarra y el País Vasco es anómalo y la demanda cae a la mitad. El curado
+  (`cpd.fuentes.calidad.depurar_demanda_ccaa`) deja en NaN la demanda ≤ 0, la que se aleja más de ×0,6-×1,6 del mismo
+  mes del año anterior, la de los meses en que falla la mitad de las comunidades peninsulares y el mes en curso, y
+  guarda el valor original y el motivo en `data/curated/calidad_demanda_ccaa.csv` (37 meses × comunidad el
+  17/11/2026). La demanda de un año se vuelve a pedir hasta 12 meses después de terminar
+  (`MESES_CONSOLIDACION_DEMANDA`), así que las correcciones de REData entran solas en la siguiente actualización.
 - **Precios**: nacionales; no hay precio por zona. `precio_pvpc_medio_mes_eur_mwh` tiene cobertura del 46 % (solo cubre el periodo publicado por REData).
 - **Paro registrado** (SEPE): no es tasa EPA.
 - Si una fuente falla, sus columnas quedan NaN y el resumen de `actualizar` lo indica. Nunca se inventan valores.
@@ -206,7 +215,7 @@ Ejecución del 13/11/2026 (`python -m cpd.fuentes.actualizar`, 790 s, sin fallos
 Cobertura del panel (% de filas con dato): clima mensual (medias, precipitación, ET0, balance, free-cooling) 100 %;
 población 93,0 %; reservas de embalses 90,4 % (las 5 provincias sin ámbito quedan vacías: Baleares, Canarias, Ceuta
 y Melilla); índice de sequía 92,3 % (los primeros 11 meses de cada provincia no tienen ventana completa); paro 99,3 %;
-demanda y % renovable por CCAA 98,7 %; renta 82,6 %; estrés WRI 100 %.
+demanda por CCAA 97,4 % tras el control de calidad del 17/11/2026 (antes 98,7 %); % renovable por CCAA 98,7 %; renta 82,6 %; estrés WRI 100 %.
 
 En `provincias_actual` solo quedan vacíos los campos de ámbito y reservas (5 provincias sin ámbito), las 2 provincias
 sin dato de magnitud sísmica máxima y 1 sin capacidad de acceso (Melilla).

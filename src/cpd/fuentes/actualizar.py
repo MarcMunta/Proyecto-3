@@ -202,7 +202,7 @@ def _construir(acta: Actualizacion) -> None:
         tablas.pop("tiempo_real_provincia")
     panel = curado.construir_panel(tablas)
     actual = curado.provincias_actual(panel, tablas)
-    rutas = curado.escribir_salidas(panel, actual)
+    rutas = curado.escribir_salidas(panel, actual, calidad_demanda=curado.registro_calidad_demanda(tablas))
     acta.tablas["_panel"] = panel
     acta.tablas["_actual"] = actual
     acta.resultados.append(
