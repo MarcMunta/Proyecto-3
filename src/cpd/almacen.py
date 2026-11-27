@@ -10,7 +10,11 @@ Esquemas:
   fuentes  una tabla por cada fichero de data/curated/tablas/ (clima, energía, paro, sismicidad...)
   modelo   tablas listas para entrenar y predecir: panel_provincia_mes, provincias_actual y sus diccionarios
   dw       modelo en estrella: dim_provincia, dim_tiempo, dim_fuente y fact_provincia_mes
+  gold     tablas ya agregadas para el dashboard de datos y APIs (ver cpd.capas): capas, APIs, watermarks…
   meta     registro de la carga (qué fichero, cuántas filas, cuándo)
+
+Antes de cargar, cada tabla de data/curated/tablas/ se guarda también en Parquet si su CSV ha cambiado
+(cpd.capas.tablas_a_parquet), y se cargan los Parquet (columnar y con tipos).
 
 Uso:
   python -m cpd.almacen          reconstruye el almacén
@@ -27,6 +31,7 @@ from tempfile import TemporaryDirectory
 
 import duckdb
 
+from cpd import capas
 from cpd.config import RUTA_RAIZ
 
 CARPETA_CURADO = RUTA_RAIZ / "data" / "curated"
@@ -126,12 +131,12 @@ def construir(ruta_almacen: Path = RUTA_ALMACEN, carpeta_curado: Path = CARPETA_
     ruta_almacen.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix=".duckdb-", dir=ruta_almacen.parent) as temporal:
         tmp = Path(temporal) / "almacen.duckdb"
-        resumen = _construir(tmp, carpeta_curado, registro)
+        resumen = _construir(tmp, carpeta_curado, registro, ruta_almacen.parent / capas.NOMBRE_HISTORIAL)
         tmp.replace(ruta_almacen)
     return resumen
 
 
-def _construir(tmp: Path, carpeta_curado: Path, registro: Path) -> dict[str, int]:
+def _construir(tmp: Path, carpeta_curado: Path, registro: Path, ruta_historial: Path) -> dict[str, int]:
     resumen: dict[str, int] = {}
     with duckdb.connect(str(tmp)) as con:
         for esquema in ("fuentes", "modelo", "dw", "meta"):
@@ -141,6 +146,7 @@ def _construir(tmp: Path, carpeta_curado: Path, registro: Path) -> dict[str, int
 
         # 1) Tablas fuente: cada fichero de data/curated/tablas/ (Parquet si lo hay, si no CSV)
         carpeta_tablas = carpeta_curado / "tablas"
+        capas.tablas_a_parquet(carpeta_tablas, _lector_csv)
         nombres = sorted({p.stem for p in carpeta_tablas.glob("*") if p.suffix in (".csv", ".parquet")})
         for nombre in nombres:
             ruta = _preferir_parquet(carpeta_tablas, nombre)
@@ -199,6 +205,11 @@ def _construir(tmp: Path, carpeta_curado: Path, registro: Path) -> dict[str, int
                 FROM modelo.panel_provincia_mes AS p
             """)
             _vistas_hechos(con)
+
+        # 4) Capa Gold del dashboard (capas, APIs, watermarks, formatos) y su historial de watermarks
+        resumen.update(capas.construir_gold(
+            con, raiz=registro.parent.parent.parent, registro=registro, carpeta_curado=carpeta_curado,
+            ruta_historial=ruta_historial, lector_csv=_lector_csv))
 
     return resumen
 

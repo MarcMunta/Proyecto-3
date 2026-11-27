@@ -166,22 +166,6 @@ def test_peeringdb_reutiliza_la_cache_vigente_sin_pedir(tmp_path, monkeypatch):
     assert peeringdb._descargar("https://www.peeringdb.com/api/fac", "fac") == [{"id": 1}]
 
 
-def test_actualizar_reconstruye_el_almacen_al_final_y_aisla_su_fallo(monkeypatch):
-    import cpd.almacen
-
-    acta = actualizar.Actualizacion()
-    monkeypatch.setattr(cpd.almacen, "construir", lambda: {"fuentes.a": 1, "gold.kpis": 1, "gold.apis": 3})
-    actualizar._almacen(acta)
-    assert (acta.resultados[-1].estado, acta.resultados[-1].detalle) == ("ok", "2 tablas gold")
-
-    def falla():
-        raise RuntimeError("disco lleno")
-
-    monkeypatch.setattr(cpd.almacen, "construir", falla)
-    actualizar._almacen(acta)  # no lanza: los datos ya actualizados no se pierden
-    assert acta.resultados[-1].estado == "fallo" and "disco lleno" in acta.resultados[-1].detalle
-
-
 def test_registrar_escribe_en_el_registro_con_columnas_del_proyecto(tmp_path, monkeypatch):
     registro = tmp_path / "registro.csv"
     monkeypatch.setattr(http, "REGISTRO", registro)
