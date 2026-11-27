@@ -154,30 +154,36 @@ No requiere clave. Desde la raíz del proyecto:
 Genera `data/raw/ree/<YYYYMMDD>/demanda_<año>.json` y `data/clean/ree_demanda_mensual.csv`
 (columnas `fecha`, `demanda_mwh`). Sin ese CSV, la pestaña de previsión explica cómo generarlo.
 
-## Datos por API
+## Publicación de datos y modelos
 
-Capa de datos por provincia (52) que se refresca desde fuentes públicas programáticas (sin claves):
+El mapa y DuckDB comparten una versión activa. Ejecuta estos comandos desde la raíz.
 
 ```powershell
-.\.venv\Scripts\python.exe -m cpd.fuentes.actualizar            # completo e incremental
-.\.venv\Scripts\python.exe -m cpd.fuentes.actualizar --rapido   # solo tiempo real
+.\.venv\Scripts\python.exe -m cpd.publicar
+.\.venv\Scripts\python.exe -m cpd.almacen --publicado
 ```
 
-Salidas en `data/curated/`: `panel_provincia_mes` (entrenamiento, provincia × mes desde 2015) y
-`provincias_actual` (52 filas con el último dato y campos de tiempo real). Fuentes, columnas y limitaciones:
-[`docs/datos/tablas_api.md`](docs/datos/tablas_api.md). Los fallos de una fuente no paran el resto y se muestran en el resumen.
+Usa una instantánea local de `data/curated` por defecto y marca las previsiones como importadas. Ejecuta con
+`--reentrenar` para recalcularlas en una copia aislada o `--actualizar` para obtener una instantánea
+y entrenar sobre ella. `cpd.fuentes.actualizar --salida <ruta-nueva>` prepara solo el curado.
+Los fallos conservan la publicación anterior. El modo `--permitir-demanda-incompleta` conserva un aviso
+visible y debe elegirse explícitamente.
+
+- [Manual de instalación y uso](docs/entrega/manual.md)
+- [Almacenamiento, calidad y trazabilidad](docs/datos/almacenamiento.md)
+- [Cuadro de mandos y casos de prueba](docs/entrega/cuadro-de-mandos.md)
 
 ## Metodología resumida
 
 1. **Filtros eliminatorios** (`scoring.aplicar_filtros`): zona inundable, Red Natura, distancia a subestación
    para CPD > 20 MW, capacidad de acceso, latencia, y estrés hídrico con refrigeración evaporativa → `No viable`.
    Sismicidad ≥ 0,16 g, estrés hídrico con aire/inmersión, temperatura máxima ≥ 44 °C o poco suelo industrial
-   → `Viable con condiciones`.
+   → `Viable con condiciones`. Un filtro crítico sin datos deja el caso pendiente de verificar.
 2. **Sub-scores 0-100** por bloque (energía, agua y refrigeración, conectividad, riesgos, suelo y regulación,
    costes, mercado y talento, impacto) mediante normalización min-max entre municipios, con el sentido correcto
    (p. ej. menor distancia o precio = mejor).
 3. **Score global** = media ponderada de los sub-scores con los pesos de `config/settings.yaml`.
-4. **Ranking**: primero los viables, luego los condicionados y al final los no viables; dentro de cada grupo, por score.
+4. **Ranking**: viables, condicionados, pendientes de verificar y no viables; dentro de cada grupo, por score.
 5. **Simulador** (`simulator.py`): consumo = potencia TI × factor de carga × PUE × 8760 h; PUE estimado por
    municipio con una heurística (no es un modelo físico); OPEX = energía + agua + personal + mantenimiento +
    impuestos; ingresos = alquiler de capacidad + energía repercutida al cliente (`repercusion_energia_pct`);

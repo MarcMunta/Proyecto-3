@@ -1,12 +1,24 @@
 ---
 tags: [metodologia, estado, auditoria, plan, p3]
 estado: borrador
-actualizado: 2026-11-17
+actualizado: 2026-11-24
 ---
 
 # 07 · Estado actual (auditoría y plan)
 
 Volver a [[00_Indice]]. Filas detalladas en [[06_Checklist_entrega]]. Fecha de auditoría: **14/11/2026**, commit `90b91e4` de `main` (árbol de trabajo limpio).
+
+
+## Cambios de fiabilidad del 24/11/2026
+
+- **Publicación (B2–B4, F5).** Una versión común para DuckDB, la simulación y las previsiones. La actualización crea una instantánea y verifica cobertura, claves y periodo antes de activar. Con la instantánea de octubre, el 73,7 % de la demanda CCAA–mes de los últimos 12 meses y 4 de 19 series del último mes tienen dato válido. La publicación estricta lo rechaza. La reproducción docente requiere el modo degradado.
+- **Escala y simulación (A1, P1, P3, P7, P8).** El mapa indica filtros críticos pendientes y muestra el precio eléctrico de equilibrio del VAN. DuckDB incorpora contexto municipal de INE/GISCO y nudos REE con su propia granularidad. El enlace del nudo al emplazamiento queda pendiente.
+- **Evaluación (B7, B10).** Presencia de CPD con CCAA completas fuera de pliegue. Para clima a diez años, diagnóstico de MAE, sesgo y cobertura por horizonte. La demanda nacional a diez años sigue siendo un backtesting histórico y el precio utiliza una evaluación retrospectiva.
+- **Arranque web (B9).** Mapa y worker separados del JS inicial. Previsiones bajo demanda en la ficha. Aviso en caso de recurrir a datos de respaldo.
+- **Ficha del mapa (B9, B10).** Dictamen y finanzas al inicio. Cifras de luz, red, demanda, renovables, clima, agua y operación con su ámbito real y detalle desplegable. El catálogo general se abre a la derecha con la selección del mapa activa. Comprobado con Madrid y Zaragoza en escritorio y ancho móvil.
+- **Entrega (F2, F4, F5, F7–F9).** Documentación de almacenamiento, manual y guion de tres casos en las rutas enlazadas en el README. Siguen pendientes el vídeo y la restauración en un equipo limpio.
+
+Los apartados siguientes conservan la cronología previa.
 
 ## Novedades del 17/11/2026 (rama `fix/mapa-revision`, sin commit)
 
