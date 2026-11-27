@@ -66,6 +66,24 @@ Los ficheros raw no están en el repositorio: el mayor pesa 260 MB y GitHub no a
 Tablas por provincia (52) obtenidas por API, con histórico y tiempo real: ver [`tablas_api.md`](tablas_api.md)
 (columnas, unidades, endpoints, granularidad, cobertura y limitaciones).
 
+## Capas de datos y almacén (Bronze / Silver / Gold)
+
+Organización según la clase del 27/11/2026 (ver `docs/metodologia/fuentes/Clase_2026-11-27_Data_Engineering.md` y las reglas R-17 a R-21):
+
+| Capa | Dónde | Qué contiene | Formato |
+|---|---|---|---|
+| Bronze | `data/raw/` | Descargas originales y caché de las APIs (`data/raw/api/<fuente>/`), tal cual llegaron. No se edita | JSON, CSV, XLSX, ZIP, PDF |
+| Silver | `data/clean/`, `data/curated/tablas/` | Una tabla limpia y tipada por fuente | CSV + Parquet |
+| Gold | `data/curated/`, `data/almacen/p3_cpd.duckdb` | Panel provincia-mes, provincias actual, salidas de modelos, modelo en estrella (`dw`) y tablas del dashboard (`gold`) | Parquet, CSV, DuckDB |
+
+Para regenerar Silver en Parquet, el almacén, los watermarks y la capa Gold:
+
+```powershell
+.\.venv\Scripts\python.exe -m cpd.almacen
+```
+
+La página **«Datos y APIs»** de Streamlit (`app/pages/1_Datos_y_APIs.py`, menú lateral de `streamlit run app/streamlit_app.py`) muestra sin calcular nada: fuentes y APIs del registro de descargas, datasets por capa, frescura (watermarks), tamaño de Bronze y la comparación CSV frente a Parquet.
+
 ## Fuentes en tiempo real
 
 Qué fuentes se actualizan en minutos, horas o días, cuáles se pueden recopilar sin clave y qué problemas

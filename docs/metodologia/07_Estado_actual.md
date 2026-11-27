@@ -1,13 +1,25 @@
 ---
 tags: [metodologia, estado, auditoria, plan, p3]
 estado: borrador
-actualizado: 2026-11-24
+actualizado: 2026-11-27
 ---
 
 # 07 · Estado actual (auditoría y plan)
 
 Volver a [[00_Indice]]. Filas detalladas en [[06_Checklist_entrega]]. Fecha de auditoría: **14/11/2026**, commit `90b91e4` de `main` (árbol de trabajo limpio).
 
+## Novedades del 27/11/2026 (rama `feature/ingenieria-datos`): clase de Data Engineering
+
+Clase 27/11/2026 «Data Mining & Data Engineering with Python» ([[Clase_2026-11-27_Data_Engineering]], C5) añadida a la metodología y aplicada al proyecto. Filas I71-I89 de [[06_Checklist_entrega]] (16 ✅, 2 🟡, 1 ❌) y reglas R-17 a R-21 en [[04_Reglas_de_datos]].
+
+- **Ingesta más robusta** (`src/cpd/fuentes/http.py`): reintentos con backoff exponencial y jitter (2, 4, 8… s, tope 60 s), respeto de `Retry-After` en los 429 y 503, pausa mínima segura entre hilos, una sesión HTTP por hilo, caché con TTL (`leer_cache_json(ruta, ttl_horas)`) y `en_paralelo` para peticiones independientes.
+- **Aplicado a las fuentes:** NASA POWER pide las 52 provincias con 4 hilos (antes una a una); PeeringDB reutiliza su caché 7 días en vez de descargar en cada ejecución.
+- **Capas Bronze / Silver / Gold** (`src/cpd/capas.py`): Bronze = `data/raw` (876 MB, 1.649 ficheros); Silver = `data/clean` y `data/curated/tablas`, ahora también en Parquet (32 tablas); Gold = `data/curated` y el almacén DuckDB. `python -m cpd.almacen` crea el esquema `gold` (capas, APIs, descargas por día, tablas, watermarks, inventario de Bronze, comparación de formatos e indicadores) y guarda el historial de watermarks en `data/almacen/historial_watermarks.csv`.
+- **CSV frente a Parquet** (medido en `panel_provincia_mes`): Parquet ocupa 3,9 veces menos (0,87 MB frente a 3,38 MB) y DuckDB sobre Parquet es unas 57 veces más rápido que sobre CSV; los cuatro cálculos dan la misma media.
+- **Dashboard «Datos y APIs»** (`app/pages/1_Datos_y_APIs.py`, nueva página de Streamlit): 21 fuentes y 1.303 descargas del registro, catálogo de APIs (acceso, naturaleza estática/semiestática/dinámica, caché), datasets por capa, frescura por watermark, tamaño de Bronze, CSV frente a Parquet y explorador de tablas. Solo lee el almacén (`read_only=True`), sin ingeniería de datos (R-21).
+- **Tests:** 196 en verde (`tests/test_capas.py`, `tests/test_dashboard_datos.py` y 7 nuevos en `tests/test_fuentes.py`).
+- **Checklist:** el total del resumen estaba mal sumado (69 ✅ cuando sus filas daban 83); recalculado con un script: 99 ✅, 59 🟡, 45 ❌ de 203.
+- **Pendiente:** usar el watermark para decidir qué pedir en `actualizar` (I87), informe de calidad (I85 → I67-I69) e informe de cuadro de mandos (F).
 
 ## Cambios de fiabilidad del 24/11/2026
 

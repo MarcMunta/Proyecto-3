@@ -1,7 +1,7 @@
 ---
 tags: [metodologia, checklist, entrega, p3]
 estado: borrador
-actualizado: 2026-11-18
+actualizado: 2026-11-27
 ---
 
 # 06 · Checklist de entrega
@@ -13,7 +13,7 @@ Volver a [[00_Indice]]. Ver también [[07_Estado_actual]] (resumen y plan) y [[0
 **Responsable:** vacío hasta asignar en la fase 0.
 **Estado verificado:** 17/11/2026, rama `fix/mapa-revision` (EDA, features, modelos y métricas; sin commit todavía).
 
-Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026-10-02_Data_Relation_Modelling]], [[Clase_2026-10-09_Data_Visualization_Correlation]], [[Clase_2026-10-23_Forecasting_Metricas]], [[Clase_2026-11-13_Advanced_Feature_Engineering]]).
+Las filas marcadas con `C1`…`C5` son técnicas de las clases (ver [[Clase_2026-10-02_Data_Relation_Modelling]], [[Clase_2026-10-09_Data_Visualization_Correlation]], [[Clase_2026-10-23_Forecasting_Metricas]], [[Clase_2026-11-13_Advanced_Feature_Engineering]], [[Clase_2026-11-27_Data_Engineering]]).
 
 > Cómo se actualiza: al cerrar una tarea, cambiar el estado, poner la evidencia (ruta o commit) y escribir la siguiente acción.
 > La columna "Siguiente acción" dice qué hace falta para pasar a ✅.
@@ -30,10 +30,10 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 | F. Entregables y evidencias | 0 | 5 | 4 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
-| I. Técnicas de clase y de calidad de datos | 47 | 11 | 12 | 70 |
-| **Total** | **69** | **61** | **54** | **184** |
+| I. Técnicas de clase y de calidad de datos | 63 | 13 | 13 | 89 |
+| **Total** | **99** | **59** | **45** | **203** |
 
-Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si se añaden filas, recalcular.
+Conteos verificados el 27/11/2026 contando las celdas de estado de cada fila (con un script). Si se añaden filas, recalcular.
 
 ---
 
@@ -336,6 +336,30 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 | I68 | Valores ausentes: política explícita (recomendación) | 🟡 | `curado.py` (NaN); demanda imposible → NaN con registro en `data/curated/calidad_demanda_ccaa.csv`; imputación solo como entrada de modelos en `src/cpd/features/demanda.py` | | Tabla de nulos y decisiones por variable |
 | I69 | Atípicos (outliers): detección y decisión (recomendación; box plot C2 p.10) | 🟡 | Demanda por CCAA: `src/cpd/fuentes/calidad.py` (regla y causa comprobada en REData), `data/curated/calidad_demanda_ccaa.csv`, `docs/datos/tablas_api.md` §9, `docs/analisis/eda_panel.md` §7 | | Detección y registro en el resto de variables |
 | I70 | Escalar y normalizar sin perder datos (recomendación; C4 p.23 y R-7) | ✅ | R-7 en los modelos: columnas originales intactas y escalador ajustado solo con entrenamiento | | — |
+
+### I.6 Clase 27/11 · Data Mining & Data Engineering
+
+| ID | Técnica | Estado | Evidencia | Responsable | Siguiente acción |
+|---|---|---|---|---|---|
+| I71 | Ingesta batch frente a continua; polling frente a streaming (C5 p.4-6) | ✅ | `src/cpd/fuentes/actualizar.py` (batch completo e incremental; `--rapido` para tiempo real); polling en `frontend/src/live/usePolling.ts`. Streaming no hace falta (ninguna variable cambia en segundos) | | — |
+| I72 | ETL frente a ELT (C5 p.4) | ✅ | ETL en `src/cpd/fuentes/` (raw → `data/curated/tablas`); ELT con SQL dentro de DuckDB en `src/cpd/almacen.py` (`dw`, `gold`) | | — |
+| I73 | Filtrar en la API antes de descargar (C5 p.13) | ✅ | `country=ES` (PeeringDB), cajas geográficas (EMSC, Overpass, Natura 2000), solo las variables necesarias (NASA POWER, Open-Meteo) | | — |
+| I74 | Paginación: offset, página, cursor (C5 p.12) | 🟡 | Ninguna API usada pagina; las series largas se piden por bloques de años (`ree.py`, `sismicidad.py`, `nasa_power.py`) | | Aplicarla si se añade una API paginada |
+| I75 | Batching: varios elementos por petición (C5 p.14) | ✅ | `src/cpd/fuentes/meteo.py` (`TAMANO_LOTE = 52`: las 52 provincias en una petición) | | — |
+| I76 | Paralelización con límite de simultaneidad (C5 p.15-16) | ✅ | `http.en_paralelo` (hilos, orden conservado); NASA POWER con 4 hilos (`nasa_power.HILOS`); `tests/test_fuentes.py` | | Medir el tiempo de una actualización completa |
+| I77 | Rate limiting y HTTP 429 (C5 p.17) | ✅ | `http._esperar_turno` (pausa mínima con cerrojo, también entre hilos); 429 → `Retry-After` o 65 s; `tests/test_fuentes.py` | | — |
+| I78 | Reintentos con backoff exponencial y jitter (C5 p.18-19) | ✅ | `http.espera_backoff` (2, 4, 8… s, tope 60 s, +25 % de jitter) en `http.pedir`; `tests/test_fuentes.py` | | — |
+| I79 | Caché: estático frente a dinámico, TTL (C5 p.20) | ✅ | `http.leer_cache_json(ruta, ttl_horas)`; PeeringDB con TTL de 7 días; años cerrados siempre de caché; `tests/test_fuentes.py` | | — |
+| I80 | Parquet: formato columnar, binario y con tipos (C5 p.23-25) | ✅ | `capas.tablas_a_parquet` (Silver en Parquet zstd si el CSV cambió); `panel_provincia_mes.parquet`; `tests/test_capas.py` | | — |
+| I81 | DuckDB frente a pandas (C5 p.27-28) | ✅ | Almacén `data/almacen/p3_cpd.duckdb`; comparación medida en `gold.formatos` (Parquet 3,9× más pequeño; DuckDB sobre Parquet ~57× más rápido que sobre CSV) | | — |
+| I82 | OLTP frente a OLAP (C5 p.29-31) | ✅ | Decisión en [[Clase_2026-11-27_Data_Engineering]] y R-21: P3 es OLAP (DuckDB) | | — |
+| I83 | ORM / SQLAlchemy (C5 p.32) | ❌ | — (no aplica: no hay datos transaccionales; ver R-21) | | No prioritario |
+| I84 | Data lake por capas Bronze / Silver / Gold (C5 p.34) | ✅ | `src/cpd/capas.py` (`CAPAS`), esquema `gold` del almacén, R-20; `tests/test_capas.py` | | — |
+| I85 | Calidad de datos en el paso de Bronze a Silver (C5 p.35) | 🟡 | `src/cpd/fuentes/calidad.py`, `curado.py`; ver I67-I69 | | Informe de calidad (I67-I69) |
+| I86 | Trazabilidad y no descargar dos veces (C5 p.36) | ✅ | `data/raw/_registro_descargas.csv`, `meta.carga`, caché de `data/raw/api/`; R-17 y R-18 | | — |
+| I87 | Watermarks y carga incremental (C5 p.36) | ✅ | `capas.watermarks` y `guardar_historial` (`data/almacen/historial_watermarks.csv`), `gold.watermark`; `tests/test_capas.py` | | Usar el watermark para decidir qué pedir en `actualizar` |
+| I88 | At least once frente a exactly once (C5 p.36) | ✅ | Escrituras atómicas e idempotentes: `.part` en `http.descargar_archivo` y `capas.tablas_a_parquet`, `.tmp.duckdb` en `almacen.construir`; repetir no duplica | | — |
+| I89 | Dashboard DuckDB + Streamlit que solo lee (C5 p.36) | ✅ | `app/pages/1_Datos_y_APIs.py` (6 pestañas: resumen, APIs, datasets, frescura, Bronze y formatos, explorador; `read_only=True`); `tests/test_dashboard_datos.py` | | Informe de cuadro de mandos (F) |
 
 ---
 

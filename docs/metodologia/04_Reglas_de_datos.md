@@ -1,7 +1,7 @@
 ---
 tags: [metodologia, reglas, datos, p3]
 estado: borrador
-actualizado: 2026-11-14
+actualizado: 2026-11-27
 ---
 
 # 04 · Reglas de datos (no negociables)
@@ -27,6 +27,11 @@ equipo y se cambia **aquí**, no en el código.
 | **R-14** | **Datos grandes fuera de git.** Ficheros de más de 100 MB o carpetas enteras de datos raw no se suben al repositorio. Se distribuyen por Release con hash SHA-256. | GitHub no admite ficheros de más de 100 MB y el repo se clonaría lento. | `.gitignore` y `scripts/descargar_datos_raw.ps1`. |
 | **R-15** | **Reproducibilidad.** Cualquier cifra de un informe se puede regenerar con un comando, con una semilla fija si hay aleatoriedad. | Es lo que evalúa la rúbrica (código y evidencias verificables). | El notebook o script de cada informe se ejecuta de principio a fin en un equipo limpio. |
 | **R-16** | **Parámetros a calibrar, marcados.** Los umbrales y precios de `config/settings.yaml` que no estén calibrados se marcan "a calibrar" y se explican en el informe. | Evita presentar como hecho un supuesto. | Comentario en el YAML y limitación en el informe. |
+| **R-17** | **Trazabilidad de la ingesta.** Toda descarga deja una línea en el registro (qué, de dónde, cuándo, tamaño) y cada construcción del almacén deja sus watermarks en el historial [C5 p.36]. | Sin rastro no se puede saber qué datos usó un informe ni repetirlo. | `data/raw/_registro_descargas.csv`, `meta.carga`, `data/almacen/historial_watermarks.csv`. |
+| **R-18** | **No descargar dos veces lo mismo.** Lo estático se descarga una vez; lo semiestático se reutiliza mientras no caduque su TTL; de lo dinámico solo se pide lo nuevo (periodos abiertos) [C5 p.20, 36]. | Ahorra tiempo, cuota de las APIs y fallos. | Caché en `data/raw/api/`; `http.leer_cache_json(ruta, ttl_horas)`; tests de caché. |
+| **R-19** | **Peticiones responsables.** Filtrar en la API, agrupar (batching), paralelizar con un máximo de hilos, respetar el límite de ritmo y reintentar con backoff exponencial y jitter, sin pasar del máximo de intentos [C5 p.13-19]. | Una ingesta agresiva provoca bloqueos (429) y puede dejar sin datos al proyecto. | `src/cpd/fuentes/http.py` (`pedir`, `espera_backoff`, `en_paralelo`); `tests/test_fuentes.py`. |
+| **R-20** | **Capas Bronze, Silver y Gold.** Bronze (`data/raw`) no se toca; Silver (`data/clean`, `data/curated/tablas`) es limpio y tipado, en CSV y Parquet; Gold (`data/curated`, almacén DuckDB) es lo que consumen modelos y dashboards. Las escrituras son atómicas (fichero temporal y renombrado) [C5 p.34]. | Separar lo que llegó, lo correcto y lo útil permite reconstruir todo y saber de dónde sale cada cifra. | `src/cpd/capas.py`, `python -m cpd.almacen`, `tests/test_capas.py`. |
+| **R-21** | **El dashboard solo lee.** Streamlit y el mapa consultan datos ya preparados (esquema `gold`, JSON del mapa) en modo lectura; nunca descargan, limpian ni agregan. P3 es analítico (OLAP): DuckDB, sin base transaccional ni ORM [C5 p.29-32, 36]. | Un dashboard que hace ingeniería de datos es lento, frágil y no reproducible. | `app/pages/1_Datos_y_APIs.py` abre el almacén con `read_only=True`; `tests/test_dashboard_datos.py`. |
 
 ## Codificación y formato
 
@@ -34,7 +39,7 @@ equipo y se cambia **aquí**, no en el código.
 - **Números:** en los ficheros de salida, punto decimal y sin separador de miles. El INE usa miles con punto y decimales con coma: convertir al leer.
 - **Fechas:** ISO 8601 (`AAAA-MM-DD`) y, para meses, `AAAA-MM`.
 - **Nombres de columna:** minúsculas, sin tildes ni espacios (`tmedia_mes_c`, `paro_registrado`). Las unidades van al final.
-- **Ficheros:** `.parquet` para tablas grandes; `.csv` para tablas pequeñas o para leer a simple vista.
+- **Ficheros:** `.parquet` para tablas grandes y para consultar con DuckDB; `.csv` para tablas pequeñas o para leer a simple vista. Las tablas de `data/curated/tablas/` se guardan en los dos formatos (R-20).
 
 ## Fuentes: qué guardar de cada una
 
