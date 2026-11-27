@@ -216,7 +216,7 @@ def construir_panel(tablas: dict[str, pd.DataFrame], hasta: pd.Timestamp | None 
     provincias = tablas["provincias"]
     fin = hasta
     if fin is None:
-        candidatos = [pd.Timestamp(dt.date.today()).to_period("M").to_timestamp()]
+        candidatos = [(pd.Period(dt.date.today(), freq="M") - 1).start_time]
         for nombre in ("clima_diario", "ccaa_demanda", "paro"):
             if nombre in tablas and not tablas[nombre].empty:
                 col = "fecha" if "fecha" in tablas[nombre] else "mes"

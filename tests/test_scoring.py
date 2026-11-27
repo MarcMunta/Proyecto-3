@@ -8,6 +8,7 @@ from cpd.config import RUTA_DEMO, cargar_settings
 from cpd.scoring import (
     ESTADO_CONDICIONES,
     ESTADO_NO_VIABLE,
+    ESTADO_PENDIENTE_VERIFICAR,
     ESTADO_VIABLE,
     INDICADORES_POR_BLOQUE,
     aplicar_filtros,
@@ -45,6 +46,12 @@ def fila_buena(**cambios):
     }
     base.update(cambios)
     return base
+
+
+def test_normalizacion_conserva_escala_del_caso_base():
+    referencia = pd.Series([2.0, 10.0])
+    nueva = pd.Series([6.0, 12.0])
+    assert normalizar_min_max(nueva, 1, referencia).tolist() == [50.0, 100.0]
 
 
 def test_repercusion_energia_suma_a_ingresos_y_mejora_van(settings):
@@ -137,8 +144,15 @@ def test_sismicidad_alta_es_condicionado(settings):
 def test_datos_ausentes_no_provocan_ko(settings):
     fila = {"zona_inundable": np.nan}
     estado, motivos = aplicar_filtros(fila, CPDParams(), settings)
-    assert estado == ESTADO_VIABLE
-    assert any("datos ausentes" in m for m in motivos)
+    assert estado == ESTADO_PENDIENTE_VERIFICAR
+    assert any("Pendiente de verificar" in m for m in motivos)
+
+
+def test_ko_comprobado_prevalece_sobre_filtros_criticos_pendientes(settings):
+    estado, motivos = aplicar_filtros({"zona_inundable": 1}, CPDParams(), settings)
+    assert estado == ESTADO_NO_VIABLE
+    assert any("inundable" in motivo.lower() for motivo in motivos)
+    assert any("Pendiente de verificar" in motivo for motivo in motivos)
 
 
 def test_normalizar_min_max_respeta_direccion():
@@ -175,6 +189,10 @@ def test_evaluar_tolera_columnas_que_faltan(settings):
     out = evaluar(df, CPDParams(), settings)
     assert len(out) == 1
     assert 0 <= out["score_global"].iloc[0] <= 100 or pd.isna(out["score_global"].iloc[0])
+    assert out["estado"].iloc[0] == ESTADO_PENDIENTE_VERIFICAR
+    assert out["filtros_evaluados"].iloc[0] < out["filtros_totales"].iloc[0]
+    assert out["cobertura_filtros_pct"].iloc[0] < 100
+    assert out["filtros_pendientes"].iloc[0]
 
 
 def test_escenario_sube_precio_y_estres(demo, settings):

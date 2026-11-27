@@ -14,8 +14,8 @@ Entradas a escala provincial (últimos 12 meses del panel, salvo indicación):
 Lo que solo existe por parcela (zona inundable, Red Natura de la parcela, distancia a subestación, sismicidad
 en g, precio y superficie de suelo, fibra, carreteras, aeropuertos) no se evalúa a escala provincial.
 
-Clase de rentabilidad (4 clases): «no viable» o VAN ≤ 0 → no_rentable; el resto, por tercios de su VAN
-(alta, media, baja). Es RELATIVA entre provincias: con los supuestos actuales todas tienen VAN positivo.
+Clase financiera (4 clases): VAN ≤ 0 → no_rentable; el resto, por tercios de su VAN (alta, media, baja).
+Es independiente del estado de viabilidad: un filtro técnico pendiente o un KO no cambia el VAN simulado.
 
 Uso: .venv\\Scripts\\python.exe frontend\\scripts\\simular_provincias.py   (o npm run data)
 """
@@ -107,7 +107,7 @@ def cobertura_renovable(curado: Path = CURADO) -> dict[str, float]:
     return {codigo: c["cobertura_prevista_pct"] for codigo, c in ccaa.items() if c.get("cobertura_prevista_pct") is not None}
 
 
-def entradas(actual: pd.DataFrame, panel: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
+def entradas(actual: pd.DataFrame, panel: pd.DataFrame, curado: Path = CURADO) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Tabla de entrada de cpd.scoring.evaluar con una fila por provincia, y metadatos del cálculo."""
     nombres = {p["codigo"]: p["nombre"] for p in json.loads(META.read_text(encoding="utf-8"))}
     ref = pd.to_datetime(actual["mes_referencia_panel"]).max()
@@ -129,7 +129,7 @@ def entradas(actual: pd.DataFrame, panel: pd.DataFrame) -> tuple[pd.DataFrame, d
     precio_12m = float(ventana.groupby("mes")["precio_spot_medio_mes_eur_mwh"].first().mean())
 
     a = actual.set_index("codigo_provincia")
-    cobertura = cobertura_renovable()
+    cobertura = cobertura_renovable(curado)
     tension = np.where(a["subestaciones_400kv"] > 0, 400.0, np.where(a["subestaciones_220_400kv"] > 0, 220.0, np.nan))
     df = pd.DataFrame(
         {
@@ -166,10 +166,10 @@ def entradas(actual: pd.DataFrame, panel: pd.DataFrame) -> tuple[pd.DataFrame, d
     return df.reset_index(drop=True), meta
 
 
-def clases_rentabilidad(estado: list[str], van: list[float | None]) -> list[str]:
-    """«No viable» o VAN ≤ 0 → no_rentable; el resto, tercios de VAN (alta, media, baja)."""
-    salida = ["no_rentable"] * len(estado)
-    resto = [i for i, (e, v) in enumerate(zip(estado, van)) if e != "No viable" and v is not None and v > 0]
+def clases_rentabilidad(van: list[float | None]) -> list[str]:
+    """Clase financiera: VAN ≤ 0 → no_rentable; el resto, tercios de VAN (alta, media, baja)."""
+    salida = ["no_rentable"] * len(van)
+    resto = [i for i, v in enumerate(van) if v is not None and v > 0]
     resto.sort(key=lambda i: van[i], reverse=True)
     n = len(resto)
     for pos, i in enumerate(resto):
@@ -292,7 +292,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
     validos = {f.name for f in fields(CPDParams)}
     params = CPDParams(**{k: v for k, v in settings.get("cpd_por_defecto", {}).items() if k in validos})
 
-    df, meta = entradas(actual, panel)
+    df, meta = entradas(actual, panel, curado)
     prob, demanda, resumen_modelos = salidas_modelos(curado, panel)
     ambito_de = {k: v for k, v in panel.drop_duplicates("codigo_provincia").set_index("codigo_provincia")["ambito_hidrografico"].items() if isinstance(v, str)}
     ccaa_de = panel.drop_duplicates("codigo_provincia").set_index("codigo_provincia")["codigo_ccaa"].astype(str).str.zfill(2).to_dict()
@@ -316,7 +316,7 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
             van_con_precio[clave] = evaluar(df, params, escenario).set_index("codigo_provincia")["van_eur"]
 
     orden = list(r.index)
-    clase = dict(zip(orden, clases_rentabilidad(list(r["estado"]), [_num(v) for v in r["van_eur"]])))
+    clase = dict(zip(orden, clases_rentabilidad([_num(v) for v in r["van_eur"]])))
 
     provincias = []
     for codigo in sorted(r.index):
@@ -331,12 +331,21 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
                 "ambito_hidrografico": ambito_de.get(codigo),
                 "provincia": fila["provincia"],
                 "ccaa": fila["ccaa"],
+                "rentabilidad_financiera_clase": clase[codigo],
                 "rentabilidad_clase": clase[codigo],
                 "score_viabilidad": _redondeo(fila["score_global"], 1),
                 "estado": fila["estado"],
+                "cobertura_score_pct": _redondeo(fila["cobertura_score_pct"], 1),
+                "filtros_evaluados": int(fila["filtros_evaluados"]),
+                "filtros_totales": int(fila["filtros_totales"]),
+                "cobertura_filtros_pct": _redondeo(fila["cobertura_filtros_pct"], 1),
+                "filtros_pendientes": list(fila["filtros_pendientes"]),
                 "van_eur": _redondeo(fila["van_eur"], 0),
                 "roi": _redondeo(fila["roi"], 4),
                 "payback_anos": _redondeo(fila["payback_anos"], 2),
+                "precio_equilibrio_electricidad_eur_mwh": _redondeo(
+                    fila["precio_equilibrio_electricidad_eur_mwh"], 2
+                ),
                 "capex_eur": _redondeo(fila["capex_total_eur"], 0),
                 "opex_eur_anual": _redondeo(fila["opex_eur"], 0),
                 "precio_luz_actual_eur_mwh": _redondeo(extra.get("precio_spot_actual_eur_mwh"), 2),
@@ -377,8 +386,9 @@ def simular(curado: Path = CURADO) -> dict[str, Any]:
         "precio_luz_usado_eur_mwh": round(meta["precio_12m"], 2),
         "metodo": (
             "Simulación determinista con cpd.scoring.evaluar() sobre datos reales por provincia; "
-            "precio de la luz = media spot de 12 meses; clase relativa (tercios del VAN; no viable = no rentable)."
+            "precio de la luz = media spot de 12 meses; clase financiera relativa (tercios del VAN)."
         ),
+        "granularidad_geografica": "provincia",
         "no_evaluado_a_escala_provincial": NO_PROVINCIALES,
         "modelos": resumen_modelos,
         "provincias": provincias,

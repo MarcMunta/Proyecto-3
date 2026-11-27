@@ -328,9 +328,8 @@ def test_diccionario_describe_columnas_del_panel():
     assert diccionario.loc[1, "descripcion"].startswith("Columna sin descripción")
 
 
-def test_actualizar_aisla_los_fallos_de_una_fuente(monkeypatch):
-    monkeypatch.setattr(actualizar, "_guardar", lambda nombre, tabla: None)  # no escribir en data/curated
-    acta = actualizar.Actualizacion()
+def test_actualizar_aisla_los_fallos_de_una_fuente(tmp_path):
+    acta = actualizar.Actualizacion(carpeta_copia=tmp_path)
 
     def fuente_rota():
         raise http.ErrorFuente("servidor caído")

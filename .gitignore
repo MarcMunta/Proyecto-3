@@ -17,3 +17,8 @@ dist/
 .streamlit/secrets.toml
 # Modelos entrenados (se regeneran con python -m cpd.modelos)
 models/
+
+data/actualizaciones/
+data/publicaciones/
+frontend/public/data/versiones/
+frontend/public/data/publicacion.json
