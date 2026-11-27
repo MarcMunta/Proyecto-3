@@ -16,10 +16,10 @@ Clase 27/11/2026 «Data Mining & Data Engineering with Python» ([[Clase_2026-11
 - **Aplicado a las fuentes:** NASA POWER pide las 52 provincias con 4 hilos (antes una a una); PeeringDB reutiliza su caché 7 días en vez de descargar en cada ejecución.
 - **Capas Bronze / Silver / Gold** (`src/cpd/capas.py`): Bronze = `data/raw` (876 MB, 1.649 ficheros); Silver = `data/clean` y `data/curated/tablas`, ahora también en Parquet (32 tablas); Gold = `data/curated` y el almacén DuckDB. `python -m cpd.almacen` crea el esquema `gold` (capas, APIs, descargas por día, tablas, watermarks, inventario de Bronze, comparación de formatos e indicadores) y guarda el historial de watermarks en `data/almacen/historial_watermarks.csv`.
 - **CSV frente a Parquet** (medido en `panel_provincia_mes`): Parquet ocupa 3,9 veces menos (0,87 MB frente a 3,38 MB) y DuckDB sobre Parquet es unas 57 veces más rápido que sobre CSV; los cuatro cálculos dan la misma media.
-- **Dashboard «Datos y APIs»** (`app/pages/1_Datos_y_APIs.py`, nueva página de Streamlit): 21 fuentes y 1.303 descargas del registro, catálogo de APIs (acceso, naturaleza estática/semiestática/dinámica, caché), datasets por capa, frescura por watermark, tamaño de Bronze, CSV frente a Parquet y explorador de tablas. Solo lee el almacén (`read_only=True`), sin ingeniería de datos (R-21).
-- **Tests:** 196 en verde (`tests/test_capas.py`, `tests/test_dashboard_datos.py` y 7 nuevos en `tests/test_fuentes.py`).
-- **Checklist:** el total del resumen estaba mal sumado (69 ✅ cuando sus filas daban 83); recalculado con un script: 99 ✅, 59 🟡, 45 ❌ de 203.
-- **Pendiente:** usar el watermark para decidir qué pedir en `actualizar` (I87), informe de calidad (I85 → I67-I69) e informe de cuadro de mandos (F).
+- **Panel «Datos» del mapa** (botón «Datos» de la cabecera, `#/datos`, junto a «Modelos»; `frontend/src/components/CatalogoDatos.tsx`): 21 fuentes y 1.303 descargas; de dónde sale cada API (dominio, endpoint, módulo, acceso y caché); descargas por fuente y por día; la base de datos DuckDB (5 esquemas, sus tablas, filas y columnas); capas; frescura por watermark; Bronze por carpeta; CSV frente a Parquet. Lee `datos.json`, que `publicar` añade a cada versión (y `python -m cpd.almacen` deja como respaldo); no calcula nada (R-21). Comprobado en escritorio y móvil.
+- **Tests:** Python en verde (`tests/test_capas.py`, 7 nuevos en `tests/test_fuentes.py` y `datos.json` en `tests/test_publicar.py`) y frontend en verde (`frontend/src/data/datosApis.test.ts`).
+- **Checklist:** el total del resumen estaba mal sumado (69 ✅ cuando sus filas daban 83); recalculado con un script: 100 ✅, 62 🟡, 41 ❌ de 203 (incluye los cambios de F del 24/11).
+- **Pendiente:** usar el watermark para decidir qué pedir en `actualizar` (I87) e informe de calidad (I85 → I67-I69).
 
 ## Cambios de fiabilidad del 24/11/2026
 

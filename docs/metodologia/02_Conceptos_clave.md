@@ -274,4 +274,4 @@ Fuente: [[Clase_2026-11-27_Data_Engineering]] (C5).
 | **Bronze / Silver / Gold** | Capas del lago de datos: Bronze = lo que llegó (raw); Silver = limpio y tipado; Gold = agregado y listo para usar. | `src/cpd/capas.py` (`CAPAS`) |
 | **Watermark** | Marca del último periodo cargado de una tabla. Sirve para pedir solo lo nuevo y saber si los datos están al día. | `gold.watermark`, `data/almacen/historial_watermarks.csv` |
 | **At least once / exactly once** | Garantía de que cada dato se procesa al menos una vez (puede repetirse) o exactamente una vez (sin duplicados). | Escritura temporal y renombrado (idempotente) |
-| **Capa Gold del dashboard** | Tablas ya agregadas que el dashboard solo lee: el producto no hace ingeniería de datos. | Esquema `gold` del almacén; `app/pages/1_Datos_y_APIs.py` |
+| **Capa Gold del dashboard** | Tablas ya agregadas que el dashboard solo lee: el producto no hace ingeniería de datos. | Esquema `gold` del almacén; `frontend/src/components/CatalogoDatos.tsx` (panel «Datos» del mapa, `#/datos`) |

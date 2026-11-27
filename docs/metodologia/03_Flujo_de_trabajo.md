@@ -391,10 +391,10 @@ score global 0-100, simulación económica y comparación de escenarios, con un 
 6. Pruebas en navegador (ver [[05_Reglas_de_codigo_y_git]]) y en el móvil.
 7. Escribir el **informe de visualización**: para cada gráfico, qué pregunta responde y qué decisión apoya.
 
-**Técnicas de clase.** Tipos de gráfico y uso recomendado [C2 p.6-13]; evitar falacias de correlación en las etiquetas [C2 p.18-21]. Dashboard = DuckDB + Streamlit que solo lee datos ya preparados (R-21) [C5 p.36].
+**Técnicas de clase.** Tipos de gráfico y uso recomendado [C2 p.6-13]; evitar falacias de correlación en las etiquetas [C2 p.18-21]. Dashboard = DuckDB + producto que solo lee datos ya preparados (R-21) [C5 p.36]; en P3, el panel «Datos» del mapa.
 
 **Salidas y dónde viven.**
-- Dashboards → `app/streamlit_app.py` (6 pestañas), `app/pages/1_Datos_y_APIs.py` (fuentes, APIs, datasets, capas y frescura; solo lee el esquema `gold`) y `frontend/` (mapa).
+- Dashboards → `app/streamlit_app.py` (6 pestañas) y `frontend/` (mapa). El mapa tiene los paneles laterales «Modelos» y «Datos» (`#/datos`: fuentes y APIs, base de datos, capas y frescura; lee `datos.json`, generado desde el esquema `gold`).
 - Informe de visualización → `docs/visualizacion/` (a crear).
 - Informe de cuadro de mandos → `docs/cuadro_mandos/` (a crear).
 

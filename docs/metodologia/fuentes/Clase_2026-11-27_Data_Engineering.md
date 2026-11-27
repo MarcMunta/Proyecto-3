@@ -69,7 +69,7 @@ La presentación no contiene enlaces externos (las páginas «Text» son portada
 | OLTP frente a OLAP | P3 es OLAP puro (lecturas analíticas, sin transacciones): DuckDB; no hacen falta PostgreSQL ni un ORM | [[04_Reglas_de_datos]], R-21 |
 | Bronze / Silver / Gold | Bronze = `data/raw`; Silver = `data/clean`, `data/curated/tablas`; Gold = `data/curated` y el almacén (`dw`, `gold`) | `capas.CAPAS` |
 | Trazabilidad y watermarks | Registro de descargas, `meta.carga` y `historial_watermarks.csv` (qué tabla avanzó en cada construcción) | `capas.guardar_historial` |
-| Dashboard que solo lee | Página «Datos y APIs» de Streamlit sobre el esquema `gold`, en modo lectura | `app/pages/1_Datos_y_APIs.py` |
+| Dashboard que solo lee | La clase usa Streamlit; en P3 el producto es el mapa web, así que el dashboard es su panel «Datos» (`#/datos`), con la misma estética. Lee `datos.json`, exportado del esquema `gold` en modo lectura | `frontend/src/components/CatalogoDatos.tsx`, `cpd.capas.exportar_web` |
 
 Medición real (27/11/2026, `panel_provincia_mes`, media de `tmedia_mes_c`): CSV 3,38 MB frente a Parquet 0,87 MB (**3,9 veces menos**); DuckDB tarda 74 ms sobre el CSV y 1,3 ms sobre el Parquet (**unas 57 veces menos**). Los cuatro cálculos dan la misma media. Los tiempos dependen del equipo.
 

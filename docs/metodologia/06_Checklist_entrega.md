@@ -27,11 +27,11 @@ Las filas marcadas con `C1`…`C5` son técnicas de las clases (ver [[Clase_2026
 | C. Preguntas funcionales (P1-P8) | 5 | 3 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
 | E. Variables del entorno territorial (enunciado) | 14 | 22 | 11 | 47 |
-| F. Entregables y evidencias | 0 | 5 | 4 | 9 |
+| F. Entregables y evidencias | 1 | 8 | 0 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
 | I. Técnicas de clase y de calidad de datos | 63 | 13 | 13 | 89 |
-| **Total** | **99** | **59** | **45** | **203** |
+| **Total** | **100** | **62** | **41** | **203** |
 
 Conteos verificados el 27/11/2026 contando las celdas de estado de cada fila (con un script). Si se añaden filas, recalcular.
 
@@ -359,7 +359,7 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 | I86 | Trazabilidad y no descargar dos veces (C5 p.36) | ✅ | `data/raw/_registro_descargas.csv`, `meta.carga`, caché de `data/raw/api/`; R-17 y R-18 | | — |
 | I87 | Watermarks y carga incremental (C5 p.36) | ✅ | `capas.watermarks` y `guardar_historial` (`data/almacen/historial_watermarks.csv`), `gold.watermark`; `tests/test_capas.py` | | Usar el watermark para decidir qué pedir en `actualizar` |
 | I88 | At least once frente a exactly once (C5 p.36) | ✅ | Escrituras atómicas e idempotentes: `.part` en `http.descargar_archivo` y `capas.tablas_a_parquet`, `.tmp.duckdb` en `almacen.construir`; repetir no duplica | | — |
-| I89 | Dashboard DuckDB + Streamlit que solo lee (C5 p.36) | ✅ | `app/pages/1_Datos_y_APIs.py` (6 pestañas: resumen, APIs, datasets, frescura, Bronze y formatos, explorador; `read_only=True`); `tests/test_dashboard_datos.py` | | Informe de cuadro de mandos (F) |
+| I89 | Dashboard sobre DuckDB que solo lee (C5 p.36) | ✅ | Panel «Datos» del mapa (`#/datos`, `frontend/src/components/CatalogoDatos.tsx`): fuentes y APIs con su origen, descargas, base de datos por esquema, capas, frescura, Bronze y CSV frente a Parquet; lee `datos.json` (`cpd.capas.exportar_web`, en modo lectura) de la versión publicada; `frontend/src/data/datosApis.test.ts`, `tests/test_publicar.py` | | Informe de cuadro de mandos (F) |
 
 ---
 

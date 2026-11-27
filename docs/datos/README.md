@@ -82,7 +82,7 @@ Para regenerar Silver en Parquet, el almacén, los watermarks y la capa Gold:
 .\.venv\Scripts\python.exe -m cpd.almacen
 ```
 
-La página **«Datos y APIs»** de Streamlit (`app/pages/1_Datos_y_APIs.py`, menú lateral de `streamlit run app/streamlit_app.py`) muestra sin calcular nada: fuentes y APIs del registro de descargas, datasets por capa, frescura (watermarks), tamaño de Bronze y la comparación CSV frente a Parquet.
+El panel **«Datos»** del mapa web (botón «Datos» de la cabecera, ruta `#/datos`; `frontend/src/components/CatalogoDatos.tsx`) muestra sin calcular nada: de dónde sale cada fuente y API (dominio, endpoint, módulo, acceso y caché), descargas por fuente y por día, la base de datos DuckDB por esquema y tabla, las capas, la frescura (watermarks), el tamaño de Bronze y la comparación CSV frente a Parquet. Lo lee de `datos.json`: la versión publicada lleva el suyo (`python -m cpd.publicar`) y `frontend/public/data/datos.json` es la copia de respaldo (`python -m cpd.almacen`).
 
 ## Fuentes en tiempo real
 
