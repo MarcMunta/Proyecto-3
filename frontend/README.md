@@ -39,6 +39,11 @@ Se abre en http://localhost:5173. No hace falta ninguna clave de API.
   Dentro se ven sus municipios reales; pasar el ratón muestra el nombre y la superficie.
 - **Volver:** botón *Toda España* o tecla `Esc`. Cada vista tiene su enlace (`#/provincia/28`).
 - **Teclado:** la lista es navegable con `Tab` y tiene buscador; el mapa admite flechas y `+`/`−`.
+- **Modelos y Datos:** los botones de la cabecera abren paneles laterales sin perder el mapa ni la provincia elegida.
+  *Datos* (`#/datos`) enseña de dónde sale cada cifra: fuentes y APIs (dominio, endpoint, módulo, acceso y caché),
+  descargas por fuente y por día, la base de datos DuckDB por esquema y tabla, las capas Bronze/Silver/Gold, la
+  frescura de cada tabla y CSV frente a Parquet. Lee `datos.json` de la versión publicada (o la copia
+  `public/data/datos.json`, que regenera `python -m cpd.almacen`); no calcula nada.
   Con *reducir movimiento* activado en el sistema no hay animaciones de vuelo ni de números.
 
 ### Paleta de rentabilidad

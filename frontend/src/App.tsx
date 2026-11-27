@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import metaJson from "./data/provincias.json";
 import type { ProvinciaMeta } from "./data/types";
 import { useDatos, usePrevisiones } from "./data/useDatos";
+import { useDatosApis } from "./data/datosApis";
 import { demanda as pedirDemanda, mix as pedirMix, precios as pedirPrecios } from "./live/redata";
 import { tiempoCapitales } from "./live/openmeteo";
 import { usePolling } from "./live/usePolling";
@@ -13,6 +14,7 @@ import { useMovimientoReducido } from "./components/useMovimientoReducido";
 const MapaEspana = lazy(() => import("./components/MapaEspana").then((m) => ({ default: m.MapaEspana })));
 
 const CatalogoModelos = lazy(() => import("./components/CatalogoModelos").then((m) => ({ default: m.CatalogoModelos })));
+const CatalogoDatos = lazy(() => import("./components/CatalogoDatos").then((m) => ({ default: m.CatalogoDatos })));
 
 const META = metaJson as ProvinciaMeta[];
 const META_POR_CODIGO = new Map(META.map((m) => [m.codigo, m]));
@@ -22,19 +24,22 @@ interface Ruta {
   provincia: string | null;
   sitio: string | null;
   modelos?: boolean;
+  datos?: boolean;
 }
 
-/** Enlace al mapa, a una zona o al catálogo lateral de modelos. */
+/** Enlace al mapa, a una zona o a los paneles laterales de modelos y de datos. */
 function leerRuta(): Ruta {
   if (window.location.hash === "#/modelos") return { provincia: null, sitio: null, modelos: true };
-  const m = window.location.hash.match(/^#\/provincia\/(\d{2})(?:\/(\d{5}))?(\/modelos)?$/);
+  if (window.location.hash === "#/datos") return { provincia: null, sitio: null, datos: true };
+  const m = window.location.hash.match(/^#\/provincia\/(\d{2})(?:\/(\d{5}))?(\/modelos|\/datos)?$/);
   if (!m || !META_POR_CODIGO.has(m[1]!)) return { provincia: null, sitio: null };
-  return { provincia: m[1]!, sitio: m[2] ?? null, modelos: Boolean(m[3]) };
+  return { provincia: m[1]!, sitio: m[2] ?? null, modelos: m[3] === "/modelos", datos: m[3] === "/datos" };
 }
 
-function hashRuta({ provincia, sitio, modelos }: Ruta): string {
-  if (!provincia) return modelos ? "#/modelos" : "#/";
-  return `#/provincia/${provincia}${sitio ? `/${sitio}` : ""}${modelos ? "/modelos" : ""}`;
+function hashRuta({ provincia, sitio, modelos, datos }: Ruta): string {
+  const panel = datos ? "datos" : modelos ? "modelos" : "";
+  if (!provincia) return panel ? `#/${panel}` : "#/";
+  return `#/provincia/${provincia}${sitio ? `/${sitio}` : ""}${panel ? `/${panel}` : ""}`;
 }
 
 function useRuta(): [Ruta, (r: Ruta) => void] {
@@ -56,8 +61,9 @@ export function App() {
   const { datos, error } = useDatos();
   const reducir = useMovimientoReducido();
   const [ruta, ir] = useRuta();
-  const fichaAbierta = Boolean(ruta.provincia) && !ruta.modelos;
+  const fichaAbierta = Boolean(ruta.provincia) && !ruta.modelos && !ruta.datos;
   const previsiones = usePrevisiones(datos?.publicacion, fichaAbierta || ruta.modelos === true);
+  const panelDatos = useDatosApis(datos?.publicacion, ruta.datos === true);
   const [resaltado, setResaltado] = useState<string | null>(null);
   const panel = useRef<HTMLElement>(null);
 
@@ -83,31 +89,36 @@ export function App() {
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented || (e.target instanceof HTMLInputElement && e.target.type === "search")) return;
-      if (ruta.modelos) ir({ provincia: ruta.provincia, sitio: ruta.sitio });
+      if (ruta.modelos || ruta.datos) ir({ provincia: ruta.provincia, sitio: ruta.sitio });
       else if (ruta.provincia) elegirProvincia(null);
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [ruta.provincia, ruta.sitio, ruta.modelos, elegirProvincia, ir]);
+  }, [ruta.provincia, ruta.sitio, ruta.modelos, ruta.datos, elegirProvincia, ir]);
 
   useEffect(() => {
     panel.current?.scrollTo({ top: 0, behavior: "instant" });
-    if (datos && (ruta.provincia || ruta.modelos) && window.matchMedia("(max-width: 900px)").matches) {
+    if (datos && (ruta.provincia || ruta.modelos || ruta.datos) && window.matchMedia("(max-width: 900px)").matches) {
       panel.current?.scrollIntoView({ block: "start", behavior: reducir ? "auto" : "smooth" });
     }
     setResaltado(null);
-  }, [ruta.provincia, ruta.modelos, datos, reducir]);
+  }, [ruta.provincia, ruta.modelos, ruta.datos, datos, reducir]);
 
   const meta = ruta.provincia ? META_POR_CODIGO.get(ruta.provincia) : undefined;
 
-  const enlaceDetalle = hashRuta({ ...ruta, modelos: false });
-  const enlaceModelos = hashRuta({ ...ruta, modelos: true });
+  const enlaceDetalle = hashRuta({ ...ruta, modelos: false, datos: false });
+  const enlaceModelos = hashRuta({ ...ruta, modelos: true, datos: false });
+  const enlaceDatos = hashRuta({ ...ruta, modelos: false, datos: true });
+  const enPanel = ruta.modelos || ruta.datos;
+  const enlaces = [
+    ...(enPanel ? [{ href: enlaceDetalle, etiqueta: meta ? "Ficha de zona" : "Provincias" }] : []),
+    ...(ruta.modelos ? [] : [{ href: enlaceModelos, etiqueta: "Modelos" }]),
+    ...(ruta.datos ? [] : [{ href: enlaceDatos, etiqueta: "Datos" }]),
+  ];
 
   return (
     <div className="app">
-      <Franja precios={precios} demo={demo} publicacion={datos?.publicacion ?? null}
-        enlace={ruta.modelos ? enlaceDetalle : enlaceModelos}
-        etiquetaEnlace={ruta.modelos ? (meta ? "Ficha de zona" : "Provincias") : "Modelos"} />
+      <Franja precios={precios} demo={demo} publicacion={datos?.publicacion ?? null} enlaces={enlaces} />
       <main className="escena">
         {datos ? (
           <Suspense fallback={<div className="mapa-marco mapa-espera"><p>Cargando mapa…</p></div>}>
@@ -137,7 +148,12 @@ export function App() {
               </p>
             </div>
           )}
-          {ruta.modelos ? (
+          {ruta.datos ? (
+            <Suspense fallback={<p role="status">Cargando datos…</p>}>
+              <CatalogoDatos datos={panelDatos.datos} cargando={!error && panelDatos.estado === "cargando"}
+                zona={meta?.nombre} volver={enlaceDetalle} />
+            </Suspense>
+          ) : ruta.modelos ? (
             <Suspense fallback={<p role="status">Cargando modelos…</p>}>
               <CatalogoModelos previsiones={previsiones.datos} prediccion={datos?.prediccion}
                 cargando={!error && previsiones.estado === "cargando"} zona={meta?.nombre} volver={enlaceDetalle} />
