@@ -181,7 +181,8 @@ def tabla_provincias_sintetica(n: int = 30, semilla: int = 1) -> pd.DataFrame:
     tabla = pd.DataFrame(datos, index=pd.Index([f"{i:02d}" for i in range(n)], name="codigo_provincia"))
     tabla["tiene_cpd"] = (np.arange(n) >= n * 0.7).astype(int)
     tabla["provincia"] = [f"P{i}" for i in range(n)]
-    tabla["ccaa"] = "X"
+    # Seis CCAA sintéticas: la prueba comprueba que el validador deja una comunidad completa fuera.
+    tabla["ccaa"] = [f"C{i // 5}" for i in range(n)]
     tabla["n_centros_datos"] = tabla["tiene_cpd"] * 2
     return tabla
 
@@ -190,14 +191,34 @@ def test_features_de_provincia_no_incluyen_columnas_con_fuga():
     assert not set(EXCLUIDAS_POR_FUGA) & set(FEATURES_PROVINCIA)
 
 
-def test_probabilidades_fuera_de_pliegue(monkeypatch):
-    monkeypatch.setattr(prob_cpd, "REPETICIONES", 2)
+def test_probabilidades_fuera_de_pliegue_agrupa_por_ccaa():
     tabla = tabla_provincias_sintetica()
     modelo, columnas = prob_cpd.modelos_candidatos()["solo_poblacion"]
     prob = prob_cpd.probabilidades_fuera_de_pliegue(tabla, modelo, columnas)
     assert prob.between(0, 1).all() and prob.index.equals(tabla.index)
     # La etiqueta depende de la población: las provincias con CPD reciben más probabilidad de media.
     assert prob[tabla["tiene_cpd"] == 1].mean() > prob[tabla["tiene_cpd"] == 0].mean()
+
+
+def test_logistica_geografica_admite_validaciones_de_una_clase():
+    tabla = tabla_provincias_sintetica()
+    modelo, columnas = prob_cpd.modelos_candidatos()["logistica"]
+    ajustado = prob_cpd.ajustar_final(tabla, modelo, columnas)
+    assert np.isfinite(ajustado.best_score_)
+    prob = prob_cpd.probabilidades_fuera_de_pliegue(tabla, modelo, columnas)
+    assert prob.between(0, 1).all()
+
+
+def test_umbral_fuera_de_pliegue_no_usa_etiquetas_de_su_ccaa():
+    tabla = tabla_provincias_sintetica()
+    modelo, columnas = prob_cpd.modelos_candidatos()["solo_poblacion"]
+    base = prob_cpd.umbrales_fuera_de_pliegue(tabla, modelo, columnas)
+    alterada = tabla.copy()
+    # Cambiar todas las etiquetas de una CCAA no puede cambiar el umbral aplicado a esa misma CCAA.
+    mascara = alterada["ccaa"] == "C5"
+    alterada.loc[mascara, "tiene_cpd"] = 1 - alterada.loc[mascara, "tiene_cpd"]
+    otro = prob_cpd.umbrales_fuera_de_pliegue(alterada, modelo, columnas)
+    pd.testing.assert_series_equal(base[mascara], otro[mascara])
 
 
 def test_periodos_como_texto():
@@ -705,6 +726,18 @@ def test_medio_plazo_prevision_e_intervalo_no_se_estrecha():
     ancho = (prev["superior"] - prev["inferior"]).groupby(prev["horizonte_anios"]).mean()
     assert (ancho.diff().dropna() >= -1e-9).all()
     assert ((prev["inferior"] <= prev["prevision"]) & (prev["prevision"] <= prev["superior"])).all()
+
+
+def test_medio_plazo_diagnosticos_informa_mae_sesgo_y_cobertura_por_horizonte():
+    from cpd.modelos import medio_plazo
+
+    res = medio_plazo.evaluar(_anual_sintetico(), 1995)
+    diagnosticos = medio_plazo.diagnosticos_por_horizonte(res)
+    assert len(diagnosticos) == 20
+    assert set(diagnosticos["particion"]) == {"validacion", "test"}
+    assert diagnosticos["mae"].ge(0).all()
+    assert diagnosticos["cobertura_banda_10_90_pct"].between(0, 100).all()
+    assert diagnosticos.query("particion == 'test'")["cobertura_independiente"].all()
 
 
 def test_acierto_media_decada_es_100_con_prevision_perfecta():

@@ -19,14 +19,13 @@ import simular_provincias as sp  # noqa: E402
 HAY_DATOS = (sp.CURADO / "provincias_actual.parquet").exists() or (sp.CURADO / "provincias_actual.csv").exists()
 
 
-def test_clases_rentabilidad_no_viable_y_tercios():
-    estado = ["Viable", "No viable", "Viable", "Viable con condiciones", "Viable", "Viable", "Viable"]
+def test_clases_rentabilidad_financiera_y_tercios():
     van = [30.0, 50.0, 20.0, 10.0, -5.0, 25.0, None]
-    c = sp.clases_rentabilidad(estado, van)
-    assert c[1] == "no_rentable"  # no viable aunque tenga VAN alto
+    c = sp.clases_rentabilidad(van)
+    assert c[1] == "alta"  # la clase financiera no se mezcla con el estado técnico
     assert c[4] == "no_rentable"  # VAN negativo
     assert c[6] == "no_rentable"  # sin VAN
-    assert [c[0], c[5], c[2], c[3]] == ["alta", "alta", "media", "baja"]
+    assert [c[0], c[5], c[2], c[3]] == ["alta", "media", "media", "baja"]
 
 
 @pytest.fixture(scope="module")
@@ -47,11 +46,15 @@ def test_cubre_las_52_provincias(datos):
 def test_cada_provincia_tiene_clase_y_cifras(datos):
     for p in datos["provincias"]:
         assert p["rentabilidad_clase"] in sp.CLASES
-        assert p["estado"] in ("Viable", "Viable con condiciones", "No viable")
+        assert p["estado"] in ("Viable", "Viable con condiciones", "Pendiente de verificar", "No viable")
         for campo in ("van_eur", "roi", "capex_eur", "opex_eur_anual", "score_viabilidad", "temp_media_anual_c"):
             assert p[campo] is not None and math.isfinite(p[campo]), (p["provincia"], campo)
         if p["estado"] == "No viable":
-            assert p["rentabilidad_clase"] == "no_rentable"
+            assert p["rentabilidad_financiera_clase"] == p["rentabilidad_clase"]
+        assert 0 <= p["filtros_evaluados"] <= p["filtros_totales"]
+        assert 0 <= p["cobertura_filtros_pct"] <= 100
+        assert isinstance(p["filtros_pendientes"], list)
+        assert "precio_equilibrio_electricidad_eur_mwh" in p
         assert isinstance(p["motivos"], list) and p["motivos"]
 
 

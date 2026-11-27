@@ -27,7 +27,13 @@ from cpd.simulator import CPDParams
 ESTADO_VIABLE: str = "Viable"
 ESTADO_CONDICIONES: str = "Viable con condiciones"
 ESTADO_NO_VIABLE: str = "No viable"
-ORDEN_ESTADO: dict[str, int] = {ESTADO_VIABLE: 0, ESTADO_CONDICIONES: 1, ESTADO_NO_VIABLE: 2}
+ESTADO_PENDIENTE_VERIFICAR: str = "Pendiente de verificar"
+ORDEN_ESTADO: dict[str, int] = {
+    ESTADO_VIABLE: 0,
+    ESTADO_CONDICIONES: 1,
+    ESTADO_PENDIENTE_VERIFICAR: 2,
+    ESTADO_NO_VIABLE: 3,
+}
 
 # Para cada bloque: lista de (columna, dirección). Dirección +1 = mejor cuanto MAYOR;
 # -1 = mejor cuanto MENOR. Cada bloque es la media de sus indicadores normalizados.
@@ -131,11 +137,11 @@ def pesos_normalizados(pesos: Mapping[str, float] | None, settings: dict[str, An
     return {bloque: v / total for bloque, v in valores.items()}
 
 
-def aplicar_filtros(
+def aplicar_filtros_detallados(
     fila: Mapping[str, Any],
     params: CPDParams,
     settings: dict[str, Any],
-) -> tuple[str, list[str]]:
+) -> tuple[str, list[str], dict[str, Any]]:
     """Aplica los filtros eliminatorios y condicionales a un municipio.
 
     Reglas KO (-> "No viable"):
@@ -151,7 +157,8 @@ def aplicar_filtros(
         - temperatura máxima histórica >= 44 °C (M6).
         - suelo industrial disponible < mínimo (M4).
 
-    Los datos ausentes no provocan KO: se avisan en los motivos.
+    Un filtro crítico sin dato deja el resultado en "Pendiente de verificar".
+    Un KO demostrado siempre prevalece sobre esa pendiente.
 
     Args:
         fila: datos de un municipio (dict o fila de pandas), con pue_aplicado si ya está calculado.
@@ -159,12 +166,25 @@ def aplicar_filtros(
         settings: configuración con umbrales y latencia.
 
     Returns:
-        Tupla (estado, motivos).
+        Tupla (estado, motivos, auditoría de cobertura de filtros).
     """
     um = settings["umbrales"]
     lat = settings["latencia"]
     ko: list[str] = []
     condiciones: list[str] = []
+    pendientes: list[str] = []
+    filtros_evaluados = 0
+    filtros_totales = 0
+
+    def evaluar_critico(nombre: str, valor: float) -> bool:
+        """Registra un filtro crítico y devuelve si su dato se puede evaluar."""
+        nonlocal filtros_evaluados, filtros_totales
+        filtros_totales += 1
+        if _finito(valor):
+            filtros_evaluados += 1
+            return True
+        pendientes.append(nombre)
+        return False
 
     zona_inundable = _valor(fila, "zona_inundable")
     red_natura = _valor(fila, "red_natura")
@@ -183,28 +203,31 @@ def aplicar_filtros(
     latencia = sim.latencia_rtt_ms(dist_ixp, lat["factor_ruta"], lat["ms_rtt_por_km"]) if _finito(dist_ixp) else float("nan")
 
     # --- M5 riesgos naturales / M4 regulatorio: exclusiones ---
-    if um.get("zona_inundable_ko", True) and zona_inundable == 1:
+    zona_evaluada = evaluar_critico("zona inundable", zona_inundable) if um.get("zona_inundable_ko", True) else True
+    natura_evaluada = evaluar_critico("Red Natura 2000", red_natura) if um.get("red_natura_ko", True) else True
+    if zona_evaluada and zona_inundable == 1:
         ko.append("Zona inundable (M5): exclusión por riesgo de inundación")
-    if um.get("red_natura_ko", True) and red_natura == 1:
+    if natura_evaluada and red_natura == 1:
         ko.append("Espacio Red Natura 2000 (M4): exclusión regulatoria")
 
     # --- M1 capacidad eléctrica ---
-    if params.potencia_ti_mw > um["umbral_potencia_subestacion_mw"] and _finito(dist_sub):
-        if dist_sub > um["dist_subestacion_max_km"]:
+    if params.potencia_ti_mw > um["umbral_potencia_subestacion_mw"]:
+        if evaluar_critico("distancia a subestación", dist_sub) and dist_sub > um["dist_subestacion_max_km"]:
             ko.append(
                 f"Subestación a {dist_sub:.1f} km; el límite para CPD > "
                 f"{um['umbral_potencia_subestacion_mw']} MW es {um['dist_subestacion_max_km']} km (M1)"
             )
-    if _finito(capacidad) and capacidad < potencia_total:
+    if evaluar_critico("capacidad de acceso a la red", capacidad) and capacidad < potencia_total:
         ko.append(f"Capacidad de acceso {capacidad:.0f} MW < potencia total {potencia_total:.1f} MW (M1)")
 
     # --- M3 conectividad ---
-    if _finito(latencia) and latencia > params.latencia_max_ms:
+    if evaluar_critico("distancia al IXP para latencia", dist_ixp) and latencia > params.latencia_max_ms:
         ko.append(f"Latencia RTT {latencia:.2f} ms > máximo {params.latencia_max_ms} ms (M3)")
 
     # --- M6 agua y refrigeración ---
     evaporativa = params.tipo_refrigeracion in ("evaporativa", "adiabatica")
-    estres_alto = _finito(estres) and estres >= um["estres_hidrico_alto"]
+    estres_evaluado = evaluar_critico("estrés hídrico", estres)
+    estres_alto = estres_evaluado and estres >= um["estres_hidrico_alto"]
     if estres_alto and evaporativa:
         ko.append(
             f"Estrés hídrico {estres:.2f} con refrigeración {params.tipo_refrigeracion} (M6): "
@@ -231,25 +254,37 @@ def aplicar_filtros(
             f"Suelo industrial disponible {suelo_ha:.1f} ha < {um['suelo_industrial_min_ha']} ha (M4)"
         )
 
-    # --- Datos ausentes: se avisan, no cambian el estado ---
-    ausentes = [
-        nombre for nombre, valor in [
-            ("zona_inundable", zona_inundable), ("red_natura", red_natura),
-            ("dist_subestacion_km", dist_sub), ("capacidad_acceso_mw", capacidad),
-            ("dist_ixp_km", dist_ixp), ("estres_hidrico_idx", estres),
-            ("peligrosidad_sismica_g", sismica),
-        ] if not _finito(valor)
-    ]
-    avisos = [f"Aviso: datos ausentes ({', '.join(ausentes)}); esos filtros no se han podido evaluar"] if ausentes else []
+    cobertura = round(100 * filtros_evaluados / filtros_totales, 1) if filtros_totales else 100.0
+    auditoria = {
+        "filtros_evaluados": filtros_evaluados,
+        "filtros_totales": filtros_totales,
+        "cobertura_filtros_pct": cobertura,
+        "filtros_pendientes": pendientes,
+    }
+    aviso_pendientes = (
+        [f"Pendiente de verificar: faltan datos de {', '.join(pendientes)}"] if pendientes else []
+    )
 
     if ko:
-        return ESTADO_NO_VIABLE, ko + condiciones + avisos
+        return ESTADO_NO_VIABLE, ko + condiciones + aviso_pendientes, auditoria
+    if pendientes:
+        return ESTADO_PENDIENTE_VERIFICAR, condiciones + aviso_pendientes, auditoria
     if condiciones:
-        return ESTADO_CONDICIONES, condiciones + avisos
-    return ESTADO_VIABLE, ["Cumple todos los filtros eliminatorios (M1, M3, M4, M5, M6)"] + avisos
+        return ESTADO_CONDICIONES, condiciones, auditoria
+    return ESTADO_VIABLE, ["Cumple todos los filtros eliminatorios (M1, M3, M4, M5, M6)"], auditoria
 
 
-def normalizar_min_max(serie: pd.Series, direccion: int) -> pd.Series:
+def aplicar_filtros(
+    fila: Mapping[str, Any],
+    params: CPDParams,
+    settings: dict[str, Any],
+) -> tuple[str, list[str]]:
+    """Aplica filtros y devuelve estado y motivos; usar ``aplicar_filtros_detallados`` para la auditoría."""
+    estado, motivos, _ = aplicar_filtros_detallados(fila, params, settings)
+    return estado, motivos
+
+
+def normalizar_min_max(serie: pd.Series, direccion: int, referencia: pd.Series | None = None) -> pd.Series:
     """Normaliza una serie a 0-100 mediante min-max, con el sentido indicado.
 
     Fórmula: norm = (x − min) / (max − min) × 100; si la dirección es −1 se invierte (100 − norm),
@@ -259,12 +294,16 @@ def normalizar_min_max(serie: pd.Series, direccion: int) -> pd.Series:
     Args:
         serie: valores de un indicador entre municipios.
         direccion: +1 si mayor es mejor, −1 si menor es mejor.
+        referencia: caso base que fija la escala al comparar escenarios.
 
     Returns:
         Serie con valores entre 0 y 100 (o NaN).
     """
     numeros = pd.to_numeric(serie, errors="coerce").astype(float)
-    minimo, maximo = numeros.min(), numeros.max()
+    numeros = numeros.where(np.isfinite(numeros))
+    base = numeros if referencia is None else pd.to_numeric(referencia, errors="coerce").astype(float)
+    base = base.where(np.isfinite(base))
+    minimo, maximo = base.min(), base.max()
     if not _finito(minimo) or not _finito(maximo):
         return pd.Series(np.nan, index=serie.index, dtype=float)
     if maximo == minimo:
@@ -276,7 +315,7 @@ def normalizar_min_max(serie: pd.Series, direccion: int) -> pd.Series:
     return norm.clip(0, 100)
 
 
-def calcular_sub_scores(df: pd.DataFrame) -> pd.DataFrame:
+def calcular_sub_scores(df: pd.DataFrame, referencia: pd.DataFrame | None = None) -> pd.DataFrame:
     """Calcula los sub-scores 0-100 de cada bloque (columnas sub_<bloque>).
 
     Cada bloque es la media de sus indicadores normalizados con normalizar_min_max.
@@ -292,7 +331,8 @@ def calcular_sub_scores(df: pd.DataFrame) -> pd.DataFrame:
         normalizados = []
         for columna, direccion in indicadores:
             if columna in df.columns:
-                normalizados.append(normalizar_min_max(df[columna], direccion))
+                serie_base = None if referencia is None else referencia.get(columna, pd.Series(dtype=float))
+                normalizados.append(normalizar_min_max(df[columna], direccion, serie_base))
         if normalizados:
             sub[f"sub_{bloque}"] = pd.concat(normalizados, axis=1).mean(axis=1, skipna=True)
         else:
@@ -390,6 +430,16 @@ def simular_municipio(fila: Mapping[str, Any], params: CPDParams, settings: dict
         "ingresos_anuales_eur": ingresos,
         "flujo_caja_anual_eur": flujo_anual,
         "van_eur": sim.van(flujos, pr["tasa_descuento"], capex_total),
+        "precio_equilibrio_electricidad_eur_mwh": sim.precio_equilibrio_electricidad_eur_mwh(
+            consumo,
+            params.autoproduccion_mwh,
+            pr.get("repercusion_energia_pct", 0.0),
+            ingresos_alquiler,
+            desglose["total"] - desglose["energia"],
+            pr["tasa_descuento"],
+            params.vida_util_anos,
+            capex_total,
+        ),
         "roi": sim.roi(flujos, capex_total),
         "payback_anos": sim.payback_anos(flujos, capex_total),
     }
@@ -400,10 +450,12 @@ def evaluar(
     params: CPDParams,
     settings: dict[str, Any],
     pesos: Mapping[str, float] | None = None,
+    *,
+    referencia: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Evalúa todos los municipios: simulador, filtros, sub-scores, score global y ranking.
 
-    Orden del resultado: primero "Viable", luego "Viable con condiciones" y luego "No viable";
+    Orden del resultado: viable, con condiciones, pendiente de verificar y no viable;
     dentro de cada estado, de mayor a menor score_global.
 
     Args:
@@ -411,6 +463,7 @@ def evaluar(
         params: parámetros del CPD.
         settings: configuración de settings.yaml.
         pesos: pesos opcionales por bloque (se renormalizan); None = los de settings.
+        referencia: salida de evaluar del caso base para mantener sus escalas.
 
     Returns:
         DataFrame con los datos originales, las salidas del simulador, estado, motivos,
@@ -433,13 +486,18 @@ def evaluar(
     )
     out = pd.concat([base, simulados], axis=1)
 
-    resultados = [aplicar_filtros(fila, params, settings) for _, fila in out.iterrows()]
-    out["estado"] = [estado for estado, _ in resultados]
-    out["motivos"] = [motivos for _, motivos in resultados]
+    resultados = [aplicar_filtros_detallados(fila, params, settings) for _, fila in out.iterrows()]
+    out["estado"] = [estado for estado, _, _ in resultados]
+    out["motivos"] = [motivos for _, motivos, _ in resultados]
+    for campo in ("filtros_evaluados", "filtros_totales", "cobertura_filtros_pct", "filtros_pendientes"):
+        out[campo] = [auditoria[campo] for _, _, auditoria in resultados]
 
-    sub = calcular_sub_scores(out)
+    sub = calcular_sub_scores(out, referencia)
     out = pd.concat([out, sub], axis=1)
-    out["score_global"] = calcular_score_global(sub, pesos_normalizados(pesos, settings))
+    pesos_bloques = pesos_normalizados(pesos, settings)
+    out["score_global"] = calcular_score_global(sub, pesos_bloques)
+    pesos_columnas = pd.Series({f"sub_{bloque}": peso for bloque, peso in pesos_bloques.items()})
+    out["cobertura_score_pct"] = 100 * sub.notna().mul(pesos_columnas, axis=1).sum(axis=1)
 
     out["_orden"] = out["estado"].map(ORDEN_ESTADO)
     out = out.sort_values(["_orden", "score_global"], ascending=[True, False], na_position="last")

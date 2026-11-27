@@ -3,10 +3,10 @@
 Etiqueta: `tiene_cpd` = 1 si la provincia tiene al menos un centro de datos en PeeringDB (14 de 52 provincias).
 Features: `cpd.features.provincia.features_estaticas_provincia` (sin `n_ixp` ni `distancia_ixp_km`, por fuga).
 
-Validación: con 52 filas y sin fechas de apertura de los CPD no hay validación temporal posible. Se usa validación
-cruzada estratificada repetida (5 pliegues × 20 repeticiones, semilla fija). Cada provincia recibe la media de las
-probabilidades que le dan los modelos que **no** la han visto al entrenar (predicción fuera de pliegue). La
-imputación y el escalado se ajustan dentro de cada pliegue, solo con sus datos de entrenamiento (R-7).
+Validación: con 52 filas y sin fechas de apertura de los CPD no hay validación temporal posible. Se deja fuera una
+comunidad autónoma completa en cada pliegue (LOCO): cada provincia se predice con un modelo que no ha visto ninguna
+provincia de su comunidad. La imputación y el escalado se ajustan dentro de cada pliegue, solo con sus datos de
+entrenamiento (R-7).
 
 Modelos comparados (mismos pliegues):
 - `mayoritaria`: predice siempre la proporción de provincias con CPD (comprueba la paradoja de la exactitud);
@@ -36,17 +36,17 @@ from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold, StratifiedKFold
+from sklearn.metrics import log_loss
+from sklearn.model_selection import GridSearchCV, GroupKFold, LeaveOneGroupOut, StratifiedKFold
 from sklearn.pipeline import make_pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler, TargetEncoder
 
 from cpd.features.provincia import FEATURES_PROVINCIA
-from cpd.modelos.metricas import metricas_clasificacion, umbral_youden
+from cpd.modelos.metricas import matriz_confusion, metricas_clasificacion, umbral_youden
 
 SEMILLA: int = 42
 PLIEGUES: int = 5
-REPETICIONES: int = 20
 
 
 class Winsorizador(BaseEstimator, TransformerMixin):
@@ -87,14 +87,16 @@ def modelos_candidatos() -> dict[str, tuple[Any, list[str]]]:
     logistica = GridSearchCV(
         make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), LogisticRegression(max_iter=2000)),
         param_grid={"logisticregression__C": [0.03, 0.1, 0.3, 1.0, 3.0]},
-        scoring="neg_log_loss",
-        cv=StratifiedKFold(n_splits=4, shuffle=True, random_state=SEMILLA),
+        scoring=_log_loss_grupo,
+        error_score="raise",
+        cv=GroupKFold(n_splits=4),
     )
     logistica_winsor = GridSearchCV(
         make_pipeline(SimpleImputer(strategy="median"), Winsorizador(), StandardScaler(), LogisticRegression(max_iter=2000)),
         param_grid={"logisticregression__C": [0.03, 0.1, 0.3, 1.0, 3.0]},
-        scoring="neg_log_loss",
-        cv=StratifiedKFold(n_splits=4, shuffle=True, random_state=SEMILLA),
+        scoring=_log_loss_grupo,
+        error_score="raise",
+        cv=GroupKFold(n_splits=4),
     )
     # Target encoding (I62): la propensión media de la comunidad, aprendida SOLO con el entrenamiento del pliegue y con
     # validación cruzada interna (TargetEncoder de scikit-learn), para que una provincia no vea su propia etiqueta.
@@ -135,8 +137,50 @@ def modelos_candidatos() -> dict[str, tuple[Any, list[str]]]:
     }
 
 
+def _ajustar(modelo: Any, x: np.ndarray, y: np.ndarray, grupos: np.ndarray) -> Any:
+    """Ajusta un candidato sin mezclar una comunidad autónoma entre entrenamiento y validación interna."""
+    if len(np.unique(y)) == 1:
+        return DummyClassifier(strategy="prior").fit(x, y)
+    if isinstance(modelo, GridSearchCV):
+        n_grupos = len(np.unique(grupos))
+        if n_grupos >= 2:
+            cv = GroupKFold(n_splits=min(4, n_grupos))
+            particiones = [(t, v) for t, v in cv.split(x, y, grupos) if len(np.unique(y[t])) == 2]
+            if len(particiones) >= 2:
+                return clone(modelo).set_params(cv=particiones).fit(x, y)
+        return clone(modelo.estimator).fit(x, y)
+    return clone(modelo).fit(x, y)
+
+
+def ajustar_final(tabla: pd.DataFrame, modelo: Any, columnas: list[str]) -> Any:
+    """Entrena el estimador de despliegue con tuning agrupado cuando procede."""
+    return _ajustar(modelo, tabla[columnas].to_numpy(dtype=float), tabla["tiene_cpd"].to_numpy(dtype=int),
+                    tabla["ccaa"].fillna("sin_ccaa").to_numpy())
+
+
+def _probabilidad_positiva(modelo: Any, x: np.ndarray) -> np.ndarray:
+    """Columna de clase positiva, incluso en un pliegue de entrenamiento con una sola clase."""
+    clases = list(modelo.classes_)
+    if 1 not in clases:
+        return np.zeros(len(x))
+    return modelo.predict_proba(x)[:, clases.index(1)]
+
+
+def _log_loss_grupo(modelo: Any, x: np.ndarray, y: np.ndarray) -> float:
+    """Permite evaluar un grupo de validación con una única clase."""
+    return -float(log_loss(y, _probabilidad_positiva(modelo, x), labels=[0, 1]))
+
+
+def _pliegues_geograficos(tabla: pd.DataFrame):
+    """Deja una CCAA completa fuera en cada pliegue; no valida una provincia con vecinas del entrenamiento."""
+    grupos = tabla["ccaa"].fillna("sin_ccaa").to_numpy()
+    if len(np.unique(grupos)) < 2:
+        raise ValueError("La validación geográfica de prob_cpd necesita al menos dos CCAA.")
+    return LeaveOneGroupOut().split(np.zeros(len(tabla)), tabla["tiene_cpd"].to_numpy(dtype=int), grupos)
+
+
 def probabilidades_fuera_de_pliegue(tabla: pd.DataFrame, modelo: Any, columnas: list[str]) -> pd.Series:
-    """Media, para cada provincia, de las probabilidades de los modelos entrenados sin ella.
+    """Probabilidad fuera de pliegue por provincia, dejando fuera su CCAA completa.
 
     Args:
         tabla: salida de `features_estaticas_provincia` (con `tiene_cpd`).
@@ -148,17 +192,32 @@ def probabilidades_fuera_de_pliegue(tabla: pd.DataFrame, modelo: Any, columnas: 
     """
     x = tabla[columnas].to_numpy(dtype=float)
     y = tabla["tiene_cpd"].to_numpy(dtype=int)
-    suma = np.zeros(len(tabla))
-    veces = np.zeros(len(tabla))
-    validacion = RepeatedStratifiedKFold(n_splits=PLIEGUES, n_repeats=REPETICIONES, random_state=SEMILLA)
-    for entrenar, evaluar in validacion.split(x, y):
-        ajustado = clone(modelo).fit(x[entrenar], y[entrenar])
-        suma[evaluar] += ajustado.predict_proba(x[evaluar])[:, 1]
-        veces[evaluar] += 1
-    return pd.Series(suma / veces, index=tabla.index, name="prob_cpd")
+    grupos = tabla["ccaa"].fillna("sin_ccaa").to_numpy()
+    probabilidad = np.full(len(tabla), np.nan)
+    for entrenar, evaluar in _pliegues_geograficos(tabla):
+        ajustado = _ajustar(modelo, x[entrenar], y[entrenar], grupos[entrenar])
+        probabilidad[evaluar] = _probabilidad_positiva(ajustado, x[evaluar])
+    return pd.Series(probabilidad, index=tabla.index, name="prob_cpd")
 
 
-def sesgos_por_subgrupo(tabla: pd.DataFrame, probabilidad: pd.Series, umbral: float) -> pd.DataFrame:
+def umbrales_fuera_de_pliegue(tabla: pd.DataFrame, modelo: Any, columnas: list[str]) -> pd.Series:
+    """Umbral de Youden aplicado a cada CCAA sin usar sus etiquetas.
+
+    Para cada CCAA de evaluación, el umbral se calcula con probabilidades fuera de pliegue de las demás CCAA. Así la
+    matriz de confusión no optimiza el corte con las mismas etiquetas que después declara acertar.
+    """
+    umbrales = np.full(len(tabla), np.nan)
+    for entrenar, evaluar in _pliegues_geograficos(tabla):
+        internas = tabla.iloc[entrenar]
+        if internas["tiene_cpd"].nunique() < 2 or internas["ccaa"].nunique() < 2:
+            umbrales[evaluar] = 0.5
+        else:
+            prob_interna = probabilidades_fuera_de_pliegue(internas, modelo, columnas)
+            umbrales[evaluar] = umbral_youden(internas["tiene_cpd"], prob_interna)
+    return pd.Series(umbrales, index=tabla.index, name="umbral_cpd")
+
+
+def sesgos_por_subgrupo(tabla: pd.DataFrame, probabilidad: pd.Series, umbral: float | pd.Series) -> pd.DataFrame:
     """Errores por subgrupo (C3 p.22-24): península frente a islas y Ceuta/Melilla, y tercios de población.
 
     Returns:
@@ -203,24 +262,46 @@ def evaluar(tabla: pd.DataFrame) -> dict[str, Any]:
     metricas = pd.DataFrame(filas)
     elegido = str(metricas.set_index("modelo")["log_loss"].idxmin())
     prob_elegido = probabilidades[elegido]
+    umbrales = umbrales_fuera_de_pliegue(tabla, candidatos[elegido][0], candidatos[elegido][1])
+    pred_umbral = (prob_elegido >= umbrales).astype(int)
+    # Para nuevas provincias se conserva un corte único, calculado sin reusar un test temporal inexistente. La matriz
+    # de confusión usa en cambio el corte geográficamente externo de cada CCAA.
     umbral = umbral_youden(tabla["tiene_cpd"], prob_elegido)
 
     # Ajuste final de la logística con todas las provincias, solo para interpretar los coeficientes.
     logistica, columnas = candidatos["logistica"]
-    final = clone(logistica).fit(tabla[columnas].to_numpy(dtype=float), tabla["tiene_cpd"].to_numpy(dtype=int))
-    regresion = final.best_estimator_.named_steps["logisticregression"]
+    final = ajustar_final(tabla, logistica, columnas)
+    regresion = getattr(final, "best_estimator_", final).named_steps["logisticregression"]
     coeficientes = pd.DataFrame({"feature": columnas, "coeficiente_estandarizado": regresion.coef_[0]})
     coeficientes = coeficientes.reindex(coeficientes["coeficiente_estandarizado"].abs().sort_values(ascending=False).index)
 
+    metricas_umbral = metricas_clasificacion(tabla["tiene_cpd"], prob_elegido, umbral=umbral)
+    matriz = matriz_confusion(tabla["tiene_cpd"], pred_umbral)
+    vp, fp, fn, vn = (matriz[k] for k in ("vp", "fp", "fn", "vn"))
+    precision = vp / (vp + fp) if vp + fp else 0.0
+    recall = vp / (vp + fn) if vp + fn else 0.0
+    metricas_umbral.update(
+        {
+            "umbral": float(umbrales.mean()),
+            "accuracy": (vp + vn) / len(tabla),
+            "precision": precision,
+            "recall": recall,
+            "fpr": fp / (fp + vn) if fp + vn else 0.0,
+            "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
+            **matriz,
+        }
+    )
     return {
         "metricas": metricas,
         "probabilidades": probabilidades,
         "elegido": elegido,
         "umbral": umbral,
-        "metricas_umbral": metricas_clasificacion(tabla["tiene_cpd"], prob_elegido, umbral=umbral),
-        "sesgos": sesgos_por_subgrupo(tabla, prob_elegido, umbral),
+        "metricas_umbral": metricas_umbral,
+        "umbrales_fuera_de_pliegue": umbrales,
+        "umbral_despliegue": umbral,
+        "sesgos": sesgos_por_subgrupo(tabla, prob_elegido, umbrales),
         "coeficientes": coeficientes.reset_index(drop=True),
-        "C_final": float(final.best_params_["logisticregression__C"]),
+        "C_final": float(regresion.C),
         "prevalencia": float(tabla["tiene_cpd"].mean()),
     }
 

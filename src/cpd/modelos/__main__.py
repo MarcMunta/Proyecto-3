@@ -178,9 +178,7 @@ def ejecutar_prob_cpd(panel: pd.DataFrame) -> tuple[dict, pd.DataFrame, str]:
     resultado["metricas"].to_csv(RUTA_SALIDAS / "metricas_prob_cpd.csv", index=False)
     resultado["sesgos"].to_csv(RUTA_SALIDAS / "sesgos_prob_cpd.csv", index=False)
     modelo, columnas = mp.modelos_candidatos()[resultado["elegido"]]
-    from sklearn.base import clone
-
-    final = clone(modelo).fit(tabla[columnas].to_numpy(dtype=float), tabla["tiene_cpd"].to_numpy(dtype=int))
+    final = mp.ajustar_final(tabla, modelo, columnas)
     RUTA_MODELOS.mkdir(exist_ok=True)
     joblib.dump({"modelo": final, "columnas": columnas, "umbral": resultado["umbral"], "entrenado": dt.date.today().isoformat()}, RUTA_MODELOS / "prob_cpd.joblib")
     resultado["figura_provincias"] = _figura_prob_cpd_provincias(tabla, resultado)
@@ -213,7 +211,7 @@ def _dibujar_prob_cpd_provincias(tabla: pd.DataFrame, resultado: dict) -> str:
     eje.set_xticks([0, 1], ["previsto: sin CPD", "previsto: con CPD"])
     eje.set_yticks([0, 1], ["real: sin CPD", "real: con CPD"])
     eje.grid(False)
-    eje.set_title(f"Matriz de confusión (umbral {resultado['umbral']:.2f})".replace(".", ","))
+    eje.set_title("Matriz de confusión (corte externo por CCAA)")
 
     # Probabilidad por provincia, ordenada; azul = tiene CPD, gris = no tiene; línea = umbral.
     eje = figura.add_subplot(rejilla[:, 1])
@@ -222,7 +220,7 @@ def _dibujar_prob_cpd_provincias(tabla: pd.DataFrame, resultado: dict) -> str:
     eje.barh(y, datos["prob"], 0.72, color=colores, edgecolor=FONDO, lw=0.6)
     eje.axvline(resultado["umbral"], color=TINTA_2, lw=1, ls=(0, (4, 3)))
     # Rótulo abajo, donde las barras son cortas (arriba lo taparía el título).
-    eje.annotate(f"umbral {resultado['umbral']:.2f}".replace(".", ","), (resultado["umbral"], 0.03), xycoords=("data", "axes fraction"), xytext=(4, 0), textcoords="offset points", fontsize=7.5, color=TINTA_2)
+    eje.annotate(f"corte para despliegue {resultado['umbral']:.2f}".replace(".", ","), (resultado["umbral"], 0.03), xycoords=("data", "axes fraction"), xytext=(4, 0), textcoords="offset points", fontsize=7.5, color=TINTA_2)
     eje.set_yticks(y, datos["provincia"], fontsize=6.8)
     eje.set_ylim(-0.7, len(datos) - 0.3)
     eje.set_xlim(0, 1)
@@ -1534,6 +1532,8 @@ def ejecutar_medio_plazo() -> dict:
     res_r = medio.evaluar(reservas, medio.PRIMER_ORIGEN_RESERVAS)
     prev_r = medio.prevision(reservas, res_r, limites=(0.0, 100.0))
     decada_t, decada_r = medio.acierto_media_decada(res_t), medio.acierto_media_decada(res_r)
+    diagnosticos_t = medio.diagnosticos_por_horizonte(res_t)
+    diagnosticos_r = medio.diagnosticos_por_horizonte(res_r)
     print(
         f"  temperatura a 10 años: {res_t['elegido']} · {res_t['acierto_validacion']:.1f} % / {res_t['acierto_test']:.1f} % "
         f"(MAE {res_t['mae_validacion']:.2f} / {res_t['mae_test']:.2f} °C); consumo {consumo['acierto_validacion']:.1f} % / {consumo['acierto_test']:.1f} %"
@@ -1558,8 +1558,9 @@ def ejecutar_medio_plazo() -> dict:
             **resumen(res_t, decada_t, temp), "consumo_acierto_validacion": round(consumo["acierto_validacion"], 1), "consumo_acierto_test": round(consumo["acierto_test"], 1),
             "media_espana_10a_c": round(float(temp.iloc[-10:].mean().mean()), 2), "media_espana_final_c": round(float(tabla_op["temp_final_c"].mean()), 2),
             "pue_medio_final": round(float(tabla_op["pue_final"].mean()), 3), "escenario_tendencia": escenario,
+            "diagnosticos_horizonte": diagnosticos_t.round(4).to_dict(orient="records"),
         },
-        "reservas": resumen(res_r, decada_r, reservas),
+        "reservas": {**resumen(res_r, decada_r, reservas), "diagnosticos_horizonte": diagnosticos_r.round(4).to_dict(orient="records")},
         "provincias": {}, "ambitos": {},
     }
     for ambito, d in prev_r.groupby("serie"):
@@ -1581,11 +1582,13 @@ def ejecutar_medio_plazo() -> dict:
         }
     for nombre, res in (("temperatura", res_t), ("reservas", res_r)):
         res["metricas"].to_csv(RUTA_SALIDAS / f"medio_plazo_metricas_{nombre}.csv", index=False)
+    diagnosticos_t.to_csv(RUTA_SALIDAS / "medio_plazo_diagnosticos_temperatura.csv", index=False)
+    diagnosticos_r.to_csv(RUTA_SALIDAS / "medio_plazo_diagnosticos_reservas.csv", index=False)
     prev_t.to_csv(RUTA_SALIDAS / "medio_plazo_prevision_temperatura.csv", index=False)
     prev_r.to_csv(RUTA_SALIDAS / "medio_plazo_prevision_reservas.csv", index=False)
     tabla_op.to_csv(RUTA_SALIDAS / "medio_plazo_operacion_cpd.csv", index=False)
     (RUTA_SALIDAS / "prevision_medio_plazo.json").write_text(json.dumps(salida, ensure_ascii=False, indent=1), encoding="utf-8")
-    datos = {"temp": temp, "res_t": res_t, "prev_t": prev_t, "reservas": reservas, "res_r": res_r, "prev_r": prev_r, "tabla": tabla_op, "json": salida}
+    datos = {"temp": temp, "res_t": res_t, "prev_t": prev_t, "reservas": reservas, "res_r": res_r, "prev_r": prev_r, "tabla": tabla_op, "diagnosticos_t": diagnosticos_t, "diagnosticos_r": diagnosticos_r, "json": salida}
     return {**datos, "figura": _figura_medio_plazo(datos)}
 
 
@@ -1680,9 +1683,9 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict, medio: dict | No
     for clave, m in (j.get("gas_tiempo") or {}).get("modelos", {}).items():
         filas.append((f"{nombres_gt.get(clave, clave)} a 1 año · entrada del precio, inestable", m["acierto_validacion"], m["acierto_test"], "100 − WAPE"))
     filas += [
-        ("Precio de la luz a 1 año", j["precio"]["acierto_validacion"], j["precio"]["acierto_test"], "100 − WAPE"),
-        ("Precio de la luz: media de 12 meses", j["precio"].get("acierto_anual_validacion"), j["precio"].get("acierto_anual_test"), "100 − WAPE de la media anual"),
-        ("Demanda nacional a 10 años", diez["acierto"], None, "100 − WAPE (backtesting 2012-2025)"),
+        ("Precio de la luz a 1 año (evaluación retrospectiva)", j["precio"]["acierto_validacion"], j["precio"]["acierto_test"], "100 − WAPE; protocolo revisado tras observar el corte de test"),
+        ("Precio de la luz: media de 12 meses", j["precio"].get("acierto_anual_validacion"), j["precio"].get("acierto_anual_test"), "100 − WAPE de la media anual; evaluación retrospectiva"),
+        ("Demanda nacional a 10 años (backtesting histórico)", diez["acierto"], None, "100 − WAPE (2012-2025; sin test final separado)"),
     ]
     if medio is not None:
         t, r = medio["json"]["temperatura"], medio["json"]["reservas"]
@@ -1692,7 +1695,7 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict, medio: dict | No
             ("Reservas de agua a 10 años: media de la década", r["acierto_decada_validacion"], r["acierto_decada_test"], "100 − WAPE de la media de los 10 años"),
             ("Reservas de agua a 10 años: año a año", r["acierto_validacion"], r["acierto_test"], "100 − WAPE de cada año"),
         ]
-    filas.append(("Probabilidad de CPD (prob_cpd)", 100 * prob["metricas_umbral"]["accuracy"], None, "accuracy fuera de pliegue"))
+    filas.append(("Presencia actual de CPD (prob_cpd)", 100 * prob["metricas_umbral"]["accuracy"], None, "accuracy dejando fuera cada CCAA"))
     if "sismico" in anual_res:
         s = anual_res["sismico"]
         m = s["metricas"].set_index(["modelo", "particion"])
@@ -1706,6 +1709,8 @@ def control_de_acierto(anual_res: dict, diez: dict, prob: dict, medio: dict | No
     peor = tabla[["acierto_validacion", "acierto_test"]].min(axis=1)
     mejor = tabla[["acierto_validacion", "acierto_test"]].max(axis=1)
     tabla["estado"] = [control_acierto(p) if m < ACIERTO_SOSPECHOSO else control_acierto(m) for p, m in zip(peor, mejor)]
+    temperatura = tabla["modelo"].str.startswith("Temperatura por provincia")
+    tabla.loc[temperatura, "estado"] = "diagnóstico en °C: usar MAE, sesgo y cobertura"
     tabla.to_csv(RUTA_SALIDAS / "control_acierto.csv", index=False)
     for fila in tabla.itertuples():
         if not fila.estado.startswith("cumple"):
@@ -1749,12 +1754,44 @@ def main() -> None:
     """Punto de entrada de `python -m cpd.modelos`."""
     parser = argparse.ArgumentParser(description="EDA, modelos e informes del Proyecto 3")
     parser.add_argument("--sin-eda", action="store_true", help="no regenera las figuras ni el informe EDA")
+    parser.add_argument(
+        "--solo",
+        choices=("eda", "demanda", "prob_cpd", "precio", "anual", "nacional_10", "estacionariedad", "medio_plazo", "sismico"),
+        help="ejecuta una etapa independiente y escribe solo sus salidas; no regenera informes agregados",
+    )
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):  # consola de Windows (cp1252): que «→» o «≥» no paren la ejecución
         sys.stdout.reconfigure(errors="replace")
     inicio = time.time()
     fecha = dt.date.today().strftime("%d/%m/%Y")
     panel = pd.read_parquet(RUTA_PANEL)
+
+    # Etapas independientes para iterar sin repetir el entrenamiento completo. No se reutiliza una caché: cada etapa
+    # lee sus entradas y recalcula sus salidas, por lo que el resultado es idéntico a la misma etapa de la ejecución completa.
+    if args.solo:
+        RUTA_SALIDAS.mkdir(parents=True, exist_ok=True)
+        if args.solo == "eda":
+            eda = meda.generar(panel)
+            eda["atipicos_demanda"].to_csv(RUTA_SALIDAS / "atipicos_demanda.csv", index=False)
+            _escribir(informe.informe_eda(eda, fecha), RUTA_DOCS / "analisis" / "eda_panel.md")
+        elif args.solo == "demanda":
+            ejecutar_demanda(panel)
+        elif args.solo == "prob_cpd":
+            ejecutar_prob_cpd(panel)
+        elif args.solo == "precio":
+            ejecutar_precio()
+        elif args.solo == "anual":
+            ejecutar_anual(panel)
+        elif args.solo == "nacional_10":
+            ejecutar_10_anios()
+        elif args.solo == "estacionariedad":
+            ejecutar_estacionariedad(panel)
+        elif args.solo == "medio_plazo":
+            ejecutar_medio_plazo()
+        else:
+            ejecutar_sismico()
+        print(f"Etapa {args.solo} hecha en {time.time() - inicio:.0f} s")
+        return
 
     print("Diccionario de features")
     filas = [{"modelo": "demanda_ccaa", "horizonte_meses": h, **dataclasses.asdict(f)} for h in md.HORIZONTES for f in diccionario_features_demanda(h)]

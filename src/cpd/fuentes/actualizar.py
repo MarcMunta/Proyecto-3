@@ -5,24 +5,26 @@ Uso (desde la raíz del proyecto, con el venv activado):
     python -m cpd.fuentes.actualizar            # refresco completo e incremental (historia + tiempo real)
     python -m cpd.fuentes.actualizar --rapido   # solo campos de tiempo real (clima actual, demanda, precios)
 
-Cada fuente se ejecuta de forma aislada: si una falla, se registra, se conserva la última copia
-guardada en data/curated/tablas/ (si existe) y el resto sigue. Al final se reconstruyen
-``panel_provincia_mes`` y ``provincias_actual`` y se imprime un resumen.
+Cada fuente se ejecuta de forma aislada. Las tablas, el panel y la ficha se guardan juntos
+en una nueva carpeta solo tras validar el conjunto. La copia anterior sirve de respaldo.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from uuid import uuid4
 from typing import Callable
 
 import pandas as pd
 
-from cpd.fuentes import curado
+from cpd.fuentes import curado, validacion
 from cpd.fuentes.http import ErrorFuente
 
 ANIO_INICIO: int = 2015
@@ -47,6 +49,7 @@ class Actualizacion:
 
     tablas: dict[str, pd.DataFrame] = field(default_factory=dict)
     resultados: list[Resultado] = field(default_factory=list)
+    carpeta_copia: Path = curado.CARPETA_CURADO
 
 
 def _rango_fechas(tabla: pd.DataFrame) -> tuple[str, str]:
@@ -63,38 +66,38 @@ def _rango_fechas(tabla: pd.DataFrame) -> tuple[str, str]:
     return "", ""
 
 
-def _guardar(nombre: str, tabla: pd.DataFrame) -> None:
-    curado.CARPETA_TABLAS.mkdir(parents=True, exist_ok=True)
-    tabla.to_csv(curado.CARPETA_TABLAS / f"{nombre}.csv", index=False, encoding="utf-8")
+def _leer_copia(ruta: Path) -> pd.DataFrame:
+    """Lee una copia conservando los códigos territoriales."""
+    tabla = pd.read_csv(ruta, dtype={"codigo_provincia": str, "codigo_ccaa": str})
+    if tabla.empty:
+        raise ValueError("La copia guardada está vacía")
+    return tabla
 
 
 def _paso(acta: Actualizacion, nombre: str, funcion: Callable[[], pd.DataFrame | dict]) -> None:
-    """Ejecuta una fuente aislando sus errores; guarda la tabla si funciona."""
+    """Ejecuta una fuente, con respaldo en la última copia legible."""
     inicio = time.monotonic()
     try:
         salida = funcion()
-        if isinstance(salida, dict):
-            tabla = salida.get("tabla", pd.DataFrame())
-            if "tabla_aux" in salida:
-                tabla = pd.DataFrame(salida["tabla_aux"])
-        else:
-            tabla = salida
-        acta.tablas[nombre] = tabla
-        _guardar(nombre, tabla)
-        desde, hasta = _rango_fechas(tabla)
-        acta.resultados.append(Resultado(nombre, "ok", len(tabla), desde, hasta, segundos=time.monotonic() - inicio))
-    except Exception as error:  # una fuente nunca debe parar a las demás
-        ruta = curado.CARPETA_TABLAS / f"{nombre}.csv"
-        if ruta.exists():
-            copia = pd.read_csv(ruta, dtype={"codigo_provincia": str, "codigo_ccaa": str})
-            acta.tablas[nombre] = copia
-            desde, hasta = _rango_fechas(copia)
-            acta.resultados.append(
-                Resultado(nombre, "copia_anterior", len(copia), desde, hasta, detalle=str(error)[:200],
-                          segundos=time.monotonic() - inicio)
-            )
-        else:
-            acta.resultados.append(Resultado(nombre, "fallo", detalle=str(error)[:200], segundos=time.monotonic() - inicio))
+        tabla = salida.get("tabla_aux", salida.get("tabla")) if isinstance(salida, dict) else salida
+        if not isinstance(tabla, pd.DataFrame) or tabla.empty:
+            raise ErrorFuente("La fuente no devolvió filas")
+        estado, detalle = "ok", ""
+    except Exception as error:  # cada fuente debe poder fallar sin detener al resto
+        detalle = str(error)[:200]
+        ruta = acta.carpeta_copia / "tablas" / f"{nombre}.csv"
+        try:
+            tabla = _leer_copia(ruta)
+        except (OSError, ValueError) as error_copia:
+            estado_copia = "sin copia guardada" if isinstance(error_copia, FileNotFoundError) else "copia ilegible"
+            acta.resultados.append(Resultado(nombre, "fallo", detalle=f"{detalle}. {estado_copia}",
+                                             segundos=time.monotonic() - inicio))
+            return
+        estado = "copia_anterior"
+    acta.tablas[nombre] = tabla
+    desde, hasta = _rango_fechas(tabla)
+    acta.resultados.append(Resultado(nombre, estado, len(tabla), desde, hasta, detalle,
+                                     time.monotonic() - inicio))
 
 
 def _tiempo_real(acta: Actualizacion) -> None:
@@ -155,7 +158,14 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     )
 
     _paso(acta, "provincias", lambda: provincias.tabla_provincias())
-    poligonos = provincias.cargar_poligonos()
+    poligonos = None
+
+    def geometria():
+        """Carga los límites al necesitarlos y reutiliza el resultado."""
+        nonlocal poligonos
+        if poligonos is None:
+            poligonos = provincias.cargar_poligonos()
+        return poligonos
     _paso(acta, "clima_diario", lambda: nasa_power.clima_diario_power(ANIO_INICIO, anio_fin))
     _paso(acta, "free_cooling", lambda: nasa_power.free_cooling_mensual_power(ANIO_INICIO, anio_fin))
     _paso(acta, "clima_mensual_largo", lambda: nasa_power.temperatura_mensual_larga())
@@ -203,47 +213,62 @@ def _historia(acta: Actualizacion, anio_fin: int) -> None:
     _paso(acta, "paro", lambda: sepe.paro_provincias_mensual(ANIO_INICIO, anio_fin))
 
     def conectividad() -> pd.DataFrame:
-        fac = peeringdb.asignar_fac(peeringdb.centros_de_datos(), poligonos)
+        fac = peeringdb.asignar_fac(peeringdb.centros_de_datos(), geometria())
         return peeringdb.resumen_por_provincia(fac, peeringdb.ixp())
 
     _paso(acta, "conectividad", conectividad)
     _paso(acta, "capacidad_ccaa", lambda: red_capacidad.leer_capacidad(red_capacidad.descargar_ultimo()))
-    _paso(acta, "subestaciones", lambda: subestaciones.subestaciones_por_provincia(poligonos))
+    _paso(acta, "subestaciones", lambda: subestaciones.subestaciones_por_provincia(geometria()))
     _paso(acta, "sismos", lambda: sismicidad.sismos_por_provincia_anual(
-        sismicidad.terremotos(ANIO_INICIO, anio_fin), poligonos))
-    _paso(acta, "natura", lambda: natura.superficie_natura_por_provincia(poligonos))
+        sismicidad.terremotos(ANIO_INICIO, anio_fin), geometria()))
+    _paso(acta, "natura", lambda: natura.superficie_natura_por_provincia(geometria()))
     _paso(acta, "suelo_provincia", lambda: suelo.leer_precio_suelo(suelo.descargar()))
     _paso(acta, "peligrosidad_sismica", lambda: norma_sismica.leer_peligrosidad(norma_sismica.descargar()))
 
 
-def _construir(acta: Actualizacion) -> None:
-    """Reconstruye panel y provincias_actual con las tablas disponibles (en memoria o de la última copia)."""
+def _construir(acta: Actualizacion, carpeta: Path, *, permitir_demanda_incompleta: bool) -> None:
+    """Valida la instantánea antes de guardarla en una carpeta nueva."""
     tablas = dict(acta.tablas)
-    for nombre in ("tiempo_real_provincia", "energia_tiempo_real"):
-        if nombre not in tablas:
-            ruta = curado.CARPETA_TABLAS / f"{nombre}.csv"
-            if ruta.exists():
-                tablas[nombre] = pd.read_csv(ruta, dtype={"codigo_provincia": str})
+    nombres_revisados = {r.nombre for r in acta.resultados}
+    for ruta in sorted((acta.carpeta_copia / "tablas").glob("*.csv")):
+        if ruta.stem in nombres_revisados:
+            continue
+        try:
+            tabla = _leer_copia(ruta)
+        except (OSError, ValueError) as error:
+            acta.resultados.append(Resultado(ruta.stem, "fallo", detalle=f"Copia ilegible ({type(error).__name__})"))
+            continue
+        tablas[ruta.stem] = tabla
+        desde, hasta = _rango_fechas(tabla)
+        acta.resultados.append(Resultado(ruta.stem, "copia_anterior", len(tabla), desde, hasta))
     if "provincias" not in tablas:
         from cpd.fuentes import provincias
 
         tablas["provincias"] = provincias.tabla_provincias()
-    tablas.update({k: v for k, v in curado.leer_tablas().items() if k not in tablas})
     if "tiempo_real_provincia" in tablas and "codigo_provincia" not in tablas["tiempo_real_provincia"]:
         tablas.pop("tiempo_real_provincia")
     panel = curado.construir_panel(tablas)
     actual = curado.provincias_actual(panel, tablas)
-    rutas = curado.escribir_salidas(panel, actual, calidad_demanda=curado.registro_calidad_demanda(tablas))
-    acta.tablas["_panel"] = panel
-    acta.tablas["_actual"] = actual
-    acta.resultados.append(
-        Resultado("panel_provincia_mes", "ok", len(panel), str(panel["mes"].min())[:10], str(panel["mes"].max())[:10],
-                  detalle=f"{panel['codigo_provincia'].nunique()} provincias, {panel.shape[1]} columnas")
-    )
-    acta.resultados.append(
-        Resultado("provincias_actual", "ok", len(actual), detalle=f"{actual['codigo_provincia'].nunique()} provincias, {actual.shape[1]} columnas")
-    )
-    acta.tablas["_rutas"] = pd.DataFrame([{"salida": k, "ruta": str(v)} for k, v in rutas.items()])
+    revision = validacion.validar(panel, actual, permitir_demanda_incompleta=permitir_demanda_incompleta)
+
+    carpeta.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix=".curado-", dir=carpeta.parent) as temporal:
+        preparado = Path(temporal) / "curado"
+        origen = preparado / "tablas"
+        origen.mkdir(parents=True)
+        for nombre, tabla in tablas.items():
+            tabla.to_csv(origen / f"{nombre}.csv", index=False, encoding="utf-8")
+        curado.escribir_salidas(panel, actual, carpeta=preparado, calidad_demanda=curado.registro_calidad_demanda(tablas))
+        metadata = {
+            "generado_en": dt.datetime.now(dt.timezone.utc).isoformat(),
+            **revision,
+            "fuentes": [{k: v for k, v in asdict(r).items() if k != "detalle"} for r in acta.resultados],
+        }
+        (preparado / "actualizacion.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        preparado.rename(carpeta)
+    for aviso in revision["avisos"]:
+        print(f"Aviso: {aviso}")
+    print(f"Instantánea curada: {carpeta}")
 
 
 def imprimir_resumen(acta: Actualizacion) -> None:
@@ -254,19 +279,10 @@ def imprimir_resumen(acta: Actualizacion) -> None:
         print(f"[{r.estado:>14}] {r.nombre:<26} filas={r.filas:<8}{rango}  ({r.segundos:.0f} s)")
         if r.detalle and r.estado != "ok":
             print(f"                   motivo: {r.detalle}")
-    actual = acta.tablas.get("_actual")
-    if actual is not None:
-        con_dato = int(actual.drop(columns=["codigo_provincia", "provincia", "codigo_ccaa", "ccaa", "lat_punto", "lon_punto"], errors="ignore").notna().any(axis=1).sum())
-        print(f"\nProvincias en provincias_actual: {len(actual)}  (con al menos un dato: {con_dato})")
     fallidas = [r.nombre for r in acta.resultados if r.estado == "fallo"]
     copias = [r.nombre for r in acta.resultados if r.estado == "copia_anterior"]
     print(f"Fuentes fallidas sin copia: {', '.join(fallidas) if fallidas else 'ninguna'}")
     print(f"Fuentes que usan la última copia guardada: {', '.join(copias) if copias else 'ninguna'}")
-    rutas = acta.tablas.get("_rutas")
-    if rutas is not None:
-        print("Salidas:")
-        for _, fila in rutas.iterrows():
-            print(f"  {fila['salida']}: {fila['ruta']}")
 
 
 def main(argumentos: list[str] | None = None) -> int:
@@ -274,16 +290,30 @@ def main(argumentos: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Actualiza la capa de datos por API (provincias).")
     parser.add_argument("--rapido", action="store_true", help="Solo campos de tiempo real (clima actual, demanda y precios)")
     parser.add_argument("--anio-fin", type=int, default=dt.date.today().year, help="Último año de historia (por defecto, el actual)")
+    parser.add_argument("--copia", type=Path, default=curado.CARPETA_CURADO, help="instantánea anterior de respaldo")
+    parser.add_argument("--salida", type=Path, help="ruta nueva de la instantánea curada")
+    parser.add_argument("--permitir-demanda-incompleta", action="store_true",
+                        help="conserva la instantánea en modo degradado si falta demanda reciente")
     args = parser.parse_args(argumentos)
-    acta = Actualizacion()
+    carpeta = args.salida or curado.CARPETA_CURADO.parent / "actualizaciones" / (
+        f"{dt.date.today().isoformat()}-{uuid4().hex[:8]}"
+    )
+    if carpeta.exists():
+        parser.error("--salida debe ser una ruta nueva")
+    acta = Actualizacion(carpeta_copia=args.copia)
     inicio = time.monotonic()
     _tiempo_real(acta)
     if not args.rapido:
         _historia(acta, args.anio_fin)
-    _construir(acta)
+    try:
+        _construir(acta, carpeta, permitir_demanda_incompleta=args.permitir_demanda_incompleta)
+    except (ValueError, KeyError, OSError) as error:
+        imprimir_resumen(acta)
+        print(f"Instantánea rechazada: {error}", file=sys.stderr)
+        return 1
     imprimir_resumen(acta)
     print(f"\nTiempo total: {time.monotonic() - inicio:.0f} s")
-    return 0 if "_panel" in acta.tablas else 1
+    return 0
 
 
 if __name__ == "__main__":

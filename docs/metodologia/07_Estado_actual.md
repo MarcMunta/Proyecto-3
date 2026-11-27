@@ -1,12 +1,36 @@
 ---
 tags: [metodologia, estado, auditoria, plan, p3]
 estado: borrador
-actualizado: 2026-11-17
+actualizado: 2026-11-27
 ---
 
 # 07 · Estado actual (auditoría y plan)
 
 Volver a [[00_Indice]]. Filas detalladas en [[06_Checklist_entrega]]. Fecha de auditoría: **14/11/2026**, commit `90b91e4` de `main` (árbol de trabajo limpio).
+
+## Novedades del 27/11/2026 (rama `feature/ingenieria-datos`): clase de Data Engineering
+
+Clase 27/11/2026 «Data Mining & Data Engineering with Python» ([[Clase_2026-11-27_Data_Engineering]], C5) añadida a la metodología y aplicada al proyecto. Filas I71-I89 de [[06_Checklist_entrega]] (16 ✅, 2 🟡, 1 ❌) y reglas R-17 a R-21 en [[04_Reglas_de_datos]].
+
+- **Ingesta más robusta** (`src/cpd/fuentes/http.py`): reintentos con backoff exponencial y jitter (2, 4, 8… s, tope 60 s), respeto de `Retry-After` en los 429 y 503, pausa mínima segura entre hilos, una sesión HTTP por hilo, caché con TTL (`leer_cache_json(ruta, ttl_horas)`) y `en_paralelo` para peticiones independientes.
+- **Aplicado a las fuentes:** NASA POWER pide las 52 provincias con 4 hilos (antes una a una); PeeringDB reutiliza su caché 7 días en vez de descargar en cada ejecución.
+- **Capas Bronze / Silver / Gold** (`src/cpd/capas.py`): Bronze = `data/raw` (876 MB, 1.649 ficheros); Silver = `data/clean` y `data/curated/tablas`, ahora también en Parquet (32 tablas); Gold = `data/curated` y el almacén DuckDB. `python -m cpd.almacen` crea el esquema `gold` (capas, APIs, descargas por día, tablas, watermarks, inventario de Bronze, comparación de formatos e indicadores) y guarda el historial de watermarks en `data/almacen/historial_watermarks.csv`.
+- **CSV frente a Parquet** (medido en `panel_provincia_mes`): Parquet ocupa 3,9 veces menos (0,87 MB frente a 3,38 MB) y DuckDB sobre Parquet es unas 57 veces más rápido que sobre CSV; los cuatro cálculos dan la misma media.
+- **Panel «Datos» del mapa** (botón «Datos» de la cabecera, `#/datos`, junto a «Modelos»; `frontend/src/components/CatalogoDatos.tsx`): 21 fuentes y 1.303 descargas; de dónde sale cada API (dominio, endpoint, módulo, acceso y caché); descargas por fuente y por día; la base de datos DuckDB (5 esquemas, sus tablas, filas y columnas); capas; frescura por watermark; Bronze por carpeta; CSV frente a Parquet. Lee `datos.json`, que `publicar` añade a cada versión (y `python -m cpd.almacen` deja como respaldo); no calcula nada (R-21). Comprobado en escritorio y móvil.
+- **Tests:** Python en verde (`tests/test_capas.py`, 7 nuevos en `tests/test_fuentes.py` y `datos.json` en `tests/test_publicar.py`) y frontend en verde (`frontend/src/data/datosApis.test.ts`).
+- **Checklist:** el total del resumen estaba mal sumado (69 ✅ cuando sus filas daban 83); recalculado con un script: 100 ✅, 62 🟡, 41 ❌ de 203 (incluye los cambios de F del 24/11).
+- **Pendiente:** usar el watermark para decidir qué pedir en `actualizar` (I87) e informe de calidad (I85 → I67-I69).
+
+## Cambios de fiabilidad del 24/11/2026
+
+- **Publicación (B2–B4, F5).** Una versión común para DuckDB, la simulación y las previsiones. La actualización crea una instantánea y verifica cobertura, claves y periodo antes de activar. Con la instantánea de octubre, el 73,7 % de la demanda CCAA–mes de los últimos 12 meses y 4 de 19 series del último mes tienen dato válido. La publicación estricta lo rechaza. La reproducción docente requiere el modo degradado.
+- **Escala y simulación (A1, P1, P3, P7, P8).** El mapa indica filtros críticos pendientes y muestra el precio eléctrico de equilibrio del VAN. DuckDB incorpora contexto municipal de INE/GISCO y nudos REE con su propia granularidad. El enlace del nudo al emplazamiento queda pendiente.
+- **Evaluación (B7, B10).** Presencia de CPD con CCAA completas fuera de pliegue. Para clima a diez años, diagnóstico de MAE, sesgo y cobertura por horizonte. La demanda nacional a diez años sigue siendo un backtesting histórico y el precio utiliza una evaluación retrospectiva.
+- **Arranque web (B9).** Mapa y worker separados del JS inicial. Previsiones bajo demanda en la ficha. Aviso en caso de recurrir a datos de respaldo.
+- **Ficha del mapa (B9, B10).** Dictamen y finanzas al inicio. Cifras de luz, red, demanda, renovables, clima, agua y operación con su ámbito real y detalle desplegable. El catálogo general se abre a la derecha con la selección del mapa activa. Comprobado con Madrid y Zaragoza en escritorio y ancho móvil.
+- **Entrega (F2, F4, F5, F7–F9).** Documentación de almacenamiento, manual y guion de tres casos en las rutas enlazadas en el README. Siguen pendientes el vídeo y la restauración en un equipo limpio.
+
+Los apartados siguientes conservan la cronología previa.
 
 ## Novedades del 17/11/2026 (rama `fix/mapa-revision`, sin commit)
 

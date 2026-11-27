@@ -1,14 +1,14 @@
 <#
-Construye el almacén DuckDB (data/almacen/p3_cpd.duckdb) con todas las tablas curadas y abre
-la interfaz web de DuckDB en el navegador (http://localhost:4213) para verlas, ordenarlas y consultarlas con SQL.
+Abre el DuckDB de la publicación activa para consultar sus datos con SQL.
+Sin publicación activa, reconstruye el almacén auxiliar desde data/curated.
 
 Uso, desde la raíz del repositorio:
-    powershell -ExecutionPolicy Bypass -File scripts\abrir_datos.ps1            # reconstruye y abre
-    powershell -ExecutionPolicy Bypass -File scripts\abrir_datos.ps1 -Actualizar # antes refresca los datos por API
+    powershell -ExecutionPolicy Bypass -File scripts\abrir_datos.ps1            # abre el almacén
+    powershell -ExecutionPolicy Bypass -File scripts\abrir_datos.ps1 -Actualizar # refresca, entrena y publica
 
 Para cerrar la interfaz, pulsa Enter en esta ventana.
 #>
-param([switch]$Actualizar)
+param([switch]$Actualizar, [switch]$PermitirDemandaIncompleta)
 $ErrorActionPreference = 'Stop'
 
 $Raiz = Split-Path -Parent $PSScriptRoot
@@ -20,10 +20,18 @@ if (-not (Test-Path -LiteralPath $Python)) {
 Push-Location $Raiz
 try {
     if ($Actualizar) {
-        Write-Host "Refrescando los datos por API..."
-        & $Python -m cpd.fuentes.actualizar
+        $opciones = @('--actualizar')
+        if ($PermitirDemandaIncompleta) { $opciones += '--permitir-demanda-incompleta' }
+        & $Python -m cpd.publicar @opciones
+        if ($LASTEXITCODE -ne 0) { throw "La actualización se rechazó. Se conserva la versión activa." }
     }
-    & $Python -m cpd.almacen --ui
+    if (Test-Path -LiteralPath (Join-Path $Raiz 'frontend\public\data\publicacion.json')) {
+        & $Python -m cpd.almacen --publicado --ui
+    }
+    else {
+        & $Python -m cpd.almacen --ui
+    }
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally {
     Pop-Location

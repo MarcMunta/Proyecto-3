@@ -14,7 +14,7 @@ export const C = {
 } as const;
 
 /**
- * Rentabilidad: verde (alta) → amarillo (media) → naranja (baja) → rojo (no viable o VAN ≤ 0).
+ * Rentabilidad: verde (alta) → amarillo (media) → naranja (baja) → rojo (VAN ≤ 0 en el lote publicado).
  * Tonos validados con scripts/validate_palette.js de la skill dataviz sobre #111214, todos los pares:
  * daltonismo ΔE ≥ 11 (deutan/protan), visión normal ΔE ≥ 15,2, contraste ≥ 3:1 con el fondo.
  * Nunca va solo: cada clase lleva además su icono de barras y su nombre.
@@ -30,18 +30,13 @@ export const NOMBRE_CLASE: Record<ClaseRentabilidad, string> = {
   alta: "Alta",
   media: "Media",
   baja: "Baja",
-  // La 4.ª clase junta «no pasa un filtro eliminatorio» y «VAN ≤ 0». Con los datos actuales todas las provincias
-  // de esta clase son «No viable» (con VAN positivo), así que el nombre general es ese; la ficha usa nombreClaseDe().
-  no_rentable: "No viable",
+  no_rentable: "No rentable",
 };
 
-/**
- * Nombre de la clase para una provincia concreta: en la 4.ª clase distingue «No viable» (no pasa un filtro
- * eliminatorio, aunque su VAN sea positivo) de «No rentable» (pasa los filtros pero su VAN es ≤ 0).
- */
-export function nombreClaseDe(clase: ClaseRentabilidad, estado: Estado | null | undefined): string {
-  if (clase === "no_rentable" && estado !== "No viable") return "No rentable";
-  return NOMBRE_CLASE[clase];
+/** Las copias antiguas y la demo agrupaban el descarte técnico y el financiero. */
+export function nombreClaseDe(clase: ClaseRentabilidad, estado?: Estado | null, legado = false): string {
+  if (clase !== "no_rentable" || !legado) return NOMBRE_CLASE[clase];
+  return estado ? (estado === "No viable" ? "No viable" : "No rentable") : "Descarte o VAN ≤ 0";
 }
 
 /** Número de barras encendidas del icono (como la cobertura de un móvil). */

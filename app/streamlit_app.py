@@ -10,6 +10,7 @@ Pestañas: Ranking, Mapa, Ficha municipio, Económico, Previsión demanda y Esce
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 # Permite importar el paquete cpd aunque no se haya hecho "pip install -e ."
@@ -28,6 +29,7 @@ from cpd.forecast import prever_mensual  # noqa: E402
 from cpd.scoring import (  # noqa: E402
     ESTADO_CONDICIONES,
     ESTADO_NO_VIABLE,
+    ESTADO_PENDIENTE_VERIFICAR,
     ESTADO_VIABLE,
     INDICADORES_POR_BLOQUE,
     evaluar,
@@ -36,15 +38,17 @@ from cpd.scoring import (  # noqa: E402
 )
 from cpd.simulator import TIPOS_REFRIGERACION, CPDParams  # noqa: E402
 
-ORDEN_ESTADOS: list[str] = [ESTADO_VIABLE, ESTADO_CONDICIONES, ESTADO_NO_VIABLE]
+ORDEN_ESTADOS: list[str] = [ESTADO_VIABLE, ESTADO_CONDICIONES, ESTADO_PENDIENTE_VERIFICAR, ESTADO_NO_VIABLE]
 COLORES_ESTADO: dict[str, str] = {
     ESTADO_VIABLE: "#2E7D5B",
     ESTADO_CONDICIONES: "#C98A1B",
+    ESTADO_PENDIENTE_VERIFICAR: "#536878",
     ESTADO_NO_VIABLE: "#B5473A",
 }
 FONDO_ESTADO: dict[str, str] = {
     ESTADO_VIABLE: "#D7EFE2",
     ESTADO_CONDICIONES: "#FBEBC8",
+    ESTADO_PENDIENTE_VERIFICAR: "#DDE5EB",
     ESTADO_NO_VIABLE: "#F4D3CE",
 }
 ETIQUETAS_BLOQUE: dict[str, str] = {
@@ -145,12 +149,16 @@ def sidebar_parametros(settings: dict) -> tuple[CPDParams, dict[str, float]]:
 def render_ranking(res: pd.DataFrame) -> None:
     """Pestaña Ranking: contadores por estado y tabla ordenada con colores."""
     conteo = res["estado"].value_counts()
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     c1.metric(ESTADO_VIABLE, int(conteo.get(ESTADO_VIABLE, 0)))
     c2.metric(ESTADO_CONDICIONES, int(conteo.get(ESTADO_CONDICIONES, 0)))
-    c3.metric(ESTADO_NO_VIABLE, int(conteo.get(ESTADO_NO_VIABLE, 0)))
+    c3.metric(ESTADO_PENDIENTE_VERIFICAR, int(conteo.get(ESTADO_PENDIENTE_VERIFICAR, 0)))
+    c4.metric(ESTADO_NO_VIABLE, int(conteo.get(ESTADO_NO_VIABLE, 0)))
 
-    columnas = ["ranking", "municipio", "provincia", "estado", "score_global", "opex_eur", "van_eur", "impacto_local_pct"]
+    columnas = [
+        "ranking", "municipio", "provincia", "estado", "filtros_evaluados", "filtros_totales",
+        "cobertura_filtros_pct", "score_global", "opex_eur", "van_eur", "impacto_local_pct",
+    ]
     tabla = res[[c for c in columnas if c in res.columns]].copy()
     tabla["motivos"] = res["motivos"].apply(lambda m: "; ".join(m) if isinstance(m, list) else "")
     formatos = {
@@ -158,6 +166,7 @@ def render_ranking(res: pd.DataFrame) -> None:
         "opex_eur": fmt_m,
         "van_eur": fmt_m,
         "impacto_local_pct": lambda v: fmt(v, 1) + " %" if fmt(v, 1) != "—" else "—",
+        "cobertura_filtros_pct": lambda v: fmt(v, 1) + " %" if fmt(v, 1) != "—" else "—",
     }
     estilo = (
         tabla.style.map(colorear_estado, subset=["estado"])
@@ -165,7 +174,7 @@ def render_ranking(res: pd.DataFrame) -> None:
     )
     st.dataframe(estilo, hide_index=True)
     st.caption(
-        "Orden: primero Viable, después Viable con condiciones y al final No viable. "
+        "Orden: primero Viable, después Viable con condiciones, Pendiente de verificar y al final No viable. "
         "Dentro de cada estado, de mayor a menor score global (0-100)."
     )
 
@@ -204,12 +213,23 @@ def render_ficha(res: pd.DataFrame, sel: str) -> None:
         st.success(mensaje)
     elif estado == ESTADO_CONDICIONES:
         st.warning(mensaje)
+    elif estado == ESTADO_PENDIENTE_VERIFICAR:
+        st.info(mensaje)
     else:
         st.error(mensaje)
 
     st.markdown("**Motivos**")
     for motivo in fila["motivos"] if isinstance(fila["motivos"], list) else []:
         st.markdown(f"- {motivo}")
+
+    if "filtros_totales" in fila:
+        pendientes = fila.get("filtros_pendientes", [])
+        texto_pendientes = ", ".join(pendientes) if isinstance(pendientes, list) and pendientes else "ninguno"
+        st.caption(
+            f"Filtros críticos evaluados: {fmt(fila.get('filtros_evaluados'))} de "
+            f"{fmt(fila.get('filtros_totales'))} ({fmt(fila.get('cobertura_filtros_pct'), 1)} %). "
+            f"Pendientes: {texto_pendientes}."
+        )
 
     izquierda, derecha = st.columns(2)
     with izquierda:
@@ -270,6 +290,12 @@ def render_economico(res: pd.DataFrame, sel: str, params: CPDParams, settings: d
         a.metric("Flujo de caja anual", fmt_m(fila["flujo_caja_anual_eur"]))
         b.metric("CAPEX total", fmt_m(fila["capex_total_eur"]))
         a.metric("VAN", fmt_m(fila["van_eur"]))
+        a.metric(
+            "Precio de equilibrio eléctrico",
+            "—" if pd.isna(fila.get("precio_equilibrio_electricidad_eur_mwh"))
+            else f"{fmt(fila['precio_equilibrio_electricidad_eur_mwh'], 1)} €/MWh",
+            help="Precio máximo de compra de electricidad que deja el VAN en cero con estos supuestos.",
+        )
         b.metric("ROI", "—" if pd.isna(fila["roi"]) else f"{fmt(fila['roi'] * 100, 1)} %")
         a.metric("Payback", "No se recupera" if pd.isna(fila["payback_anos"]) else f"{fmt(fila['payback_anos'], 1)} años")
 
@@ -332,23 +358,29 @@ def render_escenarios(df: pd.DataFrame, params: CPDParams, settings: dict, pesos
     opciones = [f"Mantener ({params.tipo_refrigeracion})"] + list(TIPOS_REFRIGERACION)
     seleccion = c3.selectbox("Refrigeración del escenario", opciones)
     tipo_esc = None if seleccion.startswith("Mantener") else seleccion
+    a, b = st.columns(2)
+    ocupacion = a.slider("Ocupación del escenario (%)", 0, 100, round(100 * settings["precios"]["ocupacion"]))
+    pct_capex = b.slider("Variación del CAPEX (%)", -50, 100, 0, 5)
 
     df_esc, params_esc, settings_esc = preparar_escenario(
         df, params, settings, pct_precio_electricidad=pct / 100,
         incremento_estres=incremento, tipo_refrigeracion=tipo_esc,
     )
-    res_esc = evaluar(df_esc, params_esc, settings_esc, pesos)
+    params_esc = replace(params_esc, inversion_eur=params.inversion_eur * (1 + pct_capex / 100))
+    settings_esc["precios"]["ocupacion"] = ocupacion / 100
+    res_esc = evaluar(df_esc, params_esc, settings_esc, pesos, referencia=res_base)
 
-    cols = ["municipio", "estado", "ranking", "score_global"]
+    cols = ["municipio", "estado", "ranking", "score_global", "van_eur"]
     union = res_base[cols].merge(res_esc[cols], on="municipio", suffixes=("_base", "_esc"))
     union["cambio_posicion"] = union["ranking_base"] - union["ranking_esc"]
     union["delta_score"] = union["score_global_esc"] - union["score_global_base"]
+    union["delta_van_meur"] = (union["van_eur_esc"] - union["van_eur_base"]) / 1e6
     union = union.sort_values("ranking_esc")
 
     tabla = union[["municipio", "estado_base", "estado_esc", "ranking_base", "ranking_esc", "cambio_posicion", "score_global_base", "score_global_esc", "delta_score"]]
     estilo = (
         tabla.style.map(colorear_estado, subset=["estado_base", "estado_esc"])
-        .format({"score_global_base": lambda v: fmt(v, 1), "score_global_esc": lambda v: fmt(v, 1), "delta_score": lambda v: fmt(v, 1)})
+        .format({"score_global_base": lambda v: fmt(v, 1), "score_global_esc": lambda v: fmt(v, 1), "delta_score": lambda v: fmt(v, 1), "delta_van_meur": lambda v: fmt(v, 1)})
     )
     st.dataframe(estilo, hide_index=True)
     st.caption("Cambio de posición positivo = el municipio sube en el ranking del escenario.")

@@ -14,6 +14,8 @@ describe("normalizarPrevisiones", () => {
         historia: [{ mes: "2026-09", valor: 143 }, { mes: "2026-10", valor: 167 }, { mes: "mal", valor: 1 }],
         prevision: [{ mes: "2026-11", valor: 171, inferior: 120, superior: null }],
         media_prevista: 153,
+        acierto_test: 57.1,
+        acierto_anual_test: "68",
       },
       demanda: {
         modelo: "combinacion",
@@ -30,6 +32,8 @@ describe("normalizarPrevisiones", () => {
     const p = normalizarPrevisiones(json)!;
     expect(p.precio?.miembros).toEqual(["ets", "naive"]);
     expect(p.precio?.errorTest).toBe(30);
+    expect(p.precio?.aciertoTest).toBe(57.1);
+    expect(p.precio?.aciertoAnualTest).toBe(68);
     expect(p.precio?.historia).toHaveLength(2);
     expect(p.precio?.prevision[0]).toEqual({ mes: "2026-11", valor: 171, inferior: 120, superior: null });
     expect([...p.demanda.keys()]).toEqual(["13"]);
@@ -48,12 +52,22 @@ describe("reservas, demanda a 10 años y control de acierto", () => {
     const p = normalizarPrevisiones({
       reservas: { modelo: "combinacion", acierto_validacion: 86.7, acierto_test: 85.3, ambitos: { Tajo: { historia: [{ mes: "2026-10", valor: 57 }], prevision: [{ mes: "2026-11", valor: 56, inferior: 50, superior: 62 }] } } },
       demanda_10_anios: { modelo: "combinacion", acierto: 97.3, historia: [{ anio: 2025, valor: 256 }], prevision: [{ anio: 2035, valor: 244, inferior: 221, superior: 269 }] },
-      control_acierto: [{ modelo: "Precio de la luz a 1 año", estado: "no cumple (< 85 %)" }, { estado: "sin modelo" }],
+      control_acierto: [
+        { modelo: "Reservas de agua a 1 año", estado: "cumple", definicion: "100 − WAPE", acierto_validacion: "86.7", acierto_test: null },
+        { estado: "sin modelo" },
+      ],
     })!;
     expect(p.reservas.get("Tajo")?.aciertoTest).toBe(85.3);
     expect(p.demanda10?.prevision[0]).toEqual({ mes: "2035-01", valor: 244, inferior: 221, superior: 269 });
     expect(p.demanda10?.acierto).toBe(97.3);
-    expect(p.control).toEqual([{ modelo: "Precio de la luz a 1 año", estado: "no cumple (< 85 %)" }]);
+    expect(p.control).toEqual([{
+      modelo: "Reservas de agua a 1 año",
+      estado: "cumple",
+      definicion: "100 − WAPE",
+      aciertoValidacion: 86.7,
+      aciertoTest: null,
+      metodo: { nombre: "combinacion", miembros: [] },
+    }]);
   });
 });
 
@@ -114,7 +128,10 @@ describe("medio plazo (10 años)", () => {
     const p = normalizarPrevisiones({
       medio_plazo: {
         anio_final: 2035,
-        temperatura: { acierto_test: 94.8 },
+        temperatura: { diagnosticos_horizonte: [
+          { particion: "validacion", horizonte_anios: 10, mae: 0.3, cobertura_banda_10_90_pct: 80 },
+          { particion: "test", horizonte_anios: 10, mae: 1.2, cobertura_banda_10_90_pct: 4 },
+        ] },
         reservas: { acierto_decada_test: 86.6 },
         provincias: {
           "50": { temp_10a_c: 15.4, temp_final_c: 15.7, temp_final_inferior_c: 15.1, temp_final_superior_c: 16.5, pue_10a: 1.3, pue_final: 1.31, cambio_consumo_pct: 0.4, ambito: "Ebro", reserva_decada_prevista_pct: 61.2 },
@@ -123,7 +140,7 @@ describe("medio plazo (10 años)", () => {
       },
     })!;
     expect(p.medioPlazo.size).toBe(1);
-    expect(p.medioPlazo.get("50")).toMatchObject({ anioFinal: 2035, tempFinal: 15.7, pueFinal: 1.31, reservaDecadaPct: 61.2, ambito: "Ebro", aciertoTemperaturaTest: 94.8, aciertoReservaDecadaTest: 86.6 });
+    expect(p.medioPlazo.get("50")).toMatchObject({ anioFinal: 2035, tempFinal: 15.7, pueFinal: 1.31, reservaDecadaPct: 61.2, ambito: "Ebro", maeTemperaturaFinal: 1.2, coberturaTemperaturaFinalPct: 4, aciertoReservaDecadaTest: 86.6 });
   });
 });
 

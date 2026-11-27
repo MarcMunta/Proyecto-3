@@ -99,6 +99,33 @@ def test_van_con_descuento():
     assert sim.van([100, 100], 0.10, 150) == pytest.approx(expected)
 
 
+def test_precio_equilibrio_electricidad_hace_van_cero():
+    precio = sim.precio_equilibrio_electricidad_eur_mwh(
+        consumo_mwh=1_000,
+        autoproduccion_mwh=0,
+        repercusion_energia_pct=0.2,
+        ingresos_alquiler_eur=300_000,
+        otros_costes_anuales_eur=100_000,
+        tasa_descuento=0.0,
+        vida_util_anos=10,
+        inversion_eur=1_000_000,
+    )
+    assert precio == pytest.approx(125.0)
+
+
+def test_precio_equilibrio_es_none_sin_compra_de_red():
+    assert sim.precio_equilibrio_electricidad_eur_mwh(
+        consumo_mwh=1_000,
+        autoproduccion_mwh=1_000,
+        repercusion_energia_pct=0.2,
+        ingresos_alquiler_eur=300_000,
+        otros_costes_anuales_eur=100_000,
+        tasa_descuento=0.0,
+        vida_util_anos=10,
+        inversion_eur=1_000_000,
+    ) is None
+
+
 def test_roi():
     # (300 − 200) / 200 = 0.5
     assert sim.roi([100, 100, 100], 200) == pytest.approx(0.5)

@@ -10,7 +10,11 @@ Esquemas:
   fuentes  una tabla por cada fichero de data/curated/tablas/ (clima, energía, paro, sismicidad...)
   modelo   tablas listas para entrenar y predecir: panel_provincia_mes, provincias_actual y sus diccionarios
   dw       modelo en estrella: dim_provincia, dim_tiempo, dim_fuente y fact_provincia_mes
+  gold     tablas ya agregadas para el dashboard de datos y APIs (ver cpd.capas): capas, APIs, watermarks…
   meta     registro de la carga (qué fichero, cuántas filas, cuándo)
+
+Antes de cargar, cada tabla de data/curated/tablas/ se guarda también en Parquet si su CSV ha cambiado
+(cpd.capas.tablas_a_parquet), y se cargan los Parquet (columnar y con tipos).
 
 Uso:
   python -m cpd.almacen          reconstruye el almacén
@@ -23,13 +27,16 @@ import csv
 import datetime as dt
 import re
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import duckdb
 
+from cpd import capas
 from cpd.config import RUTA_RAIZ
 
 CARPETA_CURADO = RUTA_RAIZ / "data" / "curated"
 REGISTRO_DESCARGAS = RUTA_RAIZ / "data" / "raw" / "_registro_descargas.csv"
+RUTA_DATOS_WEB = RUTA_RAIZ / "frontend" / "public" / "data" / "datos.json"
 RUTA_ALMACEN = RUTA_RAIZ / "data" / "almacen" / "p3_cpd.duckdb"
 
 # Columnas que son códigos con ceros a la izquierda ("01", "08019"): se leen siempre como texto.
@@ -64,11 +71,11 @@ def _lector(ruta: Path) -> str:
     return f"read_parquet({_literal(ruta)})" if ruta.suffix == ".parquet" else _lector_csv(ruta)
 
 
-def _cargar(con: duckdb.DuckDBPyConnection, esquema: str, tabla: str, ruta: Path) -> int:
+def _cargar(con: duckdb.DuckDBPyConnection, esquema: str, tabla: str, ruta: Path, carpeta: Path) -> int:
     con.execute(f"CREATE OR REPLACE TABLE {esquema}.{tabla} AS SELECT * FROM {_lector(ruta)}")
     filas = con.execute(f"SELECT count(*) FROM {esquema}.{tabla}").fetchone()[0]
     con.execute("INSERT INTO meta.carga VALUES (?, ?, ?, ?, ?)",
-                [esquema, tabla, str(ruta), filas, dt.datetime.now()])
+                [esquema, tabla, ruta.relative_to(carpeta).as_posix(), filas, dt.datetime.now()])
     return filas
 
 
@@ -92,15 +99,47 @@ def _existe(con: duckdb.DuckDBPyConnection, esquema: str, tabla: str) -> bool:
     return bool(_columnas(con, esquema, tabla))
 
 
+# Vistas agregables sin multiplicar valores nacionales, autonómicos o por cuenca por provincia.
+_HECHOS = (
+    ("fact_energia_ccaa_mes", ("codigo_ccaa", "mes"),
+     ("demanda_ccaa_mwh", "generacion_total_ccaa_mwh", "generacion_renovable_ccaa_mwh", "pct_renovable_ccaa")),
+    ("fact_reservas_ambito_mes", ("ambito_hidrografico", "mes"),
+     ("reserva_hidrica_pct", "reserva_hidrica_hm3", "capacidad_embalses_ambito_hm3")),
+    ("fact_energia_nacional_mes", ("mes",),
+     ("precio_spot_medio_mes_eur_mwh", "precio_pvpc_medio_mes_eur_mwh", "emisiones_co2_nacional_tco2eq")),
+)
+
+
+def _vistas_hechos(con: duckdb.DuckDBPyConnection) -> None:
+    columnas = set(_columnas(con, "dw", "fact_provincia_mes"))
+    for vista, claves, indicadores in _HECHOS:
+        disponibles = [campo for campo in indicadores if campo in columnas]
+        if not set(claves).issubset(columnas) or not disponibles:
+            continue
+        grupo = ", ".join(claves)
+        filtro = " AND ".join(f"{clave} IS NOT NULL" for clave in claves)
+        conflicto = " OR ".join(f"count(DISTINCT {campo}) > 1" for campo in disponibles)
+        seleccion = ", ".join(f"max({campo}) AS {campo}" for campo in disponibles)
+        base = f"FROM dw.fact_provincia_mes WHERE {filtro} GROUP BY {grupo}"
+        if con.execute(f"SELECT 1 {base} HAVING {conflicto} LIMIT 1").fetchone():
+            raise ValueError(f"Valores incompatibles para la granularidad de {vista}")
+        con.execute(f"CREATE VIEW dw.{vista} AS SELECT {grupo}, {seleccion} {base}")
+
+
 def construir(ruta_almacen: Path = RUTA_ALMACEN, carpeta_curado: Path = CARPETA_CURADO,
-              registro: Path = REGISTRO_DESCARGAS) -> dict[str, int]:
+              registro: Path = REGISTRO_DESCARGAS, ruta_historial: Path | None = None) -> dict[str, int]:
     """Reconstruye el almacén DuckDB y devuelve {esquema.tabla: filas}."""
     ruta_almacen.parent.mkdir(parents=True, exist_ok=True)
-    tmp = ruta_almacen.with_suffix(".tmp.duckdb")
-    tmp.unlink(missing_ok=True)
-    resumen: dict[str, int] = {}
+    with TemporaryDirectory(prefix=".duckdb-", dir=ruta_almacen.parent) as temporal:
+        tmp = Path(temporal) / "almacen.duckdb"
+        resumen = _construir(tmp, carpeta_curado, registro,
+                             ruta_historial or ruta_almacen.parent / capas.NOMBRE_HISTORIAL)
+        tmp.replace(ruta_almacen)
+    return resumen
 
-    # Se construye en un fichero temporal y se renombra al final: si algo falla, el almacén anterior sigue intacto.
+
+def _construir(tmp: Path, carpeta_curado: Path, registro: Path, ruta_historial: Path) -> dict[str, int]:
+    resumen: dict[str, int] = {}
     with duckdb.connect(str(tmp)) as con:
         for esquema in ("fuentes", "modelo", "dw", "meta"):
             con.execute(f"CREATE SCHEMA IF NOT EXISTS {esquema}")
@@ -109,17 +148,18 @@ def construir(ruta_almacen: Path = RUTA_ALMACEN, carpeta_curado: Path = CARPETA_
 
         # 1) Tablas fuente: cada fichero de data/curated/tablas/ (Parquet si lo hay, si no CSV)
         carpeta_tablas = carpeta_curado / "tablas"
+        capas.tablas_a_parquet(carpeta_tablas, _lector_csv)
         nombres = sorted({p.stem for p in carpeta_tablas.glob("*") if p.suffix in (".csv", ".parquet")})
         for nombre in nombres:
             ruta = _preferir_parquet(carpeta_tablas, nombre)
-            resumen[f"fuentes.{_ident(nombre)}"] = _cargar(con, "fuentes", _ident(nombre), ruta)
+            resumen[f"fuentes.{_ident(nombre)}"] = _cargar(con, "fuentes", _ident(nombre), ruta, carpeta_curado)
 
         # 2) Tablas del modelo (entrenamiento y predicción) y sus diccionarios de datos
         for nombre in ("panel_provincia_mes", "provincias_actual",
                        "diccionario_panel_provincia_mes", "diccionario_provincias_actual"):
             ruta = _preferir_parquet(carpeta_curado, nombre)
             if ruta:
-                resumen[f"modelo.{nombre}"] = _cargar(con, "modelo", nombre, ruta)
+                resumen[f"modelo.{nombre}"] = _cargar(con, "modelo", nombre, ruta, carpeta_curado)
 
         # 3) Modelo en estrella
         if _existe(con, "fuentes", "provincias"):
@@ -166,8 +206,13 @@ def construir(ruta_almacen: Path = RUTA_ALMACEN, carpeta_curado: Path = CARPETA_
                 SELECT CAST(p.{col_mes} AS DATE) AS mes, p.* EXCLUDE ({col_mes})
                 FROM modelo.panel_provincia_mes AS p
             """)
+            _vistas_hechos(con)
 
-    tmp.replace(ruta_almacen)
+        # 4) Capa Gold del dashboard (capas, APIs, watermarks, formatos) y su historial de watermarks
+        resumen.update(capas.construir_gold(
+            con, raiz=registro.parent.parent.parent, registro=registro, carpeta_curado=carpeta_curado,
+            ruta_historial=ruta_historial, lector_csv=_lector_csv))
+
     return resumen
 
 
@@ -193,6 +238,9 @@ def main() -> None:
     for tabla, filas in resumen.items():
         print(f"  {tabla:<{ancho}}  {filas:>10,} filas")
     print(f"Almacén: {RUTA_ALMACEN.relative_to(RUTA_RAIZ)}")
+    # Copia de respaldo del dashboard de datos de la web (la versión publicada lleva la suya).
+    capas.escribir_json_web(capas.exportar_web(RUTA_ALMACEN), RUTA_DATOS_WEB)
+    print(f"Dashboard de datos: {RUTA_DATOS_WEB.relative_to(RUTA_RAIZ)}")
     if args.ui:
         abrir_ui()
 

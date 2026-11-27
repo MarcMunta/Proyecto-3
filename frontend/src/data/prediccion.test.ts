@@ -89,7 +89,9 @@ describe("rangoVanClasificadas y nombreClaseDe", () => {
   });
 
   it("distingue «No viable» (filtro eliminatorio) de «No rentable» (VAN ≤ 0)", () => {
-    expect(nombreClaseDe("no_rentable", "No viable")).toBe("No viable");
+    expect(nombreClaseDe("no_rentable", "No viable")).toBe("No rentable");
+    expect(nombreClaseDe("no_rentable", "No viable", true)).toBe("No viable");
+    expect(nombreClaseDe("no_rentable", null, true)).toBe("Descarte o VAN ≤ 0");
     expect(nombreClaseDe("no_rentable", "Viable")).toBe("No rentable");
     expect(nombreClaseDe("alta", "Viable")).toBe("Alta");
   });
@@ -101,7 +103,11 @@ describe("salidas de los modelos en la simulación", () => {
     const json = {
       modelos: { prob_cpd: { modelo: "solo_poblacion", roc_auc: 0.88, provincias_con_cpd: 14 }, demanda: { modelo: "", mape_test_pct: 4.9 } },
       provincias: [
-        { codigo_provincia: "28", prob_cpd: 0.95, demanda_ccaa_ultimos_12m_mwh: 2.9e7, demanda_ccaa_prevision_12m_mwh: "x", demanda_ccaa_hasta: "2026-06" },
+        {
+          codigo_provincia: "28", prob_cpd: 0.95, demanda_ccaa_ultimos_12m_mwh: 2.9e7, demanda_ccaa_prevision_12m_mwh: "x", demanda_ccaa_hasta: "2026-06",
+          estado: "Pendiente de verificar", filtros_evaluados: 6, filtros_totales: 8, cobertura_filtros_pct: 75,
+          filtros_pendientes: ["zona inundable"], precio_equilibrio_electricidad_eur_mwh: 91.5,
+        },
       ],
     };
     const p = normalizarReal(json, META, "simulacion")!;
@@ -110,6 +116,12 @@ describe("salidas de los modelos en la simulación", () => {
     expect(mad.demanda_ccaa_ultimos_12m_mwh).toBe(2.9e7);
     expect(mad.demanda_ccaa_prevision_12m_mwh).toBeNull();
     expect(mad.demanda_ccaa_hasta).toBe("2026-06");
+    expect(mad.estado).toBe("Pendiente de verificar");
+    expect(mad.filtros_evaluados).toBe(6);
+    expect(mad.filtros_totales).toBe(8);
+    expect(mad.cobertura_filtros_pct).toBe(75);
+    expect(mad.filtros_pendientes).toEqual(["zona inundable"]);
+    expect(mad.precio_equilibrio_electricidad_eur_mwh).toBe(91.5);
     expect(p.modelos?.prob_cpd).toEqual({ modelo: "solo_poblacion", roc_auc: 0.88, provincias_con_cpd: 14 });
     expect(p.modelos?.demanda).toBeUndefined();
   });

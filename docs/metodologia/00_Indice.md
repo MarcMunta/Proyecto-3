@@ -1,7 +1,7 @@
 ---
 tags: [metodologia, indice, p3]
 estado: borrador
-actualizado: 2026-11-14
+actualizado: 2026-11-27
 ---
 
 # Metodología del equipo · Proyecto 3 (CPD)
@@ -26,7 +26,7 @@ Sin Obsidian también se puede leer todo en GitHub: los enlaces `[[nota]]` son t
 | Nota | Para qué sirve | Cuándo leerla |
 |---|---|---|
 | [[01_Objetivo_y_alcance]] | Objetivo real del proyecto, preguntas que debe responder, decisiones de alcance, entregables y fechas | Al empezar y cada vez que haya dudas sobre "qué hay que hacer" |
-| [[02_Conceptos_clave]] | Glosario de todos los términos importantes de los 4 PDF de clase y del enunciado | Cuando aparezca un término que no entiendas |
+| [[02_Conceptos_clave]] | Glosario de todos los términos importantes de los 5 PDF de clase y del enunciado | Cuando aparezca un término que no entiendas |
 | [[03_Flujo_de_trabajo]] | **El método paso a paso**, fase a fase (0 a 11), con técnicas, salidas y "hecho cuando" | Para saber qué toca hacer ahora y en qué orden |
 | [[04_Reglas_de_datos]] | Reglas no negociables sobre datos (no inventar valores, capas raw, códigos INE, fugas de información…) | Antes de tocar cualquier dato |
 | [[05_Reglas_de_codigo_y_git]] | Flujo de ramas, commits, pull requests, tests y convenciones de código | Antes de escribir código o abrir una PR |
@@ -34,7 +34,7 @@ Sin Obsidian también se puede leer todo en GitHub: los enlaces `[[nota]]` son t
 | [[07_Estado_actual]] | Auditoría del repositorio: hecho, parcial, pendiente, riesgos y plan semanal hasta el 15/12 | Cada semana, en la reunión de equipo |
 | [[08_Plantillas]] | Plantillas de tarea/issue, PR, cabecera de notebook, sección de informe, ficha de modelo (model card) | Al crear una tarea, una PR o un informe |
 
-Carpeta `fuentes/`: una nota por documento de origen (enunciado y 4 clases), con resumen, términos clave,
+Carpeta `fuentes/`: una nota por documento de origen (enunciado y 5 clases), con resumen, términos clave,
 acciones obligatorias o recomendadas, enlaces y cómo se aplica a P3.
 
 | Fuente | Nota |
@@ -44,6 +44,7 @@ acciones obligatorias o recomendadas, enlaces y cómo se aplica a P3.
 | Clase 09/10/2026 · Visualización y correlación | [[Clase_2026-10-09_Data_Visualization_Correlation]] |
 | Clase 23/10/2026 · Forecasting y métricas | [[Clase_2026-10-23_Forecasting_Metricas]] |
 | Clase 13/11/2026 · Advanced Feature Engineering | [[Clase_2026-11-13_Advanced_Feature_Engineering]] |
+| Clase 27/11/2026 · Data Mining & Data Engineering | [[Clase_2026-11-27_Data_Engineering]] |
 
 ## Orden de lectura recomendado
 

@@ -10,7 +10,7 @@ Eléctrica) y tiempo actual de cada capital (Open-Meteo).
 
 ## Cómo ejecutarlo
 
-Requisitos: Node.js 20 o superior (probado con Node 24).
+Requisitos: Node.js 24 (entorno verificado).
 
 ```powershell
 cd frontend
@@ -39,6 +39,11 @@ Se abre en http://localhost:5173. No hace falta ninguna clave de API.
   Dentro se ven sus municipios reales; pasar el ratón muestra el nombre y la superficie.
 - **Volver:** botón *Toda España* o tecla `Esc`. Cada vista tiene su enlace (`#/provincia/28`).
 - **Teclado:** la lista es navegable con `Tab` y tiene buscador; el mapa admite flechas y `+`/`−`.
+- **Modelos y Datos:** los botones de la cabecera abren paneles laterales sin perder el mapa ni la provincia elegida.
+  *Datos* (`#/datos`) enseña de dónde sale cada cifra: fuentes y APIs (dominio, endpoint, módulo, acceso y caché),
+  descargas por fuente y por día, la base de datos DuckDB por esquema y tabla, las capas Bronze/Silver/Gold, la
+  frescura de cada tabla y CSV frente a Parquet. Lee `datos.json` de la versión publicada (o la copia
+  `public/data/datos.json`, que regenera `python -m cpd.almacen`); no calcula nada.
   Con *reducir movimiento* activado en el sistema no hay animaciones de vuelo ni de números.
 
 ### Paleta de rentabilidad
@@ -69,13 +74,19 @@ El resultado (`public/data/provincias_simuladas.json`) cubre las 52 provincias c
 recuperación, CAPEX, OPEX, PUE, latencia y motivos; si a una provincia le falta un dato (p. ej. embalses en Baleares,
 Canarias, Ceuta y Melilla) se calcula con lo que hay y la ficha dice qué falta. Lo que solo existe por parcela (zona
 inundable, Red Natura de la parcela, distancia a subestación, sismicidad en g, suelo) no se evalúa a escala
-provincial. La **clase de rentabilidad es relativa**: «no viable» o VAN ≤ 0 → no rentable; el resto, tercios del VAN
+provincial. La **clase de rentabilidad es relativa**: VAN ≤ 0 → no rentable. Los VAN positivos se reparten en tercios
 (con los supuestos actuales todas las viables tienen VAN positivo, entre unos 20 y 26 M€). La interfaz muestra la
 fecha de los datos. Test: `.venv\Scripts\python.exe -m pytest frontend/scripts -q`.
 
 ### Orden de las fuentes
 
-Al arrancar, la app busca primero **`data/curated/predicciones_provincia.json`** (raíz del repositorio): una lista con un
+Al arrancar, la app intenta primero la **publicación atómica**: `public/data/publicacion.json` apunta a una versión y los dos
+ficheros `data/versiones/<versión>/provincias_simuladas.json` y `previsiones.json` deben declarar exactamente el mismo
+`schema_version: 1` y `version`. El exportador solo activa el puntero cuando ambos ficheros ya están preparados. Si falta,
+está corrupta, mezcla versiones o lleva más de siete días sin regenerarse, la cabecera muestra *Publicación pendiente de
+verificar* y la app usa el respaldo sin combinar ficheros de versiones distintas.
+
+Después conserva el orden histórico: **`data/curated/predicciones_provincia.json`** (raíz del repositorio) es una lista con un
 objeto por provincia (`codigo_provincia`, `provincia`, `ccaa`, `rentabilidad_clase` = `alta | media | baja |
 no_rentable`, `score_viabilidad`, `estado`, `van_eur`, `roi`, `payback_anos`, `capex_eur`, `opex_eur_anual`,
 `precio_luz_actual_eur_mwh`, `precio_luz_previsto_eur_mwh`, `temp_media_anual_c`, `horas_free_cooling_anual`,
@@ -106,6 +117,10 @@ Los datos en directo llevan un punto y su hora («en directo 21:15»). Con la de
 
 Las provincias sin datos **no tienen ninguna cifra inventada**: salen rayadas, con *Sin datos todavía*, sus datos
 geográficos reales y el tiempo en directo de su capital.
+
+Las fichas provinciales también indican cuántos filtros eliminatorios se han evaluado y cuáles quedan pendientes. El estado
+*Pendiente de verificar* nunca se interpreta como aprobación. Cuando está disponible, el *precio de equilibrio eléctrico*
+es el precio de compra en €/MWh que deja el VAN en cero.
 
 ### Datos en directo
 
@@ -199,3 +214,11 @@ frontend/
   son exclusivos de la demostración.
 - El recálculo con el precio de hoy es una ilustración («si todo el año fuera como hoy»), no una previsión.
 - ESIOS y AEMET (más detalle, necesitan clave gratuita) no se usan.
+
+
+## Lote activo
+
+Genera el lote desde la raíz con python -m cpd.publicar. El ranking usa su JSON provincial.
+Al abrir una ficha se descargan las previsiones del mismo identificador de versión. El navegador
+avisa si el detalle falta o si el lote está desactualizado. Una previsión con otra versión queda
+fuera de la ficha. El mapa usa un módulo y un worker independientes del arranque del ranking.

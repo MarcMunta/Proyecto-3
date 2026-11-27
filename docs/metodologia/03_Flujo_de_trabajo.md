@@ -79,7 +79,11 @@ inicial y "un proyecto de equipo como empresa" [C1 p.7-8]; enums como buena prá
 6. Tipos de datos: anotar si cada fuente es relacional/tabular, JSON, XLSX o Access [C1 p.3]. Distinguir cualitativo y cuantitativo [C1 p.4].
 7. Si se usan datos propios (encuesta, fotos, registros) [C1 p.5], documentar cómo se obtienen y su sesgo. El enunciado no los pide.
 
-**Técnicas de clase.** Adquisición desde datos abiertos y desde fuentes propias; convertir todo a un formato común ("common ground") [C1 p.5]; tipos de datos relacionales, no relacionales, tabulares y no tabulares [C1 p.3]; datos cualitativos y cuantitativos [C1 p.4].
+8. Optimizar las peticiones (R-18, R-19) [C5 p.10-20]: filtrar en la API; agrupar elementos en una petición (batching); paralelizar lo independiente con un máximo de hilos (`http.en_paralelo`); respetar el límite de ritmo y los 429; reintentar con backoff exponencial y jitter; cachear lo estático sin caducidad y lo semiestático con TTL.
+9. Decidir el modo de ingesta [C5 p.4-6]: batch e incremental para el histórico (solo se pide lo nuevo) y polling para el tiempo real. Streaming no hace falta en P3.
+10. Guardar por capas (R-20) [C5 p.34]: Bronze (`data/raw`), Silver (`data/curated/tablas`, CSV + Parquet) y Gold (`data/curated`, almacén DuckDB). `python -m cpd.almacen` convierte a Parquet, carga el almacén, actualiza los watermarks y prepara el esquema `gold`.
+
+**Técnicas de clase.** Adquisición desde datos abiertos y desde fuentes propias; convertir todo a un formato común ("common ground") [C1 p.5]; tipos de datos relacionales, no relacionales, tabulares y no tabulares [C1 p.3]; datos cualitativos y cuantitativos [C1 p.4]. Ingesta batch y continua, polling, ETL y ELT, filtrado, paginación, batching, paralelización, rate limiting, reintentos con backoff exponencial y caché con TTL [C5 p.3-20]. Capas Bronze/Silver/Gold, Parquet, DuckDB, trazabilidad y watermarks [C5 p.22-36].
 
 **Salidas y dónde viven.**
 - Código de ingesta → `src/ingesta/`, `src/cpd/fuentes/`.
@@ -387,10 +391,10 @@ score global 0-100, simulación económica y comparación de escenarios, con un 
 6. Pruebas en navegador (ver [[05_Reglas_de_codigo_y_git]]) y en el móvil.
 7. Escribir el **informe de visualización**: para cada gráfico, qué pregunta responde y qué decisión apoya.
 
-**Técnicas de clase.** Tipos de gráfico y uso recomendado [C2 p.6-13]; evitar falacias de correlación en las etiquetas [C2 p.18-21].
+**Técnicas de clase.** Tipos de gráfico y uso recomendado [C2 p.6-13]; evitar falacias de correlación en las etiquetas [C2 p.18-21]. Dashboard = DuckDB + producto que solo lee datos ya preparados (R-21) [C5 p.36]; en P3, el panel «Datos» del mapa.
 
 **Salidas y dónde viven.**
-- Dashboards → `app/streamlit_app.py` (6 pestañas) y `frontend/` (mapa).
+- Dashboards → `app/streamlit_app.py` (6 pestañas) y `frontend/` (mapa). El mapa tiene los paneles laterales «Modelos» y «Datos» (`#/datos`: fuentes y APIs, base de datos, capas y frescura; lee `datos.json`, generado desde el esquema `gold`).
 - Informe de visualización → `docs/visualizacion/` (a crear).
 - Informe de cuadro de mandos → `docs/cuadro_mandos/` (a crear).
 
@@ -438,7 +442,7 @@ score global 0-100, simulación económica y comparación de escenarios, con un 
 | Fase | Técnicas de clase clave | Referencias |
 |---|---|---|
 | 0 | Equipo, roles, ramas, carpetas | C1 p.6-13 |
-| 1 | Tipos de datos, adquisición, formato común | C1 p.3-5 |
+| 1 | Tipos de datos, adquisición, formato común; batch, polling, ETL/ELT, batching, paralelización, rate limiting, backoff, caché con TTL, Bronze/Silver/Gold, Parquet, DuckDB, watermarks | C1 p.3-5; C5 p.3-36 |
 | 2 | Box plot, histograma | C2 p.8, 10 |
 | 3 | Min-max, z-score, log, winsorizing, polinómicas, one-hot, frequency, target, enums | C4 p.8-9, 20-26; C1 p.13 |
 | 4 | Línea, barra, histograma, dispersión, box, heatmap, pie, pair plot, Pearson, Spearman, Kendall, causalidad | C2 p.6-24 |
@@ -447,5 +451,5 @@ score global 0-100, simulación económica y comparación de escenarios, con un 
 | 7 | Causas de fallo de previsión, calidad de previsión | C3 p.3-6 |
 | 8 | Métricas de regresión y clasificación, matriz, ROC-AUC, paradoja, sesgos, coste de error | C3 p.7-24 |
 | 9 | Escalado y normalización para scores | C4 p.23-24 |
-| 10 | Tipos de gráfico, falacias en la comunicación | C2 p.6-21 |
+| 10 | Tipos de gráfico, falacias en la comunicación; DuckDB + Streamlit en solo lectura | C2 p.6-21; C5 p.36 |
 | 11 | Presentación y debate de ideas | C4 p.29-30 |

@@ -1,7 +1,7 @@
 ---
 tags: [metodologia, checklist, entrega, p3]
 estado: borrador
-actualizado: 2026-11-18
+actualizado: 2026-11-27
 ---
 
 # 06 · Checklist de entrega
@@ -13,7 +13,7 @@ Volver a [[00_Indice]]. Ver también [[07_Estado_actual]] (resumen y plan) y [[0
 **Responsable:** vacío hasta asignar en la fase 0.
 **Estado verificado:** 17/11/2026, rama `fix/mapa-revision` (EDA, features, modelos y métricas; sin commit todavía).
 
-Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026-10-02_Data_Relation_Modelling]], [[Clase_2026-10-09_Data_Visualization_Correlation]], [[Clase_2026-10-23_Forecasting_Metricas]], [[Clase_2026-11-13_Advanced_Feature_Engineering]]).
+Las filas marcadas con `C1`…`C5` son técnicas de las clases (ver [[Clase_2026-10-02_Data_Relation_Modelling]], [[Clase_2026-10-09_Data_Visualization_Correlation]], [[Clase_2026-10-23_Forecasting_Metricas]], [[Clase_2026-11-13_Advanced_Feature_Engineering]], [[Clase_2026-11-27_Data_Engineering]]).
 
 > Cómo se actualiza: al cerrar una tarea, cambiar el estado, poner la evidencia (ruta o commit) y escribir la siguiente acción.
 > La columna "Siguiente acción" dice qué hace falta para pasar a ✅.
@@ -27,13 +27,13 @@ Las filas marcadas con `C1`…`C4` son técnicas de las clases (ver [[Clase_2026
 | C. Preguntas funcionales (P1-P8) | 5 | 3 | 0 | 8 |
 | D. Variables del CPD (enunciado) | 13 | 3 | 9 | 25 |
 | E. Variables del entorno territorial (enunciado) | 14 | 22 | 11 | 47 |
-| F. Entregables y evidencias | 0 | 5 | 4 | 9 |
+| F. Entregables y evidencias | 1 | 8 | 0 | 9 |
 | G. Rúbrica (nivel 6) | 0 | 2 | 1 | 3 |
 | H. Resultados de aprendizaje (RA) | 0 | 2 | 7 | 9 |
-| I. Técnicas de clase y de calidad de datos | 47 | 11 | 12 | 70 |
-| **Total** | **69** | **61** | **54** | **184** |
+| I. Técnicas de clase y de calidad de datos | 63 | 13 | 13 | 89 |
+| **Total** | **100** | **62** | **41** | **203** |
 
-Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si se añaden filas, recalcular.
+Conteos verificados el 27/11/2026 contando las celdas de estado de cada fila (con un script). Si se añaden filas, recalcular.
 
 ---
 
@@ -41,7 +41,7 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 
 | ID | Requisito | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| A1 | Plataforma Big Data para analizar y predecir la viabilidad de instalar un CPD en cualquier municipio español | 🟡 | `src/cpd/`, `app/streamlit_app.py`, `frontend/` | | Decidir granularidad (D1) y documentarla |
+| A1 | Plataforma Big Data para analizar y predecir la viabilidad de instalar un CPD en cualquier municipio español | 🟡 | `src/cpd/`, `app/streamlit_app.py`, `frontend/` | | Contexto municipal INE/GISCO en DuckDB y mapa. Quedan pendientes elegibilidad y ranking municipal. |
 | A2 | Proporcionar una puntuación global de viabilidad | 🟡 | `src/cpd/scoring.py` (`calcular_score_global`) | | Calibrar pesos y umbrales (`config/settings.yaml`) |
 | A3 | Generar previsiones a corto y medio plazo sobre la sostenibilidad operativa del CPD | ✅ | Corto plazo: `src/cpd/modelos/operacion.py` (PUE, consumo, emisiones, agua y reserva mínima del ámbito a 1 año por provincia, de punta a punta: consumo 99,7 %, emisiones 90,6 %; figura 14). Medio plazo: `src/cpd/modelos/medio_plazo.py` (10 años: temperatura por provincia 97,7 % validación / 94,8 % test con NASA POWER desde 1981 → PUE → consumo 99,8 % / 99,5 %; reserva media de la década por ámbito 91,1 % / 86,6 %; año a año 83,3 % / 81,9 %, orientativo); figura 16 en `docs/analisis/previsiones_1_anio.md`, línea «A 10 años» en la ficha del mapa; `tests/test_modelos.py` (sin fuga, validación antes del test) | | Emisiones a 10 años no validables (mix por comunidad solo desde 2015) |
 
@@ -50,27 +50,27 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | ID | Requisito | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
 | B1 | Identificar y recopilar fuentes de datos relevantes | 🟡 | `docs/datos/README.md`, `docs/datos/tablas_api.md`, `src/cpd/fuentes/`; MIBGAS (gas, `src/cpd/fuentes/mibgas.py`) | | Integrar AEMET, Confederaciones Hidrográficas y CNMC o justificar sustitución (D2) |
-| B2 | Diseñar procesos ETL para integrar datos heterogéneos | 🟡 | `src/ingesta/01_…04_*.py`, `src/cpd/fuentes/actualizar.py`, `src/cpd/etl/ree.py` | | Documentar el ETL como diagrama y tabla (fases 1-3) |
-| B3 | Limpiar, transformar y validar los datos obtenidos | 🟡 | `src/cpd/fuentes/curado.py` (criterio NaN), `src/cpd/fuentes/calidad.py` (control de calidad de la demanda), `tests/test_datos_nuevos.py`, `tests/test_fuentes.py` | | Informe de calidad: nulos, duplicados, atípicos por variable (fase 2) |
-| B4 | Diseñar un Data Lake y un Data Warehouse | 🟡 | `data/raw/`, `data/almacen/p3_cpd.duckdb`, `src/cpd/almacen.py` | | Completar estrella y escribir documento de almacenamiento (fase 5) |
+| B2 | Diseñar procesos ETL para integrar datos heterogéneos | 🟡 | `src/ingesta/01_…04_*.py`, `src/cpd/fuentes/actualizar.py`, `src/cpd/etl/ree.py` | | Publicación versionada en src/cpd/publicar.py y prueba de rechazo en tests/test_publicar.py. |
+| B3 | Limpiar, transformar y validar los datos obtenidos | 🟡 | `src/cpd/fuentes/curado.py` (criterio NaN), `src/cpd/fuentes/calidad.py` (control de calidad de la demanda), `tests/test_datos_nuevos.py`, `tests/test_fuentes.py` | | Controles de claves, meses y cobertura por granularidad en src/cpd/fuentes/validacion.py. Queda completar el informe por fuente. |
+| B4 | Diseñar un Data Lake y un Data Warehouse | 🟡 | `data/raw/`, `data/almacen/p3_cpd.duckdb`, `src/cpd/almacen.py` | | Vistas por CCAA, cuenca y ámbito nacional en src/cpd/almacen.py. Documento docs/datos/almacenamiento.md. |
 | B5 | Realizar análisis exploratorio de datos | 🟡 | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` (histogramas, box plots, series, barras, dispersión, correlaciones, pair plot; `python -m cpd.modelos`) | | Notebook `notebooks/01_eda_panel.ipynb` que llame a `cpd.modelos.eda` (la fase 4 lo pide) |
 | B6 | Detectar correlaciones entre variables territoriales y la viabilidad | ✅ | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py` §5: Pearson y Spearman frente a nº de CPD, score y VAN simulados | | — |
-| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` ; 18/11/2026: PIB provincial y población + renta probados y descartados (bajan el acierto con umbral a 84,6 %); la población con **target encoding de la comunidad** mejora todo (log-loss 0,316, ROC-AUC 0,925, acierto 92,3 %) y es el nuevo elegido | | Más datos de CPD (fechas de apertura) para validar en el tiempo |
-| B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Añadir parámetros del CPD que faltan (ver D) |
-| B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Informe de cuadro de mandos (fase 10) |
-| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda, el precio, las reservas de agua, la temperatura por provincia y el % renovable por comunidad, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md`; control de acierto D8 (`data/curated/modelos/control_acierto.csv`) | | El precio de la luz a 1 año no llega al 85 % (D8): se enseña como escenario orientativo, fuera del VAN, con el motivo en el informe. Mejora posible: futuros de OMIP |
+| B7 | Construir modelos predictivos mediante Machine Learning | ✅ | `docs/modelos/demanda_ccaa.md`, `src/cpd/modelos/demanda.py`; `docs/modelos/prob_cpd.md`, `src/cpd/modelos/prob_cpd.py`; `docs/analisis/metricas.md` ; 18/11/2026: PIB provincial y población + renta probados y descartados (bajan el acierto con umbral a 84,6 %); la población con **target encoding de la comunidad** mejora todo (log-loss 0,316, ROC-AUC 0,925, acierto 92,3 %) y es el nuevo elegido | | Validación geográfica de presencia de CPD y diagnóstico por horizonte en src/cpd/modelos/. |
+| B8 | Diseñar un simulador capaz de evaluar distintos escenarios | 🟡 | `src/cpd/simulator.py`, `scoring.preparar_escenario`, `app/streamlit_app.py` | | Estado técnico pendiente, auditoría de filtros y punto de equilibrio. Queda ampliar escenarios reales con datos de emplazamiento. |
+| B9 | Crear dashboards interactivos para la toma de decisiones | 🟡 | `app/streamlit_app.py` (6 pestañas), `frontend/` (mapa) | | Panel derecho con dictamen, finanzas y modelos de la zona. Catálogo de 25 evaluaciones en el mismo panel. Queda validar con un usuario. |
+| B10 | Elaborar predicciones de evolución futura mediante series temporales | ✅ | `docs/analisis/previsiones_1_anio.md`, `src/cpd/modelos/anual.py` (previsión a 1 año de la demanda, el precio, las reservas de agua, la temperatura por provincia y el % renovable por comunidad, backtesting con 24 orígenes, ETS, ML y combinación); `docs/modelos/demanda_ccaa.md`, `docs/modelos/precio_luz.md`; control de acierto D8 (`data/curated/modelos/control_acierto.csv`) | | Cada serie muestra su alcance territorial junto a la salida de la zona. Al desplegar se ven la validación, prueba y fórmulas generales. La fila del precio muestra los dos aciertos retrospectivos. |
 
 ## C. Preguntas funcionales (enunciado, p. 3; ver [[01_Objetivo_y_alcance]])
 
 | ID | Pregunta | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
-| P1 | ¿Qué municipios son los más adecuados? | 🟡 | `src/cpd/scoring.py` (`evaluar`, ranking) | | Ranking real a nivel de provincia; municipal con datos reales |
+| P1 | ¿Qué municipios son los más adecuados? | 🟡 | `src/cpd/scoring.py` (`evaluar`, ranking) | | Dimensión municipal con INE y GISCO. Clasificación real disponible por provincia. |
 | P2 | ¿Qué impacto tendrá el CPD sobre los recursos locales? | ✅ | `src/cpd/modelos/impacto_local.py`: consumo previsto del CPD sobre la demanda prevista de su comunidad (validación de punta a punta 96,1 %, 20 orígenes), potencia máxima sobre la capacidad de acceso libre (REE; 0 MW en Madrid, Navarra y Ceuta: no cabe) y agua sobre la distribuida por la red pública de su comunidad (INE tabla 53447, 2024), con habitantes equivalentes; figura 17, ficha del mapa; `tests/test_modelos.py` | | Escala de comunidad: no hay consumo eléctrico ni de agua abierto por municipio (E8, E14) |
-| P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw`, `capacidad_demanda_rdt_otorgada_mw` y `_pendiente_mw` (REE, por comunidad); cobertura renovable prevista (generación renovable / demanda, `docs/analisis/previsiones_1_anio.md`), en el bloque de energía del score | | Análisis por nudo (hoy por comunidad) |
+| P3 | ¿Existe suficiente disponibilidad energética? | 🟡 | `panel`: `nudos_acceso_ccaa`, `capacidad_demanda_rdt_disponible_mw`, `capacidad_demanda_rdt_otorgada_mw` y `_pendiente_mw` (REE, por comunidad); cobertura renovable prevista (generación renovable / demanda, `docs/analisis/previsiones_1_anio.md`), en el bloque de energía del score | | Nudos REE en DuckDB cuando están los CSV. Enlace a parcelas pendiente. |
 | P4 | ¿Existe riesgo hídrico? | ✅ | `panel`: `estres_hidrico_wri_0_1`, `reserva_hidrica_pct`, `indice_sequia_12m`; previsión de reservas a 1 año por ámbito (acierto 85,3 % en test) en `docs/analisis/previsiones_1_anio.md`; reserva media de la próxima década por ámbito (acierto 86,6 % en test, `src/cpd/modelos/medio_plazo.py`) | | Afinar la asignación provincia → ámbito |
 | P5 | ¿Cómo evolucionará la demanda eléctrica en los próximos 10 años? | ✅ | `src/cpd/modelos/largo_plazo.py`, `docs/analisis/previsiones_1_anio.md` §10 años (backtesting 2012-2025, acierto 97,3 %, intervalo 10-90 %) ; escenarios con la red otorgada (18.535 MW) y en trámite (23.500 MW) de REE sobre la tendencial (`src/cpd/modelos/escenarios.py`, figura 19): 2035 entre 244 TWh (tendencial) y 374 TWh (100 % de lo otorgado); Aragón tiene otorgado el 243 % de su demanda | | Calibrar la realización de lo otorgado (sin dato abierto) |
 | P6 | ¿Cuál será el coste operativo esperado? | ✅ | `simulator.opex_eur`, `desglose_opex`; `tests/test_simulator.py`; precio de la luz previsto y su rango en `docs/modelos/precio_luz.md`; temperatura media por provincia a 1 año (la que usa el PUE; acierto 92,8-93,8 %, error de la media anual 0,5 °C) en `docs/analisis/previsiones_1_anio.md` | | Calibrar precios en `config/settings.yaml` y documentar |
-| P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests; sensibilidad del VAN al precio de la luz en la ficha del mapa (`frontend/scripts/simular_provincias.py`) | | Documentar tasa de descuento y supuestos |
+| P7 | ¿Cuál será el retorno de inversión estimado? | ✅ | `simulator.van`, `roi`, `payback_anos`; tests; sensibilidad del VAN al precio de la luz en la ficha del mapa (`frontend/scripts/simular_provincias.py`) | | Sensibilidad del VAN y precio de equilibrio en mapa y Streamlit. Documentar supuestos comerciales. |
 | P8 | ¿Qué zonas presentan menor riesgo regulatorio o ambiental? | 🟡 | `scoring.aplicar_filtros` (Natura 2000, inundación, sísmico); peligrosidad sísmica oficial (NCSE-02) por provincia en el filtro y el score; modelo de riesgo sísmico anual (`src/cpd/modelos/sismico.py`, no cumple, no se usa) | | Verificar la fuente de zonas inundables |
 
 ## D. Variables del CPD (enunciado, p. 2-4)
@@ -203,14 +203,14 @@ Conteos verificados el 17/11/2026 contando las celdas de estado de cada fila. Si
 | ID | Entregable / evidencia | Estado | Evidencia | Responsable | Siguiente acción |
 |---|---|---|---|---|---|
 | F1 | Informe de origen de datos (M4RA1) | 🟡 | `docs/datos/README.md` (borrador) | | Completar con todas las fuentes y licencias |
-| F2 | Informe de cuadro de mandos (M4RA2) | ❌ | — | | Redactar tras fase 10 |
+| F2 | Informe de cuadro de mandos (M4RA2) | 🟡 | `docs/entrega/cuadro-de-mandos.md` | | Revisar con el equipo y adjuntar capturas. |
 | F3 | Informe de análisis de los datos (M4RA2) | 🟡 | `docs/analisis/eda_panel.md`, `src/cpd/modelos/eda.py`, `docs/analisis/metricas.md` (generados) | | Redactar el informe final integrado (fases 4 y 8) |
-| F4 | Informe de visualización de datos (M4RA4) | ❌ | — | | Redactar en fase 10 |
-| F5 | Documentación descriptiva del sistema de gestión y almacenamiento de datos (M4RA3) | 🟡 | `src/cpd/almacen.py`, `docs/datos/tablas_api.md`, diccionarios en `data/curated/` | | Documento con diagrama y granularidad (fase 5) |
+| F4 | Informe de visualización de datos (M4RA4) | 🟡 | `docs/entrega/cuadro-de-mandos.md` | | Revisar en móvil y adjuntar capturas. |
+| F5 | Documentación descriptiva del sistema de gestión y almacenamiento de datos (M4RA3) | ✅ | `src/cpd/almacen.py`, `docs/datos/tablas_api.md`, diccionarios en `data/curated/` | | Documento y esquema en `docs/datos/almacenamiento.md` |
 | F6 | Código fuente con comentarios en las funciones principales, en control de versiones (M4RA1-M4RA4) | 🟡 | Git (`main`, commits); comentarios por función sin verificar | | Auditar docstrings de funciones principales |
-| F7 | Vídeo del sistema funcional con diversos casos de prueba (M4RA1-M4RA4) | ❌ | — | | Guion y grabación (fase 11) |
-| F8 | Manual de instalación y despliegue (M4RA1, M4RA3) | 🟡 | `README.md` (sección Instalación) | | Manual aparte con prueba de humo |
-| F9 | Manual de usuario final (M4RA2, M4RA4) | ❌ | — | | Redactar con capturas |
+| F7 | Vídeo del sistema funcional con diversos casos de prueba (M4RA1-M4RA4) | 🟡 | `docs/entrega/cuadro-de-mandos.md` | | Guion listo. Queda grabar el vídeo. |
+| F8 | Manual de instalación y despliegue (M4RA1, M4RA3) | 🟡 | `docs/entrega/manual.md` | | Falta restaurar en un equipo limpio. |
+| F9 | Manual de usuario final (M4RA2, M4RA4) | 🟡 | `docs/entrega/manual.md` | | Manual operativo. Queda revisar con un usuario. |
 
 ## G. Rúbrica (enunciado, p. 9-10; nivel 6 = excelente)
 
@@ -336,6 +336,30 @@ necesarias y que no vienen de clase aparecen marcadas como **(recomendación)**.
 | I68 | Valores ausentes: política explícita (recomendación) | 🟡 | `curado.py` (NaN); demanda imposible → NaN con registro en `data/curated/calidad_demanda_ccaa.csv`; imputación solo como entrada de modelos en `src/cpd/features/demanda.py` | | Tabla de nulos y decisiones por variable |
 | I69 | Atípicos (outliers): detección y decisión (recomendación; box plot C2 p.10) | 🟡 | Demanda por CCAA: `src/cpd/fuentes/calidad.py` (regla y causa comprobada en REData), `data/curated/calidad_demanda_ccaa.csv`, `docs/datos/tablas_api.md` §9, `docs/analisis/eda_panel.md` §7 | | Detección y registro en el resto de variables |
 | I70 | Escalar y normalizar sin perder datos (recomendación; C4 p.23 y R-7) | ✅ | R-7 en los modelos: columnas originales intactas y escalador ajustado solo con entrenamiento | | — |
+
+### I.6 Clase 27/11 · Data Mining & Data Engineering
+
+| ID | Técnica | Estado | Evidencia | Responsable | Siguiente acción |
+|---|---|---|---|---|---|
+| I71 | Ingesta batch frente a continua; polling frente a streaming (C5 p.4-6) | ✅ | `src/cpd/fuentes/actualizar.py` (batch completo e incremental; `--rapido` para tiempo real); polling en `frontend/src/live/usePolling.ts`. Streaming no hace falta (ninguna variable cambia en segundos) | | — |
+| I72 | ETL frente a ELT (C5 p.4) | ✅ | ETL en `src/cpd/fuentes/` (raw → `data/curated/tablas`); ELT con SQL dentro de DuckDB en `src/cpd/almacen.py` (`dw`, `gold`) | | — |
+| I73 | Filtrar en la API antes de descargar (C5 p.13) | ✅ | `country=ES` (PeeringDB), cajas geográficas (EMSC, Overpass, Natura 2000), solo las variables necesarias (NASA POWER, Open-Meteo) | | — |
+| I74 | Paginación: offset, página, cursor (C5 p.12) | 🟡 | Ninguna API usada pagina; las series largas se piden por bloques de años (`ree.py`, `sismicidad.py`, `nasa_power.py`) | | Aplicarla si se añade una API paginada |
+| I75 | Batching: varios elementos por petición (C5 p.14) | ✅ | `src/cpd/fuentes/meteo.py` (`TAMANO_LOTE = 52`: las 52 provincias en una petición) | | — |
+| I76 | Paralelización con límite de simultaneidad (C5 p.15-16) | ✅ | `http.en_paralelo` (hilos, orden conservado); NASA POWER con 4 hilos (`nasa_power.HILOS`); `tests/test_fuentes.py` | | Medir el tiempo de una actualización completa |
+| I77 | Rate limiting y HTTP 429 (C5 p.17) | ✅ | `http._esperar_turno` (pausa mínima con cerrojo, también entre hilos); 429 → `Retry-After` o 65 s; `tests/test_fuentes.py` | | — |
+| I78 | Reintentos con backoff exponencial y jitter (C5 p.18-19) | ✅ | `http.espera_backoff` (2, 4, 8… s, tope 60 s, +25 % de jitter) en `http.pedir`; `tests/test_fuentes.py` | | — |
+| I79 | Caché: estático frente a dinámico, TTL (C5 p.20) | ✅ | `http.leer_cache_json(ruta, ttl_horas)`; PeeringDB con TTL de 7 días; años cerrados siempre de caché; `tests/test_fuentes.py` | | — |
+| I80 | Parquet: formato columnar, binario y con tipos (C5 p.23-25) | ✅ | `capas.tablas_a_parquet` (Silver en Parquet zstd si el CSV cambió); `panel_provincia_mes.parquet`; `tests/test_capas.py` | | — |
+| I81 | DuckDB frente a pandas (C5 p.27-28) | ✅ | Almacén `data/almacen/p3_cpd.duckdb`; comparación medida en `gold.formatos` (Parquet 3,9× más pequeño; DuckDB sobre Parquet ~57× más rápido que sobre CSV) | | — |
+| I82 | OLTP frente a OLAP (C5 p.29-31) | ✅ | Decisión en [[Clase_2026-11-27_Data_Engineering]] y R-21: P3 es OLAP (DuckDB) | | — |
+| I83 | ORM / SQLAlchemy (C5 p.32) | ❌ | — (no aplica: no hay datos transaccionales; ver R-21) | | No prioritario |
+| I84 | Data lake por capas Bronze / Silver / Gold (C5 p.34) | ✅ | `src/cpd/capas.py` (`CAPAS`), esquema `gold` del almacén, R-20; `tests/test_capas.py` | | — |
+| I85 | Calidad de datos en el paso de Bronze a Silver (C5 p.35) | 🟡 | `src/cpd/fuentes/calidad.py`, `curado.py`; ver I67-I69 | | Informe de calidad (I67-I69) |
+| I86 | Trazabilidad y no descargar dos veces (C5 p.36) | ✅ | `data/raw/_registro_descargas.csv`, `meta.carga`, caché de `data/raw/api/`; R-17 y R-18 | | — |
+| I87 | Watermarks y carga incremental (C5 p.36) | ✅ | `capas.watermarks` y `guardar_historial` (`data/almacen/historial_watermarks.csv`), `gold.watermark`; `tests/test_capas.py` | | Usar el watermark para decidir qué pedir en `actualizar` |
+| I88 | At least once frente a exactly once (C5 p.36) | ✅ | Escrituras atómicas e idempotentes: `.part` en `http.descargar_archivo` y `capas.tablas_a_parquet`, `.tmp.duckdb` en `almacen.construir`; repetir no duplica | | — |
+| I89 | Dashboard sobre DuckDB que solo lee (C5 p.36) | ✅ | Panel «Datos» del mapa (`#/datos`, `frontend/src/components/CatalogoDatos.tsx`): fuentes y APIs con su origen, descargas, base de datos por esquema, capas, frescura, Bronze y CSV frente a Parquet; lee `datos.json` (`cpd.capas.exportar_web`, en modo lectura) de la versión publicada; `frontend/src/data/datosApis.test.ts`, `tests/test_publicar.py` | | Informe de cuadro de mandos (F) |
 
 ---
 

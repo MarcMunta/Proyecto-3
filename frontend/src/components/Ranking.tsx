@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { ProvinciaMeta } from "../data/types";
 import { rangoVanClasificadas, type ClaseRentabilidad, type Prediccion, type ProvinciaPrediccion } from "../data/prediccion";
 import { diaHora, millones, normalizar } from "../format";
-import { COLOR_CLASE, NOMBRE_CLASE, ORDEN_CLASE } from "../model/colores";
+import { COLOR_CLASE, nombreClaseDe, ORDEN_CLASE } from "../model/colores";
 import { IconoClase } from "./IconoClase";
 
 interface Props {
@@ -33,6 +33,10 @@ export function Ranking({ meta, prediccion, onProvincia, onResaltar }: Props) {
   const grupos = ORDEN_CLASE.map((c) => ({ clase: c, filas: filas.filter((f) => f.d?.clase === c).sort(porValor) }));
   const sinDatos = filas.filter((f) => !f.d?.clase).sort((a, b) => a.meta.nombre.localeCompare(b.meta.nombre, "es"));
   const total = filas.length;
+  const legado = prediccion.origen === "legado" || prediccion.tipo === "demo";
+  const nombreClase = (clase: ClaseRentabilidad) => nombreClaseDe(clase, null, legado);
+  const descartes = filas.filter((f) => f.d?.estado === "No viable").length;
+  const pendientes = filas.filter((f) => f.d?.estado === "Pendiente de verificar").length;
 
   const fila = (f: Fila) => (
     <li key={f.meta.codigo}>
@@ -44,7 +48,7 @@ export function Ranking({ meta, prediccion, onProvincia, onResaltar }: Props) {
         onMouseLeave={() => onResaltar(null)}
         onFocus={() => onResaltar(f.meta.codigo)}
         onBlur={() => onResaltar(null)}
-        aria-label={`${f.meta.nombre}: rentabilidad ${f.d?.clase ? NOMBRE_CLASE[f.d.clase].toLowerCase() : "sin datos"}${f.d?.van_eur != null ? `, VAN ${millones(f.d.van_eur)}` : ""}`}
+        aria-label={`${f.meta.nombre}: rentabilidad ${f.d?.clase ? nombreClase(f.d.clase).toLowerCase() : "sin datos"}${f.d?.van_eur != null ? `, VAN ${millones(f.d.van_eur)}` : ""}${f.d?.estado ? ", " + f.d.estado.toLowerCase() : ""}`}
       >
         <span className="fila-nombre">{f.meta.nombre}</span>
         {f.d?.van_eur != null && <span className="fila-valor">{millones(f.d.van_eur)}</span>}
@@ -63,7 +67,7 @@ export function Ranking({ meta, prediccion, onProvincia, onResaltar }: Props) {
               ? `Simulación con datos reales${prediccion.actualizado ? ` · actualizados el ${diaHora(Date.parse(prediccion.actualizado))}` : ""}`
               : `Demostración con datos sintéticos · ${prediccion.provincias.size} de ${total} provincias`}
         </p>
-        <div className="reparto" role="img" aria-label={`${grupos.map((g) => `${g.filas.length} ${NOMBRE_CLASE[g.clase].toLowerCase()}`).join(", ")}, ${sinDatos.length} sin datos`}>
+        <div className="reparto" role="img" aria-label={`${grupos.map((g) => `${g.filas.length} ${nombreClase(g.clase).toLowerCase()}`).join(", ")}, ${sinDatos.length} sin datos`}>
           {grupos.map((g) =>
             g.filas.length ? <span key={g.clase} style={{ flexGrow: g.filas.length, background: COLOR_CLASE[g.clase] }} /> : null,
           )}
@@ -73,7 +77,7 @@ export function Ranking({ meta, prediccion, onProvincia, onResaltar }: Props) {
           {grupos.map((g) => (
             <li key={g.clase}>
               <IconoClase clase={g.clase} tam={13} />
-              <strong>{g.filas.length}</strong> {NOMBRE_CLASE[g.clase].toLowerCase()}
+              <strong>{g.filas.length}</strong> {nombreClase(g.clase).toLowerCase()}
             </li>
           ))}
           {sinDatos.length > 0 && (
@@ -85,9 +89,14 @@ export function Ranking({ meta, prediccion, onProvincia, onResaltar }: Props) {
         </ul>
         {prediccion.tipo !== "real" && (
           <p className="nota-clase">
-            Clase relativa entre provincias: tercios del VAN simulado
-            {rango ? `, que entre las viables solo va de ${millones(rango.min)} a ${millones(rango.max)} (una diferencia pequeña cambia el color)` : ""}.
-            En rojo, las que no pasan un filtro eliminatorio o tienen VAN ≤ 0.
+            Las clases son los tercios del VAN simulado
+            {rango ? `, que entre las clasificadas va de ${millones(rango.min)} a ${millones(rango.max)} (una diferencia pequeña cambia el color)` : ""}.
+            {legado ? " El rojo agrupa descartes de esta copia y casos con VAN ≤ 0." : " El rojo indica VAN ≤ 0."}
+          </p>
+        )}
+        {(pendientes > 0 || descartes > 0) && (
+          <p className="nota-clase">
+            Verificación territorial · {pendientes} pendientes · {descartes} descartes técnicos
           </p>
         )}
         <label className="buscador">
@@ -103,7 +112,7 @@ export function Ranking({ meta, prediccion, onProvincia, onResaltar }: Props) {
           <section key={g.clase} className="grupo" aria-labelledby={`g-${g.clase}`}>
             <h3 id={`g-${g.clase}`}>
               <IconoClase clase={g.clase as ClaseRentabilidad} tam={15} />
-              {NOMBRE_CLASE[g.clase]}
+              {nombreClase(g.clase)}
               <span className="grupo-n">{g.filas.length}</span>
             </h3>
             <ol>{visibles.map(fila)}</ol>

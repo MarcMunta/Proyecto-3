@@ -17,6 +17,8 @@ Todas las comparaciones usan exactamente las mismas filas (serie, mes, origen) p
 
 from __future__ import annotations
 
+from functools import lru_cache
+
 import datetime as dt
 import warnings
 from collections.abc import Callable
@@ -550,6 +552,23 @@ def candidatos_renovables(reales: pd.DataFrame, maximo: float = 100.0, con_log: 
 GRUPOS_RENOVABLES: tuple[str, ...] = ("solar", "eolica", "hidraulica", "otras_renovables")
 
 
+@lru_cache(maxsize=4096)
+def _prevision_tecnologia(historia_bytes: bytes) -> np.ndarray:
+    """Reutiliza el ETS solo cuando coinciden los 60 valores ya observados."""
+    from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+    historia = np.frombuffer(historia_bytes, dtype=np.float64)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        ajuste = ExponentialSmoothing(
+            np.log(np.maximum(historia, 1.0)), trend="add", damped_trend=True, seasonal="add",
+            seasonal_periods=12, initialization_method="estimated",
+        ).fit()
+    prevision = np.exp(ajuste.forecast(HORIZONTE))
+    prevision.setflags(write=False)
+    return prevision
+
+
 def candidato_suma_tecnologias(tecnologias: pd.DataFrame, objetivo: str, hoy: dt.date | None = None) -> Candidato:
     """Prevé cada grupo de tecnología de cada comunidad por separado (ETS amortiguada sobre el logaritmo, últimos
     5 años) y los suma. Cada tecnología tiene su propia estacionalidad (la solar alcanza su máximo en verano, la
@@ -560,8 +579,6 @@ def candidato_suma_tecnologias(tecnologias: pd.DataFrame, objetivo: str, hoy: dt
         tecnologias: tabla `ccaa_generacion_tecnologia` (`codigo_ccaa`, `fecha`, `grupo`, `generacion_mwh`).
         objetivo: `mwh` (generación renovable) o `pct` (% renovable = renovable / (renovable + no renovable)).
     """
-    from statsmodels.tsa.holtwinters import ExponentialSmoothing
-
     en_curso = pd.Timestamp(hoy or dt.date.today()).to_period("M").to_timestamp()
     datos = tecnologias.assign(
         mes=pd.to_datetime(tecnologias["fecha"]).dt.to_period("M").dt.to_timestamp(),
@@ -579,13 +596,7 @@ def candidato_suma_tecnologias(tecnologias: pd.DataFrame, objetivo: str, hoy: dt
                 if len(historia) < 60 or historia.sum() <= 0:
                     salida[clave] = np.zeros(HORIZONTE)
                     continue
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    ajuste = ExponentialSmoothing(
-                        np.log(np.maximum(historia, 1.0)), trend="add", damped_trend=True, seasonal="add", seasonal_periods=12,
-                        initialization_method="estimated",
-                    ).fit()
-                salida[clave] = np.exp(ajuste.forecast(HORIZONTE))
+                salida[clave] = _prevision_tecnologia(historia.tobytes())
             cache[origen] = salida
         return cache[origen]
 

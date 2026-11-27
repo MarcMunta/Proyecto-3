@@ -25,6 +25,7 @@ from cpd.fuentes.provincias import PROVINCIAS, emparejar_nombre_ine, ficha, prov
 
 FUENTE: str = "PeeringDB"
 CARPETA: Path = RUTA_API / "peeringdb"
+TTL_HORAS: float = 7 * 24  # listados semiestáticos: se reutilizan una semana (clase 27/11, caché con TTL)
 URL_FAC: str = "https://www.peeringdb.com/api/fac"
 URL_IX: str = "https://www.peeringdb.com/api/ix"
 
@@ -65,8 +66,11 @@ def provincia_de_ciudad(ciudad: str | None) -> str | None:
 
 
 def _descargar(url: str, nombre: str) -> list[dict[str, Any]]:
-    """Descarga un endpoint de PeeringDB (lista 'data') con caché de la última respuesta."""
+    """Descarga un endpoint de PeeringDB (lista 'data'). Reutiliza la caché si tiene menos de TTL_HORAS."""
     ruta = CARPETA / f"{nombre}_ES.json"
+    vigente = leer_cache_json(ruta, ttl_horas=TTL_HORAS)
+    if vigente is not None:
+        return vigente
     datos = json_de(url, params={"country": "ES"}, etiqueta=f"{FUENTE} {nombre}", reintentos=4)
     if not isinstance(datos, dict) or "data" not in datos:
         cache = leer_cache_json(ruta)

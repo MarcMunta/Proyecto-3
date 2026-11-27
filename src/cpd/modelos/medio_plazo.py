@@ -176,6 +176,41 @@ def acierto_media_decada(resultado: dict[str, Any]) -> dict[str, float]:
     return {"acierto_decada_validacion": salida["validacion"], "acierto_decada_test": salida["test"]}
 
 
+def diagnosticos_por_horizonte(resultado: dict[str, Any], cuantiles: tuple[float, float] = CUANTILES) -> pd.DataFrame:
+    """MAE, sesgo y cobertura observada por horizonte de la previsión a 10 años.
+
+    La banda del test se calibra exclusivamente con errores de validación del mismo horizonte. La cobertura de
+    validación se deja como referencia de calibración (no como evidencia independiente), porque esos errores forman
+    la propia banda. Unidades: las mismas que `real` y `prevision`; sesgo = previsión − real.
+    """
+    pred = resultado["predicciones"]
+    elegido = pred[pred["modelo"] == resultado["elegido"]].copy()
+    validacion = elegido[elegido["particion"] == "validacion"].copy()
+    test = elegido[elegido["particion"] == "test"].copy()
+    validacion["error"] = validacion["real"] - validacion["prevision"]
+    filas = []
+    for h in range(1, HORIZONTE_ANIOS + 1):
+        val_h = validacion[validacion["horizonte_anios"] == h]
+        test_h = test[test["horizonte_anios"] == h]
+        bajo, alto = np.quantile(val_h["error"], cuantiles)
+        for particion, datos, independiente in (("validacion", val_h, False), ("test", test_h, True)):
+            dentro = (datos["real"] >= datos["prevision"] + bajo) & (datos["real"] <= datos["prevision"] + alto)
+            filas.append(
+                {
+                    "horizonte_anios": h,
+                    "particion": particion,
+                    "n": int(len(datos)),
+                    "mae": float((datos["prevision"] - datos["real"]).abs().mean()),
+                    "sesgo": float((datos["prevision"] - datos["real"]).mean()),
+                    "cobertura_banda_10_90_pct": float(100 * dentro.mean()),
+                    "cobertura_independiente": independiente,
+                    "cuantil_inferior_error": float(bajo),
+                    "cuantil_superior_error": float(alto),
+                }
+            )
+    return pd.DataFrame(filas)
+
+
 def prevision(anual: pd.DataFrame, resultado: dict[str, Any], modelos: dict[str, ModeloAnual] | None = None, limites: tuple[float, float] | None = None) -> pd.DataFrame:
     """Previsión de los 10 años siguientes al último año completo de cada serie, con intervalo 10-90 %.
 

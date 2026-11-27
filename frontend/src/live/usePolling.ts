@@ -13,7 +13,7 @@ export interface EnVivo<T> {
  * Pide datos al montar y cada `cadaMs`. Se pausa con la pestaña oculta y refresca al volver.
  * Si una actualización falla, conserva el último dato bueno y expone el error.
  */
-export function usePolling<T>(pedir: (signal: AbortSignal) => Promise<T>, cadaMs: number): EnVivo<T> {
+export function usePolling<T>(pedir: (signal: AbortSignal) => Promise<T>, cadaMs: number, activo = true): EnVivo<T> {
   const [estado, setEstado] = useState<Omit<EnVivo<T>, "reintentar">>({
     datos: null,
     error: null,
@@ -25,6 +25,7 @@ export function usePolling<T>(pedir: (signal: AbortSignal) => Promise<T>, cadaMs
   const controlRef = useRef<AbortController | null>(null);
 
   const ejecutar = useCallback(async () => {
+    if (!activo) return;
     controlRef.current?.abort();
     const control = new AbortController();
     controlRef.current = control;
@@ -39,9 +40,10 @@ export function usePolling<T>(pedir: (signal: AbortSignal) => Promise<T>, cadaMs
       const mensaje = !crudo || /failed to fetch|networkerror|load failed/i.test(crudo) ? "sin respuesta de la red" : crudo;
       setEstado((e) => ({ ...e, error: mensaje, cargando: false }));
     }
-  }, []);
+  }, [activo]);
 
   useEffect(() => {
+    if (!activo) return;
     void ejecutar();
     const id = window.setInterval(() => {
       if (!document.hidden) void ejecutar();
@@ -55,7 +57,7 @@ export function usePolling<T>(pedir: (signal: AbortSignal) => Promise<T>, cadaMs
       document.removeEventListener("visibilitychange", alVolver);
       controlRef.current?.abort();
     };
-  }, [ejecutar, cadaMs]);
+  }, [activo, ejecutar, cadaMs]);
 
   return { ...estado, reintentar: ejecutar };
 }

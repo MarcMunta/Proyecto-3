@@ -252,3 +252,26 @@ Las definiciones están en lenguaje sencillo; cuando se dan por supuestas, es "d
 | **DuckDB** | Base de datos local tipo archivo, de análisis. | `data/almacen/p3_cpd.duckdb` |
 | **CCAA / ámbito hidrográfico** | Comunidad autónoma / cuenca de río, usados como claves territoriales. | Panel (`ccaa`, `ambito_hidrografico`) |
 | **Free cooling** | Ver sección 1. | `horas_free_cooling` |
+
+## 14. Ingeniería de datos (clase 27/11/2026)
+
+Fuente: [[Clase_2026-11-27_Data_Engineering]] (C5).
+
+| Término | Definición sencilla | Dónde está |
+|---|---|---|
+| **Ingesta batch / continua** | Batch: se descarga por bloques cada cierto tiempo (cada noche, cada 6 h). Continua: cada dato se sube nada más llegar. | `python -m cpd.fuentes.actualizar` (batch) |
+| **Polling / streaming** | Polling: el sistema pregunta cada X segundos si hay algo nuevo. Streaming: la fuente envía el dato cuando llega (Kafka, WebSockets). | Polling en `frontend/src/live/usePolling.ts` |
+| **ETL / ELT** | Extraer, transformar y cargar (ETL) o extraer, cargar y transformar dentro de la base (ELT). | ETL en `cpd.fuentes`; ELT con SQL en `cpd.almacen` |
+| **Paginación** | La API devuelve los datos por trozos (offset, página o un cursor que indica dónde sigue). | No la usa ninguna API del proyecto |
+| **Batching** | Pedir muchos elementos en una sola petición en vez de una petición por elemento. | Open-Meteo: 52 provincias por petición |
+| **I/O-bound / CPU-bound** | I/O-bound: el tiempo se va esperando a la red o al disco (se acelera con hilos). CPU-bound: se va calculando (se acelera con procesos). | `http.en_paralelo` (hilos) |
+| **Rate limiting (HTTP 429)** | Límite de peticiones por minuto de una API; si se pasa, responde 429 «Too Many Requests». | `http.PAUSA_MINIMA_SEGUNDOS`, `ESPERA_429_SEGUNDOS` |
+| **Backoff exponencial y jitter** | Esperar cada vez el doble antes de reintentar (2, 4, 8 s) más un poco al azar para no reintentar todos a la vez. | `http.espera_backoff` |
+| **Caché y TTL** | Guardar respuestas para no repetir peticiones. El TTL (*time to live*) es cuánto tiempo sigue valiendo la copia. | `http.leer_cache_json(ruta, ttl_horas)` |
+| **Parquet (formato columnar)** | Fichero binario, comprimido y con tipos que guarda cada columna junta: leer una columna no obliga a leer las demás. | `data/curated/**/*.parquet` |
+| **OLTP / OLAP** | OLTP: muchas operaciones pequeñas (altas, pedidos). OLAP: consultas que recorren muchas filas (medias, agrupaciones). P3 es OLAP. | DuckDB (`data/almacen/p3_cpd.duckdb`) |
+| **ORM** | Librería (p. ej. SQLAlchemy) que traduce tablas a objetos de Python. Útil con datos transaccionales; P3 no los tiene. | — |
+| **Bronze / Silver / Gold** | Capas del lago de datos: Bronze = lo que llegó (raw); Silver = limpio y tipado; Gold = agregado y listo para usar. | `src/cpd/capas.py` (`CAPAS`) |
+| **Watermark** | Marca del último periodo cargado de una tabla. Sirve para pedir solo lo nuevo y saber si los datos están al día. | `gold.watermark`, `data/almacen/historial_watermarks.csv` |
+| **At least once / exactly once** | Garantía de que cada dato se procesa al menos una vez (puede repetirse) o exactamente una vez (sin duplicados). | Escritura temporal y renombrado (idempotente) |
+| **Capa Gold del dashboard** | Tablas ya agregadas que el dashboard solo lee: el producto no hace ingeniería de datos. | Esquema `gold` del almacén; `frontend/src/components/CatalogoDatos.tsx` (panel «Datos» del mapa, `#/datos`) |

@@ -1,12 +1,13 @@
 import metaJson from "../data/provincias.json";
 import type { Prediccion } from "../data/prediccion";
-import { NOMBRE_CLASE, ORDEN_CLASE } from "../model/colores";
+import { nombreClaseDe, ORDEN_CLASE } from "../model/colores";
 
 const TOTAL_PROVINCIAS = metaJson.length;
 import { IconoClase } from "./IconoClase";
 
 /** Leyenda compacta del mapa: las cuatro clases (icono + nombre + cuántas provincias) y «sin datos». */
 export function Leyenda({ prediccion }: { prediccion: Prediccion }) {
+  const legado = prediccion.origen === "legado" || prediccion.tipo === "demo";
   const cuenta = (c: string | null) => [...prediccion.provincias.values()].filter((p) => p.clase === c).length;
   const sinDatos = TOTAL_PROVINCIAS - [...prediccion.provincias.values()].filter((p) => p.clase).length;
   return (
@@ -16,7 +17,7 @@ export function Leyenda({ prediccion }: { prediccion: Prediccion }) {
         {ORDEN_CLASE.map((c) => (
           <li key={c}>
             <IconoClase clase={c} tam={14} />
-            <span>{NOMBRE_CLASE[c]}</span>
+            <span>{nombreClaseDe(c, null, legado)}</span>
             <span className="leyenda-n">{cuenta(c)}</span>
           </li>
         ))}

@@ -340,6 +340,61 @@ def van(flujos: Sequence[float], tasa: float, inversion: float) -> float:
     return -inversion + sum(f / (1 + tasa) ** t for t, f in enumerate(flujos, start=1))
 
 
+def precio_equilibrio_electricidad_eur_mwh(
+    consumo_mwh: float,
+    autoproduccion_mwh: float,
+    repercusion_energia_pct: float,
+    ingresos_alquiler_eur: float,
+    otros_costes_anuales_eur: float,
+    tasa_descuento: float,
+    vida_util_anos: int,
+    inversion_eur: float,
+) -> float | None:
+    """Precio de electricidad que hace que el VAN sea cero, en €/MWh.
+
+    Reutiliza :func:`coste_energia_eur` y :func:`van`, las mismas fórmulas que
+    el simulador. Calcula el VAN con precios de 0 y 1 €/MWh; como el flujo es
+    lineal en el precio, la raíz exacta es ``-VAN(0) / (VAN(1) - VAN(0))``.
+
+    ``otros_costes_anuales_eur`` incluye agua, personal, mantenimiento e
+    impuestos, pero no energía. Devuelve ``None`` si el VAN no depende del
+    precio (sin compra de red o repercusión del 100 %) o si los parámetros no
+    definen un horizonte financiero válido. Un resultado negativo indica que
+    el proyecto no alcanza VAN cero ni siquiera con electricidad gratuita.
+    """
+    valores = (
+        consumo_mwh,
+        autoproduccion_mwh,
+        repercusion_energia_pct,
+        ingresos_alquiler_eur,
+        otros_costes_anuales_eur,
+        tasa_descuento,
+        inversion_eur,
+    )
+    if not all(np.isfinite(valor) for valor in valores):
+        return None
+    if vida_util_anos <= 0 or tasa_descuento <= -1:
+        return None
+
+    def van_con_precio(precio_eur_mwh: float) -> float:
+        coste_energia = coste_energia_eur(consumo_mwh, autoproduccion_mwh, precio_eur_mwh)
+        flujo = (
+            ingresos_alquiler_eur
+            + coste_energia * repercusion_energia_pct
+            - otros_costes_anuales_eur
+            - coste_energia
+        )
+        return van([flujo] * int(vida_util_anos), tasa_descuento, inversion_eur)
+
+    van_cero = van_con_precio(0.0)
+    pendiente = van_con_precio(1.0) - van_cero
+    tolerancia = np.finfo(float).eps * max(abs(van_cero), 1.0) * 16
+    if not np.isfinite(pendiente) or abs(pendiente) <= tolerancia:
+        return None
+    resultado = -van_cero / pendiente
+    return float(resultado) if np.isfinite(resultado) else None
+
+
 def roi(flujos: Sequence[float], inversion: float) -> float | None:
     """Retorno sobre la inversión (sin descontar).
 

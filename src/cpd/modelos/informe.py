@@ -965,6 +965,11 @@ def _seccion_medio_plazo(medio: dict[str, Any], figura: str) -> str:
     bajos = ", ".join(f"{a} ({_n(f.media_decada_prevista_pct, 0)} %)" for a, f in amb.head(4).iterrows())
     nombre_t = NOMBRES_MODELO.get(t["modelo"], t["modelo"])
     nombre_r = NOMBRES_MODELO.get(r["modelo"], r["modelo"])
+    diag_t = medio["diagnosticos_t"].query("particion == 'test'").copy()
+    diag_t["MAE (°C)"] = diag_t["mae"].map(lambda v: _n(v, 2))
+    diag_t["Sesgo (°C)"] = diag_t["sesgo"].map(lambda v: _n(v, 2))
+    diag_t["Cobertura banda 10-90 %"] = diag_t["cobertura_banda_10_90_pct"].map(lambda v: f"{_n(v, 0)} %")
+    diag_t = diag_t.rename(columns={"horizonte_anios": "Horizonte (años)", "n": "Observaciones"})[["Horizonte (años)", "Observaciones", "MAE (°C)", "Sesgo (°C)", "Cobertura banda 10-90 %"]]
     return f"""## Medio plazo: clima y agua a 10 años (sostenibilidad operativa, objetivo A3)
 
 El objetivo A3 pide previsiones a corto **y medio plazo** de la sostenibilidad operativa del CPD. A 1 año ya están el
@@ -990,6 +995,11 @@ desde {t['origen_test']} (test) y previsión a 10 años con su intervalo 10-90 %
 ### Temperatura por provincia a 10 años
 
 {tabla(medio['res_t'], '°C')}
+
+**Diagnóstico del test por horizonte.** La cobertura cuenta cuántas observaciones reales quedaron dentro de la banda
+10-90 %, calibrada exclusivamente con la validación; el sesgo es previsión menos real.
+
+{_tabla(diag_t)}
 
 Elegido: **{nombre_t}** ({', '.join(NOMBRES_MODELO.get(m, m) for m in t['miembros'])}). Acierto **{_n(t['acierto_validacion'], 1)} %** en validación y
 **{_n(t['acierto_test'], 1)} %** en test (error medio {_n(t['mae_validacion'], 2)} y {_n(t['mae_test'], 2)} °C). El test es peor porque 2016-2025 se calentó más
@@ -1592,8 +1602,8 @@ def ficha_prob_cpd(prob: dict[str, Any], tabla: pd.DataFrame, figura: str | None
 - Etiqueta: `tiene_cpd` = 1 si hay al menos un centro de datos en PeeringDB ({int(tabla['tiene_cpd'].sum())} de 52 provincias).
 - Granularidad: provincia (transversal, sin tiempo).
 - Validación: no hay fechas de apertura de los CPD, así que **no se puede hacer una partición temporal** (R-6 no
-  aplica). Se usa validación cruzada estratificada repetida: 5 pliegues × 20 repeticiones, semilla 42. El
-  hiperparámetro `C` de la logística se elige con una validación cruzada interna (anidada).
+  aplica). Se deja fuera una CCAA completa en cada pliegue: cada provincia se evalúa con un modelo que no ha visto
+  ninguna provincia de su comunidad. El hiperparámetro `C` de la logística se elige dentro de cada entrenamiento.
 - Features: log de población, renta por persona, paro, temperatura media, % de free cooling, estrés hídrico,
   subestaciones de 220-400 kV, % de Red Natura 2000, capacidad de acceso de la comunidad, terremotos y si es
   extrapeninsular. **Excluidas por fuga:** `n_ixp` y `distancia_ixp_km` (los IXP están dentro de centros de datos).
@@ -1615,8 +1625,9 @@ dice a qué se parece una provincia, no si se va a construir un CPD nuevo.
 **Log-loss** (pérdida logarítmica) [C3 p.14]: −media(y·log p + (1−y)·log(1−p)). Se elige porque el mapa muestra la
 probabilidad y esta métrica castiga las probabilidades seguras y equivocadas. Se mira también ROC-AUC [C3 p.19].
 Coste de los errores: un falso positivo (provincia "parecida a las que tienen CPD" que no lo es) solo lleva a estudiarla
-más; un falso negativo esconde una buena candidata. Por eso el umbral se elige con la curva ROC (índice de Youden) en
-lugar de fijarlo en 0,5.
+más; un falso negativo esconde una buena candidata. El corte de cada CCAA en la matriz se calcula con las demás CCAA
+(índice de Youden), sin usar las etiquetas de la comunidad evaluada; el corte único que se guarda para el mapa es solo
+un valor de despliegue.
 
 ## Resultados
 
@@ -1624,16 +1635,13 @@ lugar de fijarlo en 0,5.
 |---|---|---|---|---|
 {chr(10).join(f"| {NOMBRES_MODELO[n]} | {_n(m.loc[n, 'log_loss'], 3)} | {'0,500 (constante)' if n == 'mayoritaria' else _n(m.loc[n, 'roc_auc'], 3)} | {_n(m.loc[n, 'brier'], 3)} | {_n(100 * m.loc[n, 'accuracy'], 1)} % |" for n in m.index)}
 
-**Modelo elegido: {NOMBRES_MODELO[elegido]}.** Con 52 provincias, añadir **todas** las variables no mejora la log-loss
-(la logística completa y el random forest sobreajustan). Lo que sí ayuda (18/11/2026) es una sola variable más con
-sentido: la **comunidad autónoma con target encoding** (técnica de clase I62), es decir, la proporción de provincias con
-CPD en la comunidad, aprendida **solo con el entrenamiento** de cada pliegue y con validación cruzada interna (sin
-fuga). Recoge el efecto regional (por ejemplo, las tres provincias del País Vasco tienen CPD). También se probaron la
-población al cuadrado (polinómica, I59), la frecuencia de la comunidad (frequency encoding, I61) y el winsorizing (I58):
-quedan en la tabla, sin ganar. Al elegir entre más candidatos con los mismos pliegues el resultado es algo optimista.
+**Modelo elegido: {NOMBRES_MODELO[elegido]}.** La selección usa la log-loss de las predicciones fuera de CCAA. Un
+target encoding de CCAA no puede demostrar generalización geográfica: una CCAA no vista recibe la media del
+entrenamiento. Las métricas son evidencia exploratoria con alta incertidumbre, no una tasa de éxito de nuevas
+instalaciones.
 {f"{chr(10)}![Curva ROC]({'../../' + figura}){chr(10)}{chr(10)}**Figura 1.** Curvas ROC fuera de pliegue de los modelos candidatos.{chr(10)}" if figura else ""}
-{f"{chr(10)}![prob_cpd por provincia]({'../../' + prob['figura_provincias']}){chr(10)}{chr(10)}**Figura 2.** Matriz de confusión con el umbral elegido, métricas con ese umbral y probabilidad fuera de pliegue de cada provincia (azul: tiene CPD; gris: no tiene; línea discontinua: umbral). Las barras grises a la derecha del umbral son las provincias «parecidas» a las que ya tienen CPD.{chr(10)}" if prob.get('figura_provincias') else ""}
-**Umbral elegido** (Youden): {_n(prob['umbral'], 2)}. Matriz de confusión con ese umbral:
+{f"{chr(10)}![prob_cpd por provincia]({'../../' + prob['figura_provincias']}){chr(10)}{chr(10)}**Figura 2.** Matriz de confusión con cortes externos por CCAA y probabilidad fuera de pliegue de cada provincia (azul: tiene CPD; gris: no tiene). La línea discontinua es el corte único guardado para despliegue, no el que calcula la matriz.{chr(10)}" if prob.get('figura_provincias') else ""}
+**Corte de despliegue** (Youden sobre todas las probabilidades fuera de pliegue): {_n(prob['umbral'], 2)}. Matriz de confusión con cortes externos por CCAA:
 
 | | Predice "con CPD" | Predice "sin CPD" |
 |---|---|---|

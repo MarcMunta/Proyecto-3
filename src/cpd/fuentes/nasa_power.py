@@ -29,7 +29,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from cpd.fuentes.http import RUTA_API, ErrorFuente, guardar_cache_json, json_de, leer_cache_json, registrar
+from cpd.fuentes.http import RUTA_API, ErrorFuente, en_paralelo, guardar_cache_json, json_de, leer_cache_json, registrar
 from cpd.fuentes.provincias import PROVINCIAS
 
 FUENTE: str = "NASA POWER"
@@ -38,6 +38,7 @@ URL_HORARIO: str = "https://power.larc.nasa.gov/api/temporal/hourly/point"
 URL_MENSUAL: str = "https://power.larc.nasa.gov/api/temporal/monthly/point"
 ANIO_INICIO_LARGO: int = 1981  # primer año del reanálisis MERRA-2 en POWER
 COMUNIDAD: str = "AG"
+HILOS: int = 4  # provincias pedidas a la vez (E/S de red); POWER no publica un límite, se usa uno prudente
 ZONA_HORARIA: str = "LST"  # hora local estándar
 VALOR_AUSENTE: float = -999.0
 UMBRAL_FREE_COOLING_C: float = 18.0
@@ -176,12 +177,15 @@ def clima_diario_power(anio_inicio: int = 2015, anio_fin: int | None = None) -> 
         precipitacion_mm, viento_medio_kmh, radiacion_solar_kwh_m2_dia, et0_hargreaves_mm.
     """
     anio_fin = anio_fin or dt.date.today().year
-    partes = []
-    for provincia in PROVINCIAS:
+
+    def una(provincia) -> pd.DataFrame:
         serie = _serie_provincia(provincia.codigo, provincia.lat, provincia.lon, anio_inicio, anio_fin, horario=False)
         serie = serie.rename(columns={"tiempo": "fecha"})
         serie["codigo_provincia"] = provincia.codigo
-        partes.append(serie)
+        return serie
+
+    # Las 52 provincias son independientes: se piden en paralelo con un máximo de HILOS (clase 27/11).
+    partes = en_paralelo(una, PROVINCIAS, HILOS)
     tabla = pd.concat(partes, ignore_index=True)
     limite = pd.Timestamp(dt.date.today() - dt.timedelta(days=1))
     tabla = tabla[tabla["fecha"] <= limite].copy()
@@ -250,10 +254,12 @@ def free_cooling_mensual_power(anio_inicio: int = 2015, anio_fin: int | None = N
         DataFrame: mes, codigo_provincia, horas_free_cooling, horas_con_dato, pct_horas_free_cooling.
     """
     anio_fin = anio_fin or dt.date.today().year
-    partes = []
-    for provincia in PROVINCIAS:
+
+    def una(provincia) -> pd.DataFrame:
         horario = _serie_provincia(provincia.codigo, provincia.lat, provincia.lon, anio_inicio, anio_fin, horario=True)
-        partes.append(free_cooling_de_horario(horario, provincia.codigo))
+        return free_cooling_de_horario(horario, provincia.codigo)
+
+    partes = en_paralelo(una, PROVINCIAS, HILOS)
     return tabla_free_cooling(partes)
 
 
