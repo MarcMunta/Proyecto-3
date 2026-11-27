@@ -36,6 +36,7 @@ from cpd.config import RUTA_RAIZ
 
 CARPETA_CURADO = RUTA_RAIZ / "data" / "curated"
 REGISTRO_DESCARGAS = RUTA_RAIZ / "data" / "raw" / "_registro_descargas.csv"
+RUTA_DATOS_WEB = RUTA_RAIZ / "frontend" / "public" / "data" / "datos.json"
 RUTA_ALMACEN = RUTA_RAIZ / "data" / "almacen" / "p3_cpd.duckdb"
 
 # Columnas que son códigos con ceros a la izquierda ("01", "08019"): se leen siempre como texto.
@@ -126,12 +127,13 @@ def _vistas_hechos(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def construir(ruta_almacen: Path = RUTA_ALMACEN, carpeta_curado: Path = CARPETA_CURADO,
-              registro: Path = REGISTRO_DESCARGAS) -> dict[str, int]:
+              registro: Path = REGISTRO_DESCARGAS, ruta_historial: Path | None = None) -> dict[str, int]:
     """Reconstruye el almacén DuckDB y devuelve {esquema.tabla: filas}."""
     ruta_almacen.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(prefix=".duckdb-", dir=ruta_almacen.parent) as temporal:
         tmp = Path(temporal) / "almacen.duckdb"
-        resumen = _construir(tmp, carpeta_curado, registro, ruta_almacen.parent / capas.NOMBRE_HISTORIAL)
+        resumen = _construir(tmp, carpeta_curado, registro,
+                             ruta_historial or ruta_almacen.parent / capas.NOMBRE_HISTORIAL)
         tmp.replace(ruta_almacen)
     return resumen
 
@@ -236,6 +238,9 @@ def main() -> None:
     for tabla, filas in resumen.items():
         print(f"  {tabla:<{ancho}}  {filas:>10,} filas")
     print(f"Almacén: {RUTA_ALMACEN.relative_to(RUTA_RAIZ)}")
+    # Copia de respaldo del dashboard de datos de la web (la versión publicada lleva la suya).
+    capas.escribir_json_web(capas.exportar_web(RUTA_ALMACEN), RUTA_DATOS_WEB)
+    print(f"Dashboard de datos: {RUTA_DATOS_WEB.relative_to(RUTA_RAIZ)}")
     if args.ui:
         abrir_ui()
 

@@ -55,7 +55,7 @@ CAPAS: tuple[Capa, ...] = (
          "CSV + Parquet"),
     Capa("gold", ("data/curated", "data/almacen"),
          "Lo que es útil: panel provincia-mes, provincias actual, salidas de los modelos y el almacén DuckDB "
-         "(modelo en estrella `dw` y tablas `gold` del dashboard).", "Parquet, CSV, DuckDB"),
+         "(modelo en estrella dw y tablas gold del panel de datos).", "Parquet, CSV, DuckDB"),
 )
 
 
@@ -379,6 +379,7 @@ def construir_gold(con: duckdb.DuckDBPyConnection, raiz: Path, registro: Path, c
                    count(*)                                                    AS descargas,
                    count(DISTINCT archivo)                                     AS ficheros,
                    any_value(regexp_extract(url, '^https?://([^/]+)', 1))      AS dominio,
+                   any_value(url)                                              AS url_ejemplo,
                    round(sum(coalesce(tam_kb, 0)) / 1024, 2)                   AS megabytes,
                    min(momento)                                                AS primera_descarga,
                    max(momento)                                                AS ultima_descarga
@@ -445,3 +446,86 @@ def construir_gold(con: duckdb.DuckDBPyConnection, raiz: Path, registro: Path, c
     }
     resumen["gold.kpis"] = _registrar_df(con, "kpis", pd.DataFrame([kpis]))
     return resumen
+
+
+# ------------------------------------------------------------------------------------- Exportación para la web
+
+
+def _registros(df: pd.DataFrame) -> list[dict]:
+    """Filas de un DataFrame como diccionarios JSON (fechas en ISO; NaN, NaT y NA como null)."""
+    salida = []
+    for fila in df.to_dict(orient="records"):
+        limpia = {}
+        for clave, valor in fila.items():
+            if valor is None or (not isinstance(valor, (str, bytes, list, dict)) and pd.isna(valor)):
+                limpia[clave] = None
+            elif hasattr(valor, "isoformat"):
+                limpia[clave] = valor.isoformat()
+            elif hasattr(valor, "item"):  # escalares de numpy
+                limpia[clave] = valor.item()
+            else:
+                limpia[clave] = valor
+        salida.append(limpia)
+    return salida
+
+
+def exportar_web(ruta_almacen: Path) -> dict:
+    """Lee la capa Gold y el catálogo del almacén y devuelve el JSON del panel «Datos» de la web.
+
+    Contenido: indicadores, capas, APIs (con dominio y URL de ejemplo), descargas por día, tablas con su
+    watermark, inventario de Bronze, comparación de formatos y la base de datos DuckDB por esquema y tabla.
+    Solo lee (modo lectura): no calcula nada nuevo.
+    """
+    with duckdb.connect(str(ruta_almacen), read_only=True) as con:
+        def tabla(nombre: str) -> pd.DataFrame:
+            existe = con.execute("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'gold' "
+                                 "AND table_name = ?", [nombre]).fetchall()[0][0]
+            return con.execute(f"SELECT * FROM gold.{nombre}").df() if existe else pd.DataFrame()
+
+        objetos = con.execute("""
+            SELECT table_schema AS esquema, table_name AS tabla, table_type AS tipo
+            FROM information_schema.tables
+            WHERE table_schema NOT IN ('information_schema', 'pg_catalog') AND left(table_name, 1) <> '_'
+            ORDER BY 1, 2
+        """).df()
+        filas, columnas = [], []
+        for esquema, nombre in zip(objetos["esquema"], objetos["tabla"]):
+            filas.append(int(con.execute(f'SELECT count(*) FROM "{esquema}"."{nombre}"').fetchall()[0][0]))
+            columnas.append(int(con.execute(
+                "SELECT count(*) FROM information_schema.columns WHERE table_schema = ? AND table_name = ?",
+                [esquema, nombre]).fetchall()[0][0]))
+        objetos["filas"] = filas
+        objetos["columnas"] = columnas
+        objetos["tipo"] = ["vista" if t == "VIEW" else "tabla" for t in objetos["tipo"]]
+        kpis = _registros(tabla("kpis"))
+        datos = {
+            "generado_en": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+            "kpis": kpis[0] if kpis else {},
+            "capas": _registros(tabla("capas")),
+            "apis": _registros(tabla("apis")),
+            "descargas_dia": _registros(tabla("descargas_dia")),
+            "tablas": _registros(tabla("tablas").drop(columns=["origen", "cargado_en"], errors="ignore")),
+            "watermarks": _registros(tabla("watermark")),
+            "bronze": _registros(tabla("inventario_bronze")),
+            "formatos": _registros(tabla("formatos")),
+        }
+    datos["bbdd"] = {
+        "fichero": "data/almacen/p3_cpd.duckdb",
+        "motor": f"DuckDB {duckdb.__version__}",
+        "megabytes": round(ruta_almacen.stat().st_size / 1e6, 1),
+        "objetos": _registros(objetos),
+    }
+    return datos
+
+
+def escribir_json_web(datos: dict, ruta: Path) -> Path:
+    """Escribe el JSON de la web de forma atómica (fichero temporal y renombrado)."""
+    import json
+
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    tmp = ruta.with_name(ruta.name + ".part")
+    texto = json.dumps(datos, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+    tmp.write_text(texto + "\n", encoding="utf-8")
+    tmp.replace(ruta)
+    return ruta
+

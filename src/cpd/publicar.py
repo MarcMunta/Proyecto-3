@@ -18,7 +18,7 @@ from uuid import uuid4
 import duckdb
 import pandas as pd
 
-from cpd import almacen
+from cpd import almacen, capas
 from cpd.config import RUTA_RAIZ, RUTA_RAW
 from cpd.fuentes import territorio, validacion
 
@@ -175,7 +175,9 @@ def publicar(
             raise ValueError("La instantánea carece de previsiones. Ejecuta con --reentrenar")
 
         ruta_db = preparados / "p3_cpd.duckdb"
-        tablas = almacen.construir(ruta_db, curado)
+        # El historial de watermarks es común a todas las versiones (trazabilidad entre publicaciones).
+        tablas = almacen.construir(ruta_db, curado,
+                                   ruta_historial=raiz_datos.parent / "almacen" / capas.NOMBRE_HISTORIAL)
         with duckdb.connect(str(ruta_db)) as con:
             tablas_territorio, fuentes_territorio = _cargar_territorio(con, raiz_raw)
             tablas.update(tablas_territorio)
@@ -203,6 +205,8 @@ def publicar(
         cabecera = {"schema_version": ESQUEMA, "version": version}
         (web / "provincias_simuladas.json").write_text(_json({**simulacion, **cabecera}), encoding="utf-8")
         archivo_prev.write_text(_json({**previsiones, **cabecera}), encoding="utf-8")
+        # Dashboard de datos y APIs de la web: lo lee el panel «Datos» sin calcular nada (R-21).
+        capas.escribir_json_web({**capas.exportar_web(ruta_db), **cabecera}, web / "datos.json")
 
         origen_modelos = "regenerados" if reentrenar else "importados"
         avisos = list(calidad["avisos"])

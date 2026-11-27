@@ -75,6 +75,13 @@ def test_publicacion_fallida_conserva_el_puntero_y_la_bbdd(lote, monkeypatch, tm
             "SELECT sum(demanda_ccaa_mwh) FROM dw.fact_energia_ccaa_mes WHERE mes = (SELECT max(mes) FROM dw.dim_tiempo)"
         ).fetchone()
         assert total == (190.0,)
+    # La versión web lleva el panel «Datos» del mapa, con su versión y el inventario de la base de datos.
+    panel = json.loads((rutas["raiz_web"] / "versiones" / primera["version"] / "datos.json").read_text(encoding="utf-8"))
+    assert panel["version"] == primera["version"] and panel["schema_version"] == 1
+    assert {"kpis", "apis", "capas", "watermarks"} <= set(panel)
+    assert any(o["esquema"] == "gold" for o in panel["bbdd"]["objetos"])
+    # El historial de watermarks es común a todas las versiones (fuera de la carpeta de la versión).
+    assert (rutas["raiz_datos"].parent / "almacen" / "historial_watermarks.csv").is_file()
 
     simulacion["provincias"].pop()
     with pytest.raises(ValueError, match="52 códigos"):
