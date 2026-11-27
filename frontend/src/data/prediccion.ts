@@ -3,7 +3,7 @@ import type { Estado, Municipio, ProvinciaMeta, Viabilidad } from "./types";
 export type ClaseRentabilidad = "alta" | "media" | "baja" | "no_rentable";
 
 const CLASES: readonly ClaseRentabilidad[] = ["alta", "media", "baja", "no_rentable"];
-const ESTADOS: readonly Estado[] = ["Viable", "Viable con condiciones", "No viable"];
+const ESTADOS: readonly Estado[] = ["Viable", "Viable con condiciones", "No viable", "Pendiente de verificar"];
 
 /** Una provincia tal como la pinta el mapa (formato de data/curated/predicciones_provincia.json). */
 export interface ProvinciaPrediccion {
@@ -20,6 +20,14 @@ export interface ProvinciaPrediccion {
   van_eur: number | null;
   roi: number | null;
   payback_anos: number | null;
+  /** Precio de compra de electricidad que deja el VAN en cero (€/MWh); no es un plazo. */
+  precio_equilibrio_electricidad_eur_mwh?: number | null;
+  /** Cobertura de filtros eliminatorios que se ha podido comprobar para la provincia. */
+  filtros_evaluados?: number | null;
+  filtros_totales?: number | null;
+  cobertura_filtros_pct?: number | null;
+  cobertura_score_pct?: number | null;
+  filtros_pendientes?: string[];
   capex_eur: number | null;
   opex_eur_anual: number | null;
   precio_luz_actual_eur_mwh: number | null;
@@ -88,6 +96,8 @@ export interface Prediccion {
    * "demo" = modelo sobre municipios sintéticos.
    */
   tipo: "real" | "simulacion" | "demo";
+  /** Procedencia explícita, para no confundir un fichero personalizado con una publicación. */
+  origen: "personalizado" | "publicacion_versionada" | "legado" | "demostracion";
   generado: string | null;
   /** Momento de la última actualización de los datos de entrada. */
   actualizado?: string | null;
@@ -114,12 +124,19 @@ const texto = (v: unknown): string | null => (typeof v === "string" && v.trim() 
  * de provincia válido; cualquier valor ausente o no numérico queda en null (nunca se rellena).
  * Devuelve null si no queda ninguna provincia utilizable.
  */
-export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real" | "simulacion" = "real"): Prediccion | null {
+export function normalizarReal(
+  json: unknown,
+  meta: ProvinciaMeta[],
+  tipo: "real" | "simulacion" = "real",
+  origen: Prediccion["origen"] = tipo === "real" ? "personalizado" : "legado",
+): Prediccion | null {
   // Acepta la lista sola (contrato de predicciones) o un objeto { provincias: [...], ...metadatos } (simulación).
   const cabecera = json && typeof json === "object" && !Array.isArray(json) ? (json as Record<string, unknown>) : null;
   if (cabecera) json = cabecera.provincias;
   if (!Array.isArray(json)) return null;
   const nombres = new Map(meta.map((m) => [m.codigo, m.nombre]));
+  const versionada = origen === "publicacion_versionada";
+  if (versionada && json.length !== nombres.size) return null;
   const provincias = new Map<string, ProvinciaPrediccion>();
   let generado: string | null = null;
   for (const fila of json as Record<string, unknown>[]) {
@@ -127,8 +144,14 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
     const crudo = texto(fila.codigo_provincia) ?? (typeof fila.codigo_provincia === "number" ? String(fila.codigo_provincia) : null);
     const codigo = crudo?.padStart(2, "0");
     if (!codigo || !nombres.has(codigo)) continue;
-    const clase = CLASES.includes(fila.rentabilidad_clase as ClaseRentabilidad) ? (fila.rentabilidad_clase as ClaseRentabilidad) : null;
-    const estado = ESTADOS.includes(fila.estado as Estado) ? (fila.estado as Estado) : null;
+    if (versionada && provincias.has(codigo)) return null;
+    const claseCruda = fila.rentabilidad_financiera_clase ?? fila.rentabilidad_clase;
+    const clase = CLASES.includes(claseCruda as ClaseRentabilidad) ? (claseCruda as ClaseRentabilidad) : null;
+    const estadoLeido = ESTADOS.includes(fila.estado as Estado) ? (fila.estado as Estado) : null;
+    const antiguaSinAuditoria = origen === "legado" && numero(fila.filtros_totales) === null
+      && (estadoLeido === "Viable" || estadoLeido === "Viable con condiciones");
+    const estado = antiguaSinAuditoria ? "Pendiente de verificar" : estadoLeido;
+    const motivos = Array.isArray(fila.motivos) ? fila.motivos.filter((m): m is string => typeof m === "string") : [];
     const gen = texto(fila.generado_en);
     if (gen && (!generado || gen > generado)) generado = gen;
     provincias.set(codigo, {
@@ -143,6 +166,12 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       van_eur: numero(fila.van_eur),
       roi: numero(fila.roi),
       payback_anos: numero(fila.payback_anos),
+      precio_equilibrio_electricidad_eur_mwh: numero(fila.precio_equilibrio_electricidad_eur_mwh),
+      filtros_evaluados: numero(fila.filtros_evaluados),
+      filtros_totales: numero(fila.filtros_totales),
+      cobertura_filtros_pct: numero(fila.cobertura_filtros_pct),
+      cobertura_score_pct: numero(fila.cobertura_score_pct),
+      filtros_pendientes: Array.isArray(fila.filtros_pendientes) ? fila.filtros_pendientes.filter((m): m is string => typeof m === "string") : [],
       capex_eur: numero(fila.capex_eur),
       opex_eur_anual: numero(fila.opex_eur_anual),
       precio_luz_actual_eur_mwh: numero(fila.precio_luz_actual_eur_mwh),
@@ -153,7 +182,9 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       estres_hidrico: numero(fila.estres_hidrico),
       prob_cpd: numero(fila.prob_cpd),
       cpd_existentes: numero(fila.cpd_existentes),
-      motivos: Array.isArray(fila.motivos) ? fila.motivos.filter((m): m is string => typeof m === "string") : [],
+      motivos: antiguaSinAuditoria
+        ? [...motivos.filter((m) => !m.startsWith("Cumple todos")), "La copia de respaldo carece de auditoría de filtros."]
+        : motivos,
       generado_en: gen,
       precio_luz_usado_eur_mwh: numero(fila.precio_luz_usado_eur_mwh),
       pue: numero(fila.pue),
@@ -177,9 +208,10 @@ export function normalizarReal(json: unknown, meta: ProvinciaMeta[], tipo: "real
       faltan: Array.isArray(fila.faltan) ? fila.faltan.filter((m): m is string => typeof m === "string") : [],
     });
   }
-  if (!provincias.size) return null;
+  if (!provincias.size || (versionada && provincias.size !== nombres.size)) return null;
   return {
     tipo,
+    origen,
     generado: texto(cabecera?.generado) ?? generado,
     actualizado: texto(cabecera?.actualizado) ?? generado,
     mesReferencia: texto(cabecera?.mes_referencia),
@@ -282,6 +314,7 @@ export function desdeDemo(v: Viabilidad, meta: ProvinciaMeta[]): Prediccion {
   }
   return {
     tipo: "demo",
+    origen: "demostracion",
     generado: v.generado,
     provincias,
     clasesMunicipio: new Map(v.municipios.map((m) => [m.codigo_ine, claseMun.get(m)!])),

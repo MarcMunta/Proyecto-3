@@ -8,7 +8,8 @@ import type {
   PaddingOptions,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import fuenteTrabajador from "maplibre-gl/dist/maplibre-gl-worker.mjs?raw";
+import fuenteTrabajador from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
+import codigoTrabajadorDev from "maplibre-gl/dist/maplibre-gl-worker.mjs?raw";
 import type { FeatureCollection } from "geojson";
 import { useEffect, useRef, useState } from "react";
 import type { GeoContexto, GeoProvincias, Municipio } from "../data/types";
@@ -20,9 +21,10 @@ import { IconoClase } from "./IconoClase";
 import { Leyenda } from "./Leyenda";
 import { Flecha } from "./Piezas";
 
-// Vite reempaqueta MapLibre y rompe la ruta de su web worker (y en desarrollo le inyecta su cliente).
-// Se carga el worker original, sin transformar, desde un Blob.
-maplibregl.setWorkerUrl(URL.createObjectURL(new Blob([fuenteTrabajador], { type: "text/javascript" })));
+// En producción el worker se descarga aparte. En desarrollo se evita la transformación HMR de Vite.
+maplibregl.setWorkerUrl(import.meta.env.DEV
+  ? URL.createObjectURL(new Blob([codigoTrabajadorDev], { type: "text/javascript" }))
+  : fuenteTrabajador);
 
 // Algo de océano al oeste y al sur para que el recuadro de Canarias no tape Huelva ni Cádiz.
 const ESPANA: LngLatBoundsLike = [-10.6, 34.45, 4.45, 43.85];
@@ -412,15 +414,29 @@ export function MapaEspana(props: Props) {
     if (enCache) fuente?.setData(enCache);
     else {
       fuente?.setData(VACIO);
-      fetch(`${BASE}data/municipios/${seleccion}.geojson`)
+      const control = new AbortController();
+      const limite = window.setTimeout(() => control.abort(), 10_000);
+      fetch(`${BASE}data/municipios/${seleccion}.geojson`, { signal: control.signal })
         .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
         .then((gj: FeatureCollection) => {
           cacheMunicipios.current.set(seleccion, gj);
           if (!cancelado) fuente?.setData(gj);
         })
         .catch(() => {
-          /* sin municipios: la provincia se ve igualmente */
+          // Respaldo intencionado: sin límites municipales, la provincia sigue siendo seleccionable.
+          cacheMunicipios.current.set(seleccion, VACIO);
+          if (!cancelado) fuente?.setData(VACIO);
+        })
+        .finally(() => {
+          window.clearTimeout(limite);
         });
+      const cancelarPeticion = () => control.abort();
+      return () => {
+        cancelado = true;
+        cancelarPeticion();
+        window.clearTimeout(limite);
+        mapa.off("moveend", alLlegar);
+      };
     }
     return () => {
       cancelado = true;

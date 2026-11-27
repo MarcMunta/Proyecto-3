@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import metaJson from "./data/provincias.json";
 import type { ProvinciaMeta } from "./data/types";
-import { useDatos } from "./data/useDatos";
+import { useDatos, usePrevisiones } from "./data/useDatos";
 import { demanda as pedirDemanda, mix as pedirMix, precios as pedirPrecios } from "./live/redata";
 import { tiempoCapitales } from "./live/openmeteo";
 import { usePolling } from "./live/usePolling";
 import { Ficha } from "./components/Ficha";
 import { Franja } from "./components/Franja";
-import { MapaEspana } from "./components/MapaEspana";
 import { Ranking } from "./components/Ranking";
 import { useMovimientoReducido } from "./components/useMovimientoReducido";
+
+const MapaEspana = lazy(() => import("./components/MapaEspana").then((m) => ({ default: m.MapaEspana })));
+
+const CatalogoModelos = lazy(() => import("./components/CatalogoModelos").then((m) => ({ default: m.CatalogoModelos })));
 
 const META = metaJson as ProvinciaMeta[];
 const META_POR_CODIGO = new Map(META.map((m) => [m.codigo, m]));
@@ -18,13 +21,20 @@ const CINCO_MIN = 5 * 60_000;
 interface Ruta {
   provincia: string | null;
   sitio: string | null;
+  modelos?: boolean;
 }
 
-/** #/provincia/28 o #/provincia/28/28079 (enlace directo a una provincia o municipio analizado). */
+/** Enlace al mapa, a una zona o al catálogo lateral de modelos. */
 function leerRuta(): Ruta {
-  const m = window.location.hash.match(/^#\/provincia\/(\d{2})(?:\/(\d{5}))?$/);
+  if (window.location.hash === "#/modelos") return { provincia: null, sitio: null, modelos: true };
+  const m = window.location.hash.match(/^#\/provincia\/(\d{2})(?:\/(\d{5}))?(\/modelos)?$/);
   if (!m || !META_POR_CODIGO.has(m[1]!)) return { provincia: null, sitio: null };
-  return { provincia: m[1]!, sitio: m[2] ?? null };
+  return { provincia: m[1]!, sitio: m[2] ?? null, modelos: Boolean(m[3]) };
+}
+
+function hashRuta({ provincia, sitio, modelos }: Ruta): string {
+  if (!provincia) return modelos ? "#/modelos" : "#/";
+  return `#/provincia/${provincia}${sitio ? `/${sitio}` : ""}${modelos ? "/modelos" : ""}`;
 }
 
 function useRuta(): [Ruta, (r: Ruta) => void] {
@@ -35,7 +45,7 @@ function useRuta(): [Ruta, (r: Ruta) => void] {
     return () => window.removeEventListener("hashchange", alCambiar);
   }, []);
   const ir = useCallback((r: Ruta) => {
-    const hash = r.provincia ? `#/provincia/${r.provincia}${r.sitio ? `/${r.sitio}` : ""}` : "#/";
+    const hash = hashRuta(r);
     if (window.location.hash !== hash) window.location.hash = hash;
     setRuta(r);
   }, []);
@@ -46,13 +56,15 @@ export function App() {
   const { datos, error } = useDatos();
   const reducir = useMovimientoReducido();
   const [ruta, ir] = useRuta();
+  const fichaAbierta = Boolean(ruta.provincia) && !ruta.modelos;
+  const previsiones = usePrevisiones(datos?.publicacion, fichaAbierta || ruta.modelos === true);
   const [resaltado, setResaltado] = useState<string | null>(null);
   const panel = useRef<HTMLElement>(null);
 
   const precios = usePolling(pedirPrecios, CINCO_MIN);
-  const demanda = usePolling(pedirDemanda, CINCO_MIN);
-  const mix = usePolling(pedirMix, 30 * 60_000);
-  const tiempo = usePolling(useCallback((s: AbortSignal) => tiempoCapitales(META, s), []), 10 * 60_000);
+  const demanda = usePolling(pedirDemanda, CINCO_MIN, fichaAbierta);
+  const mix = usePolling(pedirMix, 30 * 60_000, fichaAbierta);
+  const tiempo = usePolling(useCallback((s: AbortSignal) => tiempoCapitales(META, s), []), 10 * 60_000, fichaAbierta);
 
   // El sello de demostración solo aparece cuando ya se sabe que no hay predicción real.
   const demo = datos ? datos.prediccion.tipo === "demo" : false;
@@ -70,41 +82,48 @@ export function App() {
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && ruta.provincia) elegirProvincia(null);
+      if (e.key !== "Escape" || e.defaultPrevented || (e.target instanceof HTMLInputElement && e.target.type === "search")) return;
+      if (ruta.modelos) ir({ provincia: ruta.provincia, sitio: ruta.sitio });
+      else if (ruta.provincia) elegirProvincia(null);
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [ruta.provincia, elegirProvincia]);
+  }, [ruta.provincia, ruta.sitio, ruta.modelos, elegirProvincia, ir]);
 
   useEffect(() => {
-    const comportamiento = reducir ? "auto" : "smooth";
-    panel.current?.scrollTo({ top: 0, behavior: comportamiento });
-    // En el móvil el mapa y el panel van apilados: al elegir una provincia, subir al mapa para ver el zoom.
-    if (ruta.provincia && window.matchMedia("(max-width: 900px)").matches) {
-      document.querySelector(".mapa-marco")?.scrollIntoView({ block: "start", behavior: comportamiento });
+    panel.current?.scrollTo({ top: 0, behavior: "instant" });
+    if (datos && (ruta.provincia || ruta.modelos) && window.matchMedia("(max-width: 900px)").matches) {
+      panel.current?.scrollIntoView({ block: "start", behavior: reducir ? "auto" : "smooth" });
     }
     setResaltado(null);
-  }, [ruta.provincia, reducir]);
+  }, [ruta.provincia, ruta.modelos, datos, reducir]);
 
   const meta = ruta.provincia ? META_POR_CODIGO.get(ruta.provincia) : undefined;
 
+  const enlaceDetalle = hashRuta({ ...ruta, modelos: false });
+  const enlaceModelos = hashRuta({ ...ruta, modelos: true });
+
   return (
     <div className="app">
-      <Franja precios={precios} demo={demo} />
+      <Franja precios={precios} demo={demo} publicacion={datos?.publicacion ?? null}
+        enlace={ruta.modelos ? enlaceDetalle : enlaceModelos}
+        etiquetaEnlace={ruta.modelos ? (meta ? "Ficha de zona" : "Provincias") : "Modelos"} />
       <main className="escena">
         {datos ? (
-          <MapaEspana
-            geo={datos.geo}
-            contexto={datos.contexto}
-            prediccion={datos.prediccion}
-            sitios={sitios}
-            seleccion={ruta.provincia}
-            sitio={ruta.sitio}
-            resaltado={resaltado}
-            reducirMovimiento={reducir}
-            onProvincia={elegirProvincia}
-            onSitio={elegirSitio}
-          />
+          <Suspense fallback={<div className="mapa-marco mapa-espera"><p>Cargando mapa…</p></div>}>
+            <MapaEspana
+              geo={datos.geo}
+              contexto={datos.contexto}
+              prediccion={datos.prediccion}
+              sitios={sitios}
+              seleccion={ruta.provincia}
+              sitio={ruta.sitio}
+              resaltado={resaltado}
+              reducirMovimiento={reducir}
+              onProvincia={elegirProvincia}
+              onSitio={elegirSitio}
+            />
+          </Suspense>
         ) : (
           <div className="mapa-marco mapa-espera">{error ? null : <p>Cargando mapa…</p>}</div>
         )}
@@ -118,13 +137,20 @@ export function App() {
               </p>
             </div>
           )}
-          {datos && meta ? (
+          {ruta.modelos ? (
+            <Suspense fallback={<p role="status">Cargando modelos…</p>}>
+              <CatalogoModelos previsiones={previsiones.datos} prediccion={datos?.prediccion}
+                cargando={!error && previsiones.estado === "cargando"} zona={meta?.nombre} volver={enlaceDetalle} />
+            </Suspense>
+          ) : datos && meta ? (
             <Ficha
               key={meta.codigo}
               meta={meta}
               geoProps={datos.geo.features.find((f) => f.properties.codigo === meta.codigo)?.properties}
               prediccion={datos.prediccion}
-              previsiones={datos.previsiones}
+              previsiones={previsiones.datos}
+              estadoPrevisiones={previsiones.estado}
+              enlaceModelos={enlaceModelos}
               viabilidad={datos.viabilidad}
               sitio={ruta.sitio}
               onSitio={elegirSitio}

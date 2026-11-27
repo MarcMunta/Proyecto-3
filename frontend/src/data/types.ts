@@ -1,6 +1,7 @@
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 
-export type Estado = "Viable" | "Viable con condiciones" | "No viable";
+/** Estado del filtro territorial. «Pendiente de verificar» no es una aprobación. */
+export type Estado = "Viable" | "Viable con condiciones" | "No viable" | "Pendiente de verificar";
 export type EstadoMapa = Estado | "Sin datos";
 
 export const BLOQUES = [

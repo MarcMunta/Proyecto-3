@@ -101,14 +101,29 @@ export interface MedioPlazo {
   /** Reserva media prevista de los embalses del ámbito en la próxima década (%). */
   reservaDecadaPct: number | null;
   ambito: string | null;
-  /** Acierto (100 − WAPE, %) en test de la temperatura y de la reserva media de la década. */
-  aciertoTemperaturaTest: number | null;
+  /** Diagnóstico de la temperatura en el décimo año, medido en el periodo de test. */
+  maeTemperaturaFinal: number | null;
+  coberturaTemperaturaFinalPct: number | null;
   aciertoReservaDecadaTest: number | null;
+}
+
+export interface EvaluacionModelo {
+  modelo: string;
+  estado: string;
+  definicion: string | null;
+  aciertoValidacion: number | null;
+  aciertoTest: number | null;
+  metodo: { nombre: string; miembros: string[] } | null;
 }
 
 export interface Previsiones {
   generado: string | null;
-  precio: (SeriePrevista & { mediaPrevista: number | null; futuroGasAnio: number | null }) | null;
+  precio: (SeriePrevista & {
+    mediaPrevista: number | null;
+    futuroGasAnio: number | null;
+    aciertoAnualValidacion: number | null;
+    aciertoAnualTest: number | null;
+  }) | null;
   /** Por código INE de comunidad (dos dígitos). */
   demanda: Map<string, SeriePrevista & { nombre: string }>;
   demandaModelo: { modelo: string; miembros: string[]; errorValidacion: number | null; errorTest: number | null } | null;
@@ -137,7 +152,8 @@ export interface Previsiones {
   /** Energía de la red otorgada y en trámite frente a la demanda actual de cada comunidad (%), escenarios P5. */
   redOtorgada: Map<string, { pctOtorgada: number | null; pctPendiente: number | null; factor: number | null }>;
   /** Requisito de acierto por modelo. */
-  control: { modelo: string; estado: string }[];
+  control: EvaluacionModelo[];
+  escenarioDemanda: { mwOtorgados: number | null; factor: number | null; twhOtorgados: number | null } | null;
 }
 
 /** Mínimo de acierto exigido a los modelos (cpd.modelos.metricas.ACIERTO_MINIMO). */
@@ -188,6 +204,8 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
           prevision: puntosPrevision(p.prevision),
           mediaPrevista: numero(p.media_prevista),
           futuroGasAnio: numero(p.futuro_gas_anio),
+          aciertoAnualValidacion: numero(p.acierto_anual_validacion),
+          aciertoAnualTest: numero(p.acierto_anual_test),
         }
       : null;
   const d = raiz.demanda;
@@ -277,13 +295,18 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
   if (mp && anioFinal != null && mp.provincias && typeof mp.provincias === "object") {
     const t10 = (mp.temperatura ?? {}) as Record<string, unknown>;
     const r10 = (mp.reservas ?? {}) as Record<string, unknown>;
+    const diagnostico = Array.isArray(t10.diagnosticos_horizonte)
+      ? t10.diagnosticos_horizonte.find((d) => d?.particion === "test" && d.horizonte_anios === 10)
+      : null;
     for (const [codigo, f] of Object.entries(mp.provincias as Record<string, Record<string, unknown>>)) {
       if (!/^\d{2}$/.test(codigo) || !f) continue;
       medioPlazo.set(codigo, {
         anioFinal, temp10a: numero(f.temp_10a_c), tempFinal: numero(f.temp_final_c), tempInferior: numero(f.temp_final_inferior_c),
         tempSuperior: numero(f.temp_final_superior_c), pue10a: numero(f.pue_10a), pueFinal: numero(f.pue_final),
         cambioConsumoPct: numero(f.cambio_consumo_pct), reservaDecadaPct: numero(f.reserva_decada_prevista_pct), ambito: texto(f.ambito),
-        aciertoTemperaturaTest: numero(t10.acierto_test), aciertoReservaDecadaTest: numero(r10.acierto_decada_test),
+        maeTemperaturaFinal: numero(diagnostico?.mae),
+        coberturaTemperaturaFinalPct: numero(diagnostico?.cobertura_banda_10_90_pct),
+        aciertoReservaDecadaTest: numero(r10.acierto_decada_test),
       });
     }
   }
@@ -337,14 +360,43 @@ export function normalizarPrevisiones(json: unknown): Previsiones | null {
       }
     }
   }
-  const control = Array.isArray((json as Record<string, unknown>).control_acierto)
-    ? ((json as Record<string, unknown>).control_acierto as Record<string, unknown>[]).flatMap((c) =>
-        texto(c?.modelo) && texto(c?.estado) ? [{ modelo: texto(c.modelo)!, estado: texto(c.estado)! }] : [],
-      )
-    : [];
-  if (!precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size && !impacto.size && !socioeconomico && !redOtorgada.size && !empresas) return null;
+  const gasTiempo = raiz.gas_tiempo?.modelos as Record<string, Record<string, unknown>> | undefined;
+  const medioDatos = raiz.medio_plazo;
+  const prefijos: [string, Record<string, unknown> | undefined][] = [
+    ["Precio de la luz", p],
+    ["Demanda por comunidad", d],
+    ["Demanda nacional", raiz.demanda_10_anios],
+    ["Reservas de agua a 1 año", r],
+    ["Reservas de agua a 10 años", medioDatos?.reservas as Record<string, unknown> | undefined],
+    ["Temperatura por provincia a 1 año", t],
+    ["Temperatura por provincia a 10 años", medioDatos?.temperatura as Record<string, unknown> | undefined],
+    ["Renovables por comunidad", raiz.renovables],
+    ["Generación renovable", raiz.cobertura_renovable],
+    ["Atracción empresarial", em],
+    ["Gas natural", gasTiempo?.gas],
+    ["Eólica de España", gasTiempo?.eolica],
+    ["Solar de España", gasTiempo?.solar],
+    ["Hidráulica de España", gasTiempo?.hidraulica],
+  ];
+  const filasControl = (json as Record<string, unknown>).control_acierto;
+  const control = Array.isArray(filasControl) ? filasControl.flatMap((c): EvaluacionModelo[] => {
+    const modelo = texto(c?.modelo);
+    const estado = texto(c?.estado);
+    if (!modelo || !estado) return [];
+    const datos = prefijos.find(([prefijo]) => modelo.startsWith(prefijo))?.[1];
+    const nombre = texto(datos?.modelo);
+    return [{
+      modelo, estado, definicion: texto(c.definicion),
+      aciertoValidacion: numero(c.acierto_validacion), aciertoTest: numero(c.acierto_test),
+      metodo: nombre ? { nombre, miembros: miembros(datos?.miembros) } : null,
+    }];
+  }) : [];
+  const escenarioDemanda = es ? {
+    mwOtorgados: numero(es.otorgada_mw), factor: numero(es.factor_utilizacion), twhOtorgados: numero(es.otorgada_twh_anio),
+  } : null;
+  if (!control.length && !precio && !demanda.size && !reservas.size && !temperatura.size && !renovables.size && !operacion.size && !demanda10 && !medioPlazo.size && !impacto.size && !socioeconomico && !redOtorgada.size && !empresas && !escenarioDemanda) return null;
   return {
     generado: texto((json as Record<string, unknown>).generado), precio, demanda, demandaModelo, reservas, temperatura, renovables, operacion,
-    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, impacto, socioeconomico, empresas, redOtorgada, control,
+    demanda10: demanda10?.prevision.length ? demanda10 : null, medioPlazo, impacto, socioeconomico, empresas, redOtorgada, control, escenarioDemanda,
   };
 }
