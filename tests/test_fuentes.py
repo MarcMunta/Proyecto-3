@@ -7,6 +7,9 @@ provinciales de prueba son una versión simplificada guardada en el repositorio.
 from __future__ import annotations
 
 import json
+import os
+import threading
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -88,6 +91,95 @@ def test_pedir_reintenta_y_falla_con_mensaje_claro(monkeypatch):
     with pytest.raises(http.ErrorFuente, match="HTTP 503"):
         http.pedir("https://ejemplo.invalid/x", reintentos=3, etiqueta="prueba")
     assert len(llamadas) == 3
+
+
+def test_espera_backoff_es_exponencial_con_tope_y_jitter():
+    sin_azar = [http.espera_backoff(n, base=1, maximo=60, jitter=0.25, azar=lambda: 0.0) for n in (1, 2, 3, 4)]
+    assert sin_azar == [1, 2, 4, 8]  # base · 2^(n-1)
+    assert http.espera_backoff(2, base=1, maximo=60, jitter=0.25, azar=lambda: 1.0) == 2.5  # +25 % como máximo
+    assert http.espera_backoff(20, base=1, maximo=60, jitter=0.25, azar=lambda: 1.0) == 60  # nunca pasa del tope
+
+
+def test_pedir_espera_lo_que_pide_retry_after_en_un_429(monkeypatch):
+    esperas = []
+
+    class Respuesta:
+        def __init__(self, codigo, cabeceras):
+            self.status_code, self.headers, self.text = codigo, cabeceras, ""
+
+    respuestas = iter([Respuesta(429, {"Retry-After": "7"}), Respuesta(200, {})])
+    monkeypatch.setattr(http.requests.Session, "get", lambda self, url, **kw: next(respuestas))
+    monkeypatch.setattr(http.time, "sleep", esperas.append)
+    assert http.pedir("https://ejemplo.invalid/x", reintentos=2).status_code == 200
+    assert 7.0 in esperas
+
+
+def test_espera_retry_after_entiende_segundos_y_fecha_http():
+    class Respuesta:
+        def __init__(self, valor):
+            self.headers = {"Retry-After": valor} if valor is not None else {}
+
+    assert http.espera_retry_after(Respuesta("30")) == 30.0
+    assert http.espera_retry_after(Respuesta(None)) is None
+    assert http.espera_retry_after(Respuesta("Wed, 21 Oct 2015 07:28:00 GMT")) == 0.0  # fecha pasada: no esperar
+    assert http.espera_retry_after(Respuesta("basura")) is None
+
+
+def test_cache_con_ttl_caduca(tmp_path):
+    ruta = tmp_path / "c.json"
+    http.guardar_cache_json(ruta, {"a": 1})
+    assert http.leer_cache_json(ruta) == {"a": 1}  # sin TTL no caduca nunca (datos estáticos)
+    assert http.leer_cache_json(ruta, ttl_horas=1) == {"a": 1}
+    viejo = time.time() - 2 * 3600
+    os.utime(ruta, (viejo, viejo))
+    assert http.leer_cache_json(ruta, ttl_horas=1) is None  # caducada: hay que volver a pedirla
+    assert http.leer_cache_json(tmp_path / "no.json") is None
+
+
+def test_en_paralelo_mantiene_el_orden_y_usa_varios_hilos():
+    hilos = set()
+
+    def lento(x):
+        hilos.add(threading.get_ident())
+        time.sleep(0.05)
+        return x * 10
+
+    assert http.en_paralelo(lento, range(8), hilos=4) == [0, 10, 20, 30, 40, 50, 60, 70]
+    assert len(hilos) > 1
+    assert http.en_paralelo(lento, [1], hilos=4) == [10]
+
+
+def test_en_paralelo_propaga_el_error_de_un_elemento():
+    def falla(x):
+        if x == 2:
+            raise http.ErrorFuente("falla el 2")
+        return x
+
+    with pytest.raises(http.ErrorFuente, match="falla el 2"):
+        http.en_paralelo(falla, [1, 2, 3], hilos=3)
+
+
+def test_peeringdb_reutiliza_la_cache_vigente_sin_pedir(tmp_path, monkeypatch):
+    monkeypatch.setattr(peeringdb, "CARPETA", tmp_path)
+    http.guardar_cache_json(tmp_path / "fac_ES.json", [{"id": 1}])
+    monkeypatch.setattr(peeringdb, "json_de", lambda *a, **k: pytest.fail("no debía pedir a la API"))
+    assert peeringdb._descargar("https://www.peeringdb.com/api/fac", "fac") == [{"id": 1}]
+
+
+def test_actualizar_reconstruye_el_almacen_al_final_y_aisla_su_fallo(monkeypatch):
+    import cpd.almacen
+
+    acta = actualizar.Actualizacion()
+    monkeypatch.setattr(cpd.almacen, "construir", lambda: {"fuentes.a": 1, "gold.kpis": 1, "gold.apis": 3})
+    actualizar._almacen(acta)
+    assert (acta.resultados[-1].estado, acta.resultados[-1].detalle) == ("ok", "2 tablas gold")
+
+    def falla():
+        raise RuntimeError("disco lleno")
+
+    monkeypatch.setattr(cpd.almacen, "construir", falla)
+    actualizar._almacen(acta)  # no lanza: los datos ya actualizados no se pierden
+    assert acta.resultados[-1].estado == "fallo" and "disco lleno" in acta.resultados[-1].detalle
 
 
 def test_registrar_escribe_en_el_registro_con_columnas_del_proyecto(tmp_path, monkeypatch):
